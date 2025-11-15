@@ -1,24 +1,26 @@
 # Docker Setup for doco
 
-This directory contains Docker configurations for the doco graph rendering service.
+This directory contains Docker configurations for the doco document generation MCP service.
 
 ## Architecture
 
 The Docker setup uses a multi-stage approach with UV for Python package management:
 
-1. **Base Image** (`doco_base`): Ubuntu 22.04 with Python 3.11, UV, and fonts for matplotlib
+1. **Base Image** (`doco_base`): Ubuntu 22.04 with Python 3.11, UV, and dependencies for rendering
 2. **Development Image** (`doco_dev`): Includes Git, GitHub CLI, SSH for VS Code remote development
 3. **Production Image** (`doco_prod`): Minimal image with only runtime dependencies
 
-### Fonts in Base Image
+### Dependencies in Base Image
 
-The base image includes comprehensive font support for matplotlib rendering:
-- **Microsoft Core Fonts**: Arial, Times New Roman, Courier, etc.
-- **Liberation Fonts**: Open-source alternatives to Arial, Times, Courier
-- **DejaVu Fonts**: Default sans-serif, serif, and monospace fonts
-- **Font Configuration**: `fontconfig` package for font management
+The base image includes comprehensive libraries for document generation:
+- **Jinja2**: Template rendering
+- **WeasyPrint**: HTML → PDF conversion (requires pango, cairo, libffi)
+- **html2text**: HTML → Markdown conversion
+- **PyYAML**: Template and style metadata parsing
+- **Fonts**: DejaVu, Liberation, and Noto fonts for consistent rendering
+- **font-config**: Font management and fallback resolution
 
-These fonts ensure professional chart rendering with proper fallbacks for all themes.
+These ensure professional document rendering with proper styling and fallbacks.
 
 ## Prerequisites
 
@@ -34,7 +36,7 @@ cd /home/parris3142/devroot/doco
 ./docker/build-base.sh
 ```
 
-This creates the `doco_base:latest` image with Python 3.11 and UV.
+This creates the `doco_base:latest` image with Python 3.11, UV, and document rendering libraries.
 
 ### 2. Build Development Image
 
@@ -65,7 +67,7 @@ This will:
 - Start a new container named `doco_dev`
 - Mount your local `~/devroot/doco` directory to `/home/doco/devroot/doco`
 - Mount your `~/.ssh` directory (read-only) for Git authentication
-- Expose port 8010 for the web server
+- Expose port 8010 for the web server and 8011 for MCP server
 
 **Connecting to the dev container:**
 
@@ -90,7 +92,7 @@ Use the provided script for production deployment (recommended):
 
 This script automatically:
 - Creates persistent data directory at `~/doco_data`
-- Mounts data directory for persistent storage
+- Mounts data directory for persistent session storage
 - Creates doco_net Docker network
 - Exposes configurable ports (default 8010, 8011)
 
@@ -147,6 +149,8 @@ Dependencies are pre-installed during the image build. The production image is r
 ├── devroot/doco/          # Your mounted project directory
 │   ├── app/
 │   ├── docker/
+│   ├── templates/         # Template bundles
+│   ├── styles/            # Style bundles
 │   ├── pyproject.toml
 │   └── ...
 ├── .venv/                  # UV virtual environment
@@ -158,11 +162,13 @@ Dependencies are pre-installed during the image build. The production image is r
 /home/doco/
 ├── devroot/doco/
 │   ├── app/                # Application code
-│   ├── data/              # Persistent data (mounted from host)
-│   │   ├── auth/         # JWT tokens
-│   │   └── storage/      # Rendered images
-│   ├── pyproject.toml    # Project configuration
-│   └── .venv/            # UV virtual environment with installed deps
+│   ├── templates/          # Template bundles
+│   ├── styles/             # Style bundles
+│   ├── data/               # Persistent data (mounted from host)
+│   │   ├── auth/           # JWT tokens
+│   │   └── storage/        # Session data
+│   ├── pyproject.toml      # Project configuration
+│   └── .venv/              # UV virtual environment with installed deps
 ```
 
 **Note**: The `data/` directory should be mounted from the host for persistent storage.
@@ -170,7 +176,7 @@ Dependencies are pre-installed during the image build. The production image is r
 ## Data Persistence
 
 ### Development Container
-The development container mounts your entire project directory, so all data is automatically persisted on your host machine at `~/doco/data/`.
+The development container mounts your entire project directory, so all data is automatically persisted on your host machine at `~/devroot/doco/data/`.
 
 ### Production Container
 The production container uses a separate data directory (`~/doco_data/`) mounted as a volume:
@@ -179,10 +185,13 @@ The production container uses a separate data directory (`~/doco_data/`) mounted
 ```
 ~/doco_data/
 ├── auth/
-│   └── tokens.json      # JWT token-to-group mappings
+│   └── tokens.json           # JWT token-to-group mappings
 └── storage/
-    ├── metadata.json    # Image metadata
-    └── *.{png,svg,pdf}  # Rendered images
+    ├── metadata.json         # Session metadata
+    └── session_<uuid>/       # Per-session directories
+        ├── metadata.json     # Session state
+        ├── parameters.json   # Global parameters
+        └── fragments.json    # Fragment instances
 ```
 
 **Configuration:**
@@ -200,8 +209,11 @@ docker run -d \
 
 **Backup:**
 ```bash
-# Backup data
+# Backup all data
 tar -czf doco_data_backup_$(date +%Y%m%d).tar.gz ~/doco_data/
+
+# Backup only sessions
+tar -czf doco_sessions_backup_$(date +%Y%m%d).tar.gz ~/doco_data/storage/
 
 # Restore data
 tar -xzf doco_data_backup_YYYYMMDD.tar.gz -C ~/
@@ -214,6 +226,7 @@ The containers use these environment variables:
 - `VIRTUAL_ENV=/home/doco/.venv`
 - `PATH=/home/doco/.venv/bin:$PATH`
 - `DOCO_DATA_DIR` (optional): Override default data directory location
+- `DOCO_JWT_SECRET` (optional): JWT secret for authentication
 
 This ensures all Python commands use the UV-managed virtual environment.
 
@@ -245,8 +258,13 @@ If you modify dependencies in `pyproject.toml`:
 - Try: `uv pip install --verbose -e .`
 - View UV logs: `uv pip install --verbose <package>`
 
+### WeasyPrint/Rendering Errors
+- Ensure base image includes `pango`, `cairo`, `libffi` libraries
+- Verify fonts are installed: `fc-list` inside container
+- Check PDF conversion: `python -c "import weasyprint; print(weasyprint.__version__)"`
+
 ### Container Won't Start
-- Check if port 8010 is already in use: `lsof -i :8010`
+- Check if ports are in use: `lsof -i :8010` and `lsof -i :8011`
 - View container logs: `docker logs doco_dev`
 
 ## Cleaning Up
@@ -260,4 +278,14 @@ docker rm doco_dev doco_prod 2>/dev/null
 
 # Remove images
 docker rmi doco_prod:latest doco_dev:latest doco_base:latest
+
+# Remove network
+docker network rm doco_net 2>/dev/null
 ```
+
+## See Also
+
+- [PROJECT_SPEC.md](../PROJECT_SPEC.md) — Technology stack and architecture
+- [DATA_PERSISTENCE.md](DATA_PERSISTENCE.md) — Session storage and recovery
+- [DOCUMENT_GENERATION.md](DOCUMENT_GENERATION.md) — Using the document API
+

@@ -1,16 +1,16 @@
-# doco - Graph Rendering Service
+# doco - Document Generation MCP Service
 
-doco delivers programmable chart rendering over both HTTP and the Model Context Protocol (MCP). The service combines a FastAPI REST interface (complete with generated OpenAPI documentation) and a Streamable HTTP MCP server backed by matplotlib, reusable templates, and theme customization.
+doco delivers a stateful, discoverable document generation API exposed to agentic LLM clients via the Model Context Protocol (MCP). The service combines a FastAPI web interface and a Streamable HTTP MCP server backed by Pydantic schemas, Jinja2 templating, reusable styles, and multi-format rendering (HTML, PDF, Markdown).
 
 ## Features
 
-- Multiple chart types: line, scatter, bar, and multi-dataset layouts
-- Dual interface: REST API on port 8010 and MCP Streamable HTTP endpoint on port 8011
-- Extensible rendering engine with template, theme, and style registries
-- Optional JWT authentication shared between web and MCP transports
-- Flexible output targets: PNG, JPG, SVG, PDF, and disk-backed proxy mode
-- Advanced controls for axes, ticks, annotations, transparency, and styling
-- Structured session logging with per-request correlation
+- **Template-driven document generation**: Type-safe parameters, flexible Jinja2 rendering, modular fragment assembly
+- **Multi-format output**: HTML (canonical), PDF (WeasyPrint), Markdown (html2text)
+- **Dual interface**: REST API on port 8010 and MCP Streamable HTTP endpoint on port 8011
+- **Stateful sessions**: Persistent across restarts; supports iterative fragment assembly and re-rendering
+- **Reusable styles**: Decoupled CSS bundles applied uniformly across output formats
+- **Optional JWT authentication**: Shared between web and MCP transports
+- **Structured session logging**: Per-request correlation and detailed diagnostics
 
 ## Quick Start
 
@@ -24,8 +24,8 @@ cd doco
 # Install dependencies with uv
 uv sync
 
-# Or install the core packages manually
-uv pip install matplotlib fastapi uvicorn httpx mcp pydantic
+# Or install core packages manually
+uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text pyyaml
 ```
 
 ### Running the Web Server
@@ -67,24 +67,48 @@ See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the full JWT configurat
 ### REST API (FastAPI)
 
 ```bash
-curl -X POST http://localhost:8010/render \
+# Create a document session
+curl -X POST http://localhost:8010/session \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "title": "Sales Data",
-    "x": [1, 2, 3, 4, 5],
-    "y1": [10, 25, 18, 30, 42],
-    "xlabel": "Month",
-    "ylabel": "Sales",
-    "type": "line",
-    "theme": "dark",
-    "return_base64": false
-  }' -o chart.png
+  -d '{"template_id": "basic_report"}'
+
+# Set global parameters
+curl -X POST http://localhost:8010/session/{session_id}/parameters \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"title": "Q4 Report", "author": "Data Team"}'
+
+# Add fragments
+curl -X POST http://localhost:8010/session/{session_id}/fragment \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"fragment_id": "paragraph", "parameters": {"text": "Introduction..."}}'
+
+# Render document
+curl -X GET "http://localhost:8010/session/{session_id}/render?format=pdf&style_id=default" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -o document.pdf
 ```
 
 ### MCP Server
 
-Use any MCP-compatible client (including n8n's MCP Client Tool) to call the `render_graph` tool exposed at `http://localhost:8011/mcp/`. Sample event payloads and workflows are documented in [docs/README_N8N_MCP.md](docs/README_N8N_MCP.md).
+Use any MCP-compatible client to call document generation tools:
+
+- `list_templates` — discover available templates
+- `get_template_details` — fetch template metadata and parameter schemas
+- `list_template_fragments` — list available fragments within a template
+- `get_fragment_details` — retrieve fragment parameter schema
+- `list_styles` — discover available rendering styles
+- `create_document_session` — start a new document session
+- `set_global_parameters` — configure session-wide parameters
+- `add_fragment` — insert a fragment with parameters
+- `remove_fragment` — delete a fragment instance
+- `list_session_fragments` — inspect ordered fragments in a session
+- `abort_document_session` — discard session and cleanup storage
+- `get_document` — render session in requested format (html, pdf, md)
+
+See [docs/DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md) for detailed workflow examples.
 
 ## Configuration
 
@@ -108,21 +132,22 @@ doco/
 │   ├── main_mcp.py          # MCP server entry point
 │   ├── main_web.py          # Web server entry point
 │   ├── mcp_server.py        # MCP tool wiring
-│   ├── rendering/           # Rendering engine and helpers
-│   ├── sessions/            # Session manager and persistence utilities
+│   ├── rendering/           # Rendering engine (HTML → PDF/Markdown)
+│   ├── sessions/            # Session manager and persistence
 │   ├── storage/             # File-system storage backends
-│   ├── styles/              # Matplotlib style registry
-│   ├── templates/           # Graph template registry
-│   ├── themes/              # Theme definitions
-│   ├── validation/          # Pydantic models and validators
+│   ├── styles/              # Style registry (CSS bundles)
+│   ├── templates/           # Template registry (YAML + Jinja2)
+│   ├── validation/          # Pydantic schemas and validators
 │   └── web_server.py        # FastAPI application factory
 ├── data/
 │   ├── auth/                # Default token storage
-│   └── storage/             # Proxy-mode image storage
-├── docker/                  # Container build/run scripts and Dockerfiles
+│   └── storage/             # Session and document storage
+├── docker/                  # Container build/run scripts
 ├── docs/                    # Documentation suite
 ├── scripts/                 # Utility scripts (token/storage managers)
-├── test/                    # Pytest suites (web, MCP, auth, validation, storage)
+├── styles/                  # Static style bundles (CSS)
+├── templates/               # Static template bundles (YAML + Jinja2)
+├── test/                    # Pytest suites
 ├── pyproject.toml           # Dependency and tool configuration
 ├── requirements.txt         # Minimal dependency pin list
 └── README.md                # This file
@@ -132,21 +157,21 @@ doco/
 
 📚 **[Documentation Index](docs/INDEX.md)** — master list of all guides and references.
 
-- Core guides: [MCP_README](docs/MCP_README.md), [PROXY_MODE](docs/PROXY_MODE.md), [DATA_PERSISTENCE](docs/DATA_PERSISTENCE.md)
-- Authentication: [AUTHENTICATION](docs/AUTHENTICATION.md)
-- Infrastructure: [DOCKER](docs/DOCKER.md), [SCRIPTS](docs/SCRIPTS.md), [VSCODE_LAUNCH_CONFIGURATIONS](docs/VSCODE_LAUNCH_CONFIGURATIONS.md)
-- Rendering internals: [RENDER](docs/RENDER.md), [STORAGE](docs/STORAGE.md), [THEMES](docs/THEMES.md), [LOGGER](docs/LOGGER.md)
-- Testing playbooks: [TEST_MCP](docs/TEST_MCP.md), [TEST_WEB](docs/TEST_WEB.md), [TEST_AUTH](docs/TEST_AUTH.md), [TEST_COVERAGE_MULTI_DATASET](docs/TEST_COVERAGE_MULTI_DATASET.md)
-- n8n integration: [README_N8N_MCP](docs/README_N8N_MCP.md), [N8N_MCP_SETUP](docs/N8N_MCP_SETUP.md), [N8N_TROUBLESHOOTING](docs/N8N_TROUBLESHOOTING.md)
+- **Core guides**: [DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md), [DATA_PERSISTENCE.md](docs/DATA_PERSISTENCE.md)
+- **Authentication**: [AUTHENTICATION.md](docs/AUTHENTICATION.md)
+- **Infrastructure**: [DOCKER.md](docs/DOCKER.md)
+- **n8n integration**: [README_N8N_MCP.md](docs/README_N8N_MCP.md), [N8N_MCP_SETUP.md](docs/N8N_MCP_SETUP.md), [N8N_TROUBLESHOOTING.md](docs/N8N_TROUBLESHOOTING.md)
 
 ## Architecture Overview
 
-- **FastAPI Web Server** (`app/web_server.py`): Serves REST endpoints, health checks, and proxy downloads
-- **MCP Server** (`app/mcp_server.py`): Provides the `render_graph` tool over Streamable HTTP
-- **Rendering Engine** (`app/rendering/engine.py`): Coordinates matplotlib plotting, templates, styles, and themes
-- **Session & Storage Layers** (`app/sessions/`, `app/storage/`): Manage request state and persisted artifacts
-- **Validation Layer** (`app/validation/`): Pydantic models and cross-field validators enforcing graph constraints
-- **Auth & Logging** (`app/auth/`, `app/logger/`): Shared JWT handling and structured logging utilities
+- **FastAPI Web Server** (`app/web_server.py`): REST endpoints for session lifecycle and rendering
+- **MCP Server** (`app/mcp_server.py`): Document tools over Streamable HTTP
+- **Template Registry** (`app/templates/`): YAML metadata + Jinja2 templates
+- **Style Registry** (`app/styles/`): CSS bundles decoupled from templates
+- **Rendering Engine** (`app/rendering/engine.py`): HTML generation → PDF/Markdown conversion
+- **Session Manager** (`app/sessions/`): Lifecycle, fragment assembly, persistence
+- **Validation Layer** (`app/validation/`): Pydantic schemas enforcing document constraints
+- **Auth & Logging** (`app/auth/`, `app/logger/`): Shared JWT and structured logging
 
 ## Development
 
@@ -154,16 +179,20 @@ doco/
 # Run full test suite
 uv run pytest
 
-# Run only MCP tests
+# Run only style tests
+uv run pytest test/styles
+
+# Run MCP tests
 uv run pytest test/mcp
 
 # Run web-layer tests
 uv run pytest test/web
 ```
 
-Launch configurations for VS Code debugging the web and MCP servers are provided in `.vscode/launch.json`.
+Launch configurations for VS Code debugging are provided in `.vscode/launch.json`.
 
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
 
