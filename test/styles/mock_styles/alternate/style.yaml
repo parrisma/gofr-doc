@@ -1,0 +1,4 @@
+style_id: alternate
+name: Alternate Mock Style
+description: Secondary style used for registry tests
+version: "1.0.0"

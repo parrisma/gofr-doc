@@ -1,0 +1,42 @@
+FROM doco_base:latest
+
+# Install Git, GitHub CLI, and SSH daemon
+RUN apt-get update && apt-get install -y git gh openssh-server && rm -rf /var/lib/apt/lists/*
+
+# Set default UID and GID (can be overridden at build time)
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+# Add Unix group 'doco' with configurable GID
+RUN groupadd --system --gid ${USER_GID} doco
+
+# Add user 'doco' with configurable UID and assign to group 'doco'
+RUN useradd --system --uid ${USER_UID} --gid ${USER_GID} --home-dir /home/doco --create-home doco
+
+# Create project directory and data directory, set ownership to doco
+RUN mkdir -p /home/doco/devroot/doco /home/doco/devroot/doco/data && \
+    chown -R doco:doco /home/doco/devroot
+
+# Copy entrypoint script as root before switching users
+COPY docker/entrypoint-dev.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Switch to doco user
+USER doco
+WORKDIR /home/doco/devroot/doco
+
+# Configure SSH for user doco only (no exposed port, uses ~/.ssh)
+RUN mkdir -p /home/doco/.ssh && chmod 700 /home/doco/.ssh
+
+# Create a UV virtual environment for development in the project directory
+RUN uv venv /home/doco/devroot/doco/.venv --python=python3.11
+
+# Set environment variables to use the project venv
+ENV VIRTUAL_ENV=/home/doco/devroot/doco/.venv
+ENV PATH="/home/doco/devroot/doco/.venv/bin:$PATH"
+
+# Use entrypoint to handle initialization
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Keep container running with infinite wait loop
+CMD ["tail", "-f", "/dev/null"]

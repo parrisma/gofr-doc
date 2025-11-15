@@ -1,0 +1,36 @@
+FROM doco_base:latest
+
+# Add Unix group 'doco' with auto-allocated GID
+RUN groupadd --system doco
+
+# Add user 'doco' with auto-allocated UID and assign to group 'doco'
+RUN useradd --system --gid doco --home-dir /home/doco --create-home doco
+
+# Create application directory
+RUN mkdir -p /home/doco/app
+
+# Copy project files
+COPY --chown=doco:doco pyproject.toml /home/doco/
+COPY --chown=doco:doco app/ /home/doco/app/
+
+# Switch to doco user
+USER doco
+WORKDIR /home/doco
+
+# Create a UV virtual environment for production
+RUN uv venv /home/doco/.venv --python=python3.11
+
+# Set environment variables to use the venv
+ENV VIRTUAL_ENV=/home/doco/.venv
+ENV PATH="/home/doco/.venv/bin:$PATH"
+
+# Install dependencies using UV and pyproject.toml
+RUN uv pip install -e .
+
+# Expose ports
+# 8010: HTTP REST API
+# 8011: MCP SSE Server
+EXPOSE 8010 8011
+
+# Default command to run the MCP server
+CMD ["python", "-m", "app.main_mcp"]

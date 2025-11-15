@@ -1,0 +1,155 @@
+{
+  "name": "N8N-MCP-Integration-Test1",
+  "nodes": [
+    {
+      "parameters": {
+        "endpointUrl": "http://doco_dev:8011/mcp/",
+        "authentication": "bearerAuth",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        576,
+        128
+      ],
+      "id": "8b28a66e-71d6-4d6b-ba15-517597886cef",
+  "name": "MCP DOCO Client",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "HPQ2zwMdv97fW86U",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        384,
+        128
+      ],
+      "id": "d95dd561-92bf-4b54-8d35-ac1b3bc16762",
+      "name": "OpenRouter LLM 1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "z5Yf2d9WMgwsgWlt",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -80
+      ],
+      "id": "3da99fd5-1901-48b7-8274-f715bfdb5de8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Interrogate the attached mcp doco server and generate a random strict json message with just the parameters to render a graph with the doco mcp server in a later stage.\n\nYour response must be pure and strict json only, and conform to parameters supported by doco mcp\n\nNote X&Y data sets must be of the same dimension and should be between 30 and 100 points. Avoid straight line data sets",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "274006c3-6f50-4976-8db7-ea84ad5adf60",
+      "name": "AI Gen Graph"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Use this json {{ $json.output }} call the mcp server doco, you must request \"proxy\" so only a GUID reference is returned.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        752,
+        -80
+      ],
+      "id": "2ef00911-255b-4c86-9176-fc4668c07d0e",
+      "name": "AI Render Graph"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+  "MCP DOCO Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Gen Graph",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Render Graph",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter LLM 1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Gen Graph",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Render Graph",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "AI Gen Graph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Gen Graph": {
+      "main": [
+        [
+          {
+            "node": "AI Render Graph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "21556ee1-303f-4fc5-9373-849a8ace2490",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c69692e294a67946f56f839d60e4b88772ce104641c1bd20afcbcd761576412f"
+  },
+  "id": "CyTlGzA2XbP03GHO",
+  "tags": []
+}

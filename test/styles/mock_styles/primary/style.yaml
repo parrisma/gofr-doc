@@ -1,0 +1,4 @@
+style_id: primary
+name: Primary Mock Style
+description: Primary style used for registry tests
+version: "1.0.0"
