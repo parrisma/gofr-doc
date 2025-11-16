@@ -4,10 +4,18 @@ import sys
 import asyncio
 from app.auth import AuthService
 from app.logger import Logger, session_logger
+from app.startup import validate_data_directory_structure
 
 logger: Logger = session_logger
 
 if __name__ == "__main__":
+    # Validate data directory structure at startup
+    try:
+        validate_data_directory_structure(logger)
+    except RuntimeError as e:
+        logger.error("FATAL: Data directory validation failed", error=str(e))
+        sys.exit(1)
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="doco MCP Server - Document rendering via Model Context Protocol"
@@ -21,8 +29,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=8011,
-        help="Port number to listen on (default: 8011)",
+        default=int(os.environ.get("DOCO_MCP_PORT", "8011")),
+        help="Port number to listen on (default: 8011, or DOCO_MCP_PORT env var)",
     )
     parser.add_argument(
         "--jwt-secret",
@@ -41,16 +49,25 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable authentication (WARNING: insecure, for development only)",
     )
+    parser.add_argument(
+        "--templates-dir",
+        type=str,
+        default=None,
+        help="Path to templates directory (default: app/templates)",
+    )
+    parser.add_argument(
+        "--styles-dir",
+        type=str,
+        default=None,
+        help="Path to styles directory (default: app/styles)",
+    )
     args = parser.parse_args()
 
     # Create logger for startup messages
     startup_logger: Logger = session_logger
 
     # Validate JWT secret if authentication is enabled
-    jwt_secret = (
-        args.jwt_secret
-        or os.environ.get("DOCO_JWT_SECRET")
-    )
+    jwt_secret = args.jwt_secret or os.environ.get("DOCO_JWT_SECRET")
     if not args.no_auth and not jwt_secret:
         startup_logger.error(
             "FATAL: Authentication enabled but no JWT secret provided. Set DOCO_JWT_SECRET environment variable or use --jwt-secret flag, or use --no-auth to disable authentication"
@@ -69,6 +86,8 @@ if __name__ == "__main__":
     import app.mcp_server as mcp_server_module
 
     mcp_server_module.auth_service = auth_service
+    mcp_server_module.templates_dir_override = args.templates_dir
+    mcp_server_module.styles_dir_override = args.styles_dir
     from app.mcp_server import main
 
     try:

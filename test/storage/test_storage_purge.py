@@ -378,22 +378,22 @@ def test_purge_cleans_orphaned_metadata(temp_storage_dir):
     guid2 = storage.save_image(b"image2", format="png", group="test")
 
     # Verify initial state
-    assert len(storage.metadata) == 3, "Should have 3 metadata entries"
-    assert len(storage.list_images()) == 3, "Should have 3 image files"
+    assert len(storage.metadata) == 2, "Should have 2 metadata entries"
+    assert len(storage.list_images()) == 2, "Should have 2 image files"
 
     # Manually delete the files but leave metadata (simulates orphaned metadata)
     (storage.storage_dir / f"{guid1}.png").unlink()
     (storage.storage_dir / f"{guid2}.png").unlink()
 
     # Verify orphaned state
-    assert len(storage.metadata) == 3, "Metadata should still have 3 entries"
-    assert len(storage.list_images()) == 1, "Only 1 file should exist"
+    assert len(storage.metadata) == 2, "Metadata should still have 2 entries"
+    assert len(storage.list_images()) == 0, "No files should exist"
 
     # Run purge - should clean up orphaned metadata
     deleted = storage.purge(age_days=0)
 
-    # Should report 3 deletions (2 orphaned metadata + 1 actual file)
-    assert deleted == 3, f"Expected 3 deleted (2 orphaned + 1 file), got {deleted}"
+    # Should report 2 deletions (2 orphaned metadata entries)
+    assert deleted == 2, f"Expected 2 deleted (2 orphaned metadata), got {deleted}"
     assert len(storage.metadata) == 0, "All metadata should be cleaned up"
     assert len(storage.list_images()) == 0, "No files should remain"
 

@@ -1,0 +1,154 @@
+/* BizLight Theme - Professional business light theme with clean, corporate styling */
+
+:root {
+  /* Background and Text Colors */
+  --doco-bg: #FFFFFF;
+  --doco-text: #222222;
+  --doco-grid: #D0D4D9;
+  --doco-default: #2F6DB2;
+  --doco-fragment-bg: #F5F7FA;
+  
+  /* Theme Color Palette */
+  --doco-blue: #2F6DB2;
+  --doco-orange: #C97A1E;
+  --doco-green: #4BAA7B;
+  --doco-red: #D35C56;
+  --doco-purple: #7E6BB3;
+  --doco-brown: #B98A68;
+  --doco-pink: #D78A9C;
+  --doco-gray: #5F6B7A;
+  
+  /* Font Settings */
+  --doco-font-family: "DejaVu Sans", Arial, sans-serif;
+  --doco-font-size: 10px;
+  --doco-font-size-lg: 12px;
+}
+
+body {
+  background-color: var(--doco-bg);
+  color: var(--doco-text);
+  font-family: var(--doco-font-family);
+  font-size: var(--doco-font-size);
+}
+
+a {
+  color: var(--doco-blue);
+}
+
+a:hover {
+  color: var(--doco-orange);
+}
+
+.grid,
+.border {
+  border-color: var(--doco-grid);
+}
+
+.accent {
+  color: var(--doco-default);
+}
+
+.section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--doco-grid);
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Fragment Styles */
+.fragment {
+  border: 1px solid var(--doco-grid);
+  border-radius: 4px;
+  padding: 16px;
+  margin: 12px 0;
+  background-color: var(--doco-fragment-bg);
+}
+
+.header {
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0 0 8px 0;
+  font-size: 1.2em;
+}
+
+.metadata {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9em;
+  color: var(--doco-gray);
+}
+
+.content {
+  margin-top: 12px;
+}
+
+.source {
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.source a {
+  color: var(--doco-blue);
+  text-decoration: none;
+}
+
+.source a:hover {
+  text-decoration: underline;
+}
+
+.impact {
+  margin-top: 8px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.badge.impact-high {
+  background-color: #F8D7DA;
+  color: #B02A37;
+}
+
+.badge.impact-medium {
+  background-color: #FCE4CE;
+  color: #A86A25;
+}
+
+.badge.impact-low {
+  background-color: #D4EDDA;
+  color: #2B6B44;
+}
+
+.badge.impact-1,
+.badge.impact-2,
+.badge.impact-3 {
+  background-color: #D4EDDA;
+  color: #2B6B44;
+}
+
+.badge.impact-4,
+.badge.impact-5,
+.badge.impact-6,
+.badge.impact-7 {
+  background-color: #FCE4CE;
+  color: #A86A25;
+}
+
+.badge.impact-8,
+.badge.impact-9,
+.badge.impact-10 {
+  background-color: #F8D7DA;
+  color: #B02A37;
+}

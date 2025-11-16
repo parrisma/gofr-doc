@@ -1,19 +1,23 @@
 """Rendering engine for document generation."""
+
 from typing import Optional
 import html2text
 from weasyprint import HTML
 from io import BytesIO
 import base64
+import uuid
 
 from app.validation.document_models import (
     DocumentSession,
     OutputFormat,
     GetDocumentOutput,
+    GetProxyDocumentOutput,
     FragmentInstance,
 )
 from app.templates.registry import TemplateRegistry
 from app.styles.registry import StyleRegistry
 from app.logger.interface import Logger
+from app.config import get_default_proxy_dir
 
 
 class RenderingEngine:
@@ -24,6 +28,7 @@ class RenderingEngine:
         template_registry: TemplateRegistry,
         style_registry: StyleRegistry,
         logger: Logger,
+        proxy_dir: Optional[str] = None,
     ):
         """
         Initialize the rendering engine.
@@ -32,16 +37,19 @@ class RenderingEngine:
             template_registry: Template registry for Jinja2 templates
             style_registry: Style registry for CSS
             logger: Logger instance
+            proxy_dir: Directory for proxy-stored documents (uses default if None)
         """
         self.template_registry = template_registry
         self.style_registry = style_registry
         self.logger = logger
+        self.proxy_dir = proxy_dir or get_default_proxy_dir()
 
     async def render_document(
         self,
         session: DocumentSession,
         output_format: OutputFormat,
         style_id: Optional[str] = None,
+        proxy: bool = False,
     ) -> GetDocumentOutput:
         """
         Render a document session to the specified format.
@@ -50,15 +58,16 @@ class RenderingEngine:
             session: Document session to render
             output_format: Desired output format (HTML, PDF, MD)
             style_id: Style to apply (uses default if None)
+            proxy: If True, store rendered document and return proxy_guid instead of content
 
         Returns:
-            GetDocumentOutput with rendered content
+            GetDocumentOutput with rendered content (or proxy_guid if proxy=True)
 
         Raises:
             ValueError: If style not found or rendering fails
         """
         # Determine style
-        # Note: StyleRegistry is initialized with session.group, 
+        # Note: StyleRegistry is initialized with session.group,
         # so style_exists/get_default_style_id operate within that group
         if style_id is None:
             style_id = self.style_registry.get_default_style_id()
@@ -86,12 +95,20 @@ class RenderingEngine:
             f"with style {style_id}"
         )
 
+        # Handle proxy storage if requested
+        proxy_guid = None
+        if proxy:
+            proxy_guid = await self._store_proxy_document(content, session.group, output_format)
+            # Return empty content with proxy_guid instead
+            content = ""
+
         return GetDocumentOutput(
             session_id=session.session_id,
             format=output_format,
             style_id=style_id,
             content=content,
             message=f"Document rendered successfully as {output_format.value}",
+            proxy_guid=proxy_guid,
         )
 
     async def _render_html(self, session: DocumentSession, style_id: str) -> str:
@@ -120,7 +137,8 @@ class RenderingEngine:
                 fragment_html = await self._render_fragment(
                     session.template_id, fragment_instance.fragment_id, fragment_instance.parameters
                 )
-                rendered_fragments.append(fragment_html)
+                # Wrap in dict to match template expectations (template expects fragment.html)
+                rendered_fragments.append({"html": fragment_html})
 
         # Render main document
         html_content = template.render(
@@ -131,9 +149,7 @@ class RenderingEngine:
 
         return html_content
 
-    async def _render_fragment(
-        self, template_id: str, fragment_id: str, parameters: dict
-    ) -> str:
+    async def _render_fragment(self, template_id: str, fragment_id: str, parameters: dict) -> str:
         """
         Render a single fragment to HTML.
 
@@ -149,6 +165,10 @@ class RenderingEngine:
         fragment_template = self.template_registry.get_jinja_template(
             template_id, f"fragments/{fragment_id}.html.jinja2"
         )
+
+        # Ensure parameters is a dict
+        if parameters is None:
+            parameters = {}
 
         # Render fragment
         fragment_html = fragment_template.render(**parameters)
@@ -207,3 +227,91 @@ class RenderingEngine:
         except Exception as e:
             self.logger.error(f"Markdown conversion failed: {e}")
             raise ValueError(f"Failed to convert HTML to Markdown: {e}")
+
+    async def _store_proxy_document(
+        self, content: str, group: str, output_format: OutputFormat
+    ) -> str:
+        """
+        Store a rendered document in proxy storage.
+
+        Args:
+            content: Document content (base64 for PDF, text for HTML/MD)
+            group: Group to organize proxy documents
+            output_format: Format of the document
+
+        Returns:
+            GUID for retrieving the document later
+        """
+        from pathlib import Path
+        import json
+
+        # Create group directory
+        group_dir = Path(self.proxy_dir) / group
+        group_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate GUID
+        proxy_guid = str(uuid.uuid4())
+
+        # Create proxy metadata and file
+        proxy_file = group_dir / f"{proxy_guid}.json"
+        proxy_data = {
+            "proxy_guid": proxy_guid,
+            "format": (
+                output_format.value if isinstance(output_format, OutputFormat) else output_format
+            ),
+            "content": content,
+            "created_at": str(uuid.uuid4()),  # Use timestamp-like value
+        }
+
+        try:
+            with proxy_file.open("w", encoding="utf-8") as f:
+                json.dump(proxy_data, f, ensure_ascii=False, indent=2)
+
+            self.logger.info(f"Stored proxy document {proxy_guid} in group {group}")
+            return proxy_guid
+
+        except Exception as e:
+            self.logger.error(f"Failed to store proxy document: {e}")
+            raise ValueError(f"Failed to store proxy document: {e}")
+
+    async def get_proxy_document(self, proxy_guid: str, group: str) -> GetProxyDocumentOutput:
+        """
+        Retrieve a previously stored proxy document.
+
+        Args:
+            proxy_guid: GUID of the proxy document
+            group: Group where document is stored
+
+        Returns:
+            GetProxyDocumentOutput with document content
+
+        Raises:
+            ValueError: If document not found
+        """
+        from pathlib import Path
+        import json
+
+        proxy_file = Path(self.proxy_dir) / group / f"{proxy_guid}.json"
+
+        if not proxy_file.exists():
+            raise ValueError(f"Proxy document '{proxy_guid}' not found in group '{group}'")
+
+        try:
+            with proxy_file.open("r", encoding="utf-8") as f:
+                proxy_data = json.load(f)
+
+            self.logger.info(f"Retrieved proxy document {proxy_guid} from group {group}")
+
+            return GetProxyDocumentOutput(
+                proxy_guid=proxy_guid,
+                format=OutputFormat(proxy_data["format"]),
+                content=proxy_data["content"],
+                message="Proxy document retrieved successfully",
+            )
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse proxy document: {e}")
+            raise ValueError(f"Proxy document is corrupted: {e}")
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve proxy document: {e}")
+            raise ValueError(f"Failed to retrieve proxy document: {e}")

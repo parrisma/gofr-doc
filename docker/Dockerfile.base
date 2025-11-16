@@ -28,6 +28,13 @@ RUN apt-get update && apt-get install -y \
   curl \
   jq \
   iputils-ping \
+  libpango-1.0-0 \
+  libpango1.0-dev \
+  libpangoft2-1.0-0 \
+  libcairo2 \
+  libcairo2-dev \
+  libgdk-pixbuf2.0-0 \
+  libgdk-pixbuf2.0-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # Pre-accept Microsoft fonts EULA

@@ -58,6 +58,11 @@ class Config:
         return cls.get_data_dir() / "sessions"
 
     @classmethod
+    def get_proxy_dir(cls) -> Path:
+        """Get the directory for proxy-stored rendered documents."""
+        return cls.get_data_dir() / "storage"
+
+    @classmethod
     def get_auth_dir(cls) -> Path:
         """
         Get the directory for authentication data
@@ -115,3 +120,8 @@ def get_default_sessions_dir() -> str:
     """Get default sessions directory as string."""
 
     return str(Config.get_sessions_dir())
+
+
+def get_default_proxy_dir() -> str:
+    """Get default proxy directory as string."""
+    return str(Config.get_proxy_dir())

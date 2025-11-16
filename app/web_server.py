@@ -1,32 +1,37 @@
-"""Doco Web Server - Document rendering REST API."""
-from fastapi import FastAPI, HTTPException, Depends, Query
+"""Doco Web Server - REST API for document discovery and rendering.
+
+Minimal web server that exposes:
+- Discovery endpoints (templates, fragments, styles metadata)
+- get_document endpoint (render pre-built sessions or proxy retrieval)
+
+Does NOT implement session lifecycle - use MCP server for session workflows.
+Authentication via X-Auth-Token header (group:token format).
+"""
+
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import JSONResponse, Response
 from app.rendering.engine import RenderingEngine
 from app.templates.registry import TemplateRegistry
 from app.fragments.registry import FragmentRegistry
 from app.styles.registry import StyleRegistry
-from app.validation.document_models import DocumentSession, OutputFormat
-from app.validation import Validator
-from app.storage.file_storage import FileStorage
-from app.auth import TokenInfo, verify_token, optional_verify_token, init_auth_service
+from app.sessions import SessionManager, SessionStore
+from app.validation.document_models import OutputFormat
 from app.logger import Logger, session_logger
-from app.config import Config
+from app.config import get_default_sessions_dir
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pathlib import Path
-import uuid
 
 
 class DocoWebServer:
-    """FastAPI web server for document rendering with group support."""
+    """FastAPI web server for document discovery and rendering only."""
 
     def __init__(
         self,
         templates_dir: Optional[str] = None,
         fragments_dir: Optional[str] = None,
         styles_dir: Optional[str] = None,
-        jwt_secret: Optional[str] = None,
-        token_store_path: Optional[str] = None,
+        styles_group: str = "public",
         require_auth: bool = True,
     ):
         """
@@ -36,82 +41,142 @@ class DocoWebServer:
             templates_dir: Templates directory path
             fragments_dir: Fragments directory path
             styles_dir: Styles directory path
-            jwt_secret: JWT secret for authentication
-            token_store_path: Path to token store file
-            require_auth: Whether to require authentication
+            styles_group: Default styles group
+            require_auth: Whether to require authentication via X-Auth-Token header
+
+        Endpoints exposed:
+            GET /ping - Health check
+            GET /templates - List templates
+            GET /templates/{id} - Template details
+            GET /templates/{id}/fragments - Template fragments list
+            GET /fragments/{id} - Fragment details
+            GET /styles - List styles
+            POST /render/{session_id} - Render finalized session or proxy document
         """
-        self.app = FastAPI(
-            title="doco",
-            description="Document rendering service with template and fragment support"
-        )
+        self.app = FastAPI(title="doco", description="Document discovery and rendering REST API")
 
         # Set up registries
         project_root = Path(__file__).parent.parent
-        self.templates_dir = templates_dir or str(project_root / "templates")
-        self.fragments_dir = fragments_dir or str(project_root / "fragments")
-        self.styles_dir = styles_dir or str(project_root / "styles")
+        self.templates_dir = templates_dir or str(project_root / "data" / "docs" / "templates")
+        self.fragments_dir = fragments_dir or str(project_root / "data" / "docs" / "fragments")
+        self.styles_dir = styles_dir or str(project_root / "data" / "docs" / "styles")
+        self.styles_group = styles_group
 
         self.template_registry = TemplateRegistry(self.templates_dir, session_logger)
         self.fragment_registry = FragmentRegistry(self.fragments_dir, session_logger)
-        self.style_registry = StyleRegistry(self.styles_dir, session_logger)
-        self.storage = FileStorage(str(Config.get_storage_dir()))
+        self.style_registry = StyleRegistry(
+            self.styles_dir, logger=session_logger, group=styles_group
+        )
+
+        # Set up session manager for loading finalized sessions
+        self.session_store = SessionStore(
+            base_dir=get_default_sessions_dir(), logger=session_logger
+        )
+        self.session_manager = SessionManager(
+            session_store=self.session_store,
+            template_registry=self.template_registry,
+            logger=session_logger,
+        )
 
         # Set up rendering engine
         self.engine = RenderingEngine(
-            self.template_registry,
-            self.style_registry,
-            session_logger
+            template_registry=self.template_registry,
+            style_registry=self.style_registry,
+            logger=session_logger,
         )
-
-        # Set up validator
-        self.validator = Validator()
 
         self.require_auth = require_auth
         self.logger: Logger = session_logger
-
-        # Initialize auth service only if auth is required
-        if require_auth:
-            init_auth_service(secret_key=jwt_secret, token_store_path=token_store_path)
 
         self.logger.info(
             "Doco web server initialized",
             templates_dir=self.templates_dir,
             fragments_dir=self.fragments_dir,
             styles_dir=self.styles_dir,
-            authentication_enabled=require_auth
+            authentication_required=require_auth,
+            endpoints=["discovery", "get_document"],
         )
         self._setup_routes()
 
-    def _get_auth_dependency(self):
-        """Get the appropriate auth dependency based on require_auth setting."""
-        return verify_token if self.require_auth else optional_verify_token
+    def _extract_auth_group(self, authorization: Optional[str]) -> Optional[str]:
+        """
+        Extract group from X-Auth-Token header.
+
+        Header format: X-Auth-Token: <group>:<token>
+
+        Args:
+            authorization: X-Auth-Token header value
+
+        Returns:
+            Group name if auth provided, None otherwise
+        """
+        if not authorization:
+            return None
+
+        try:
+            # Expected format: "group:token"
+            parts = authorization.split(":", 1)
+            if len(parts) == 2:
+                return parts[0]
+        except Exception:
+            pass
+
+        return None
+
+    def _verify_auth_header(self, authorization: Optional[str]) -> Optional[str]:
+        """
+        Verify authentication header and return group.
+
+        Args:
+            authorization: X-Auth-Token header value
+
+        Returns:
+            Group name if auth valid, raises HTTPException if required but missing
+        """
+        if self.require_auth:
+            if not authorization:
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "error": "AUTHENTICATION_REQUIRED",
+                        "message": "X-Auth-Token header required",
+                        "format": "X-Auth-Token: <group>:<token>",
+                    },
+                )
+
+        return self._extract_auth_group(authorization)
 
     def _setup_routes(self):
-        """Set up all API routes."""
+        """Set up all API routes for discovery and document rendering."""
+
+        # ====================================================================
+        # DISCOVERY ENDPOINTS (no auth required)
+        # ====================================================================
 
         @self.app.get("/ping")
         async def ping():
-            """Health check endpoint."""
+            """
+            Health check endpoint.
+
+            Returns:
+                {status: "ok", timestamp: ISO8601, service: "doco"}
+            """
             current_time = datetime.now().isoformat()
             self.logger.debug("Ping request received", timestamp=current_time)
             return JSONResponse(
                 content={"status": "ok", "timestamp": current_time, "service": "doco"}
             )
 
-        auth_dep = self._get_auth_dependency()
-
         @self.app.get("/templates")
-        async def list_templates(
-            group: Optional[str] = None,
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
-        ):
+        async def list_templates(group: Optional[str] = None):
             """List available templates."""
             self.logger.info("List templates request", group=group)
             try:
                 templates = self.template_registry.list_templates(group=group)
                 return JSONResponse(
                     content={
-                        "templates": [
+                        "status": "success",
+                        "data": [
                             {
                                 "template_id": t.template_id,
                                 "name": t.name,
@@ -119,7 +184,7 @@ class DocoWebServer:
                                 "group": t.group,
                             }
                             for t in templates
-                        ]
+                        ],
                     }
                 )
             except Exception as e:
@@ -127,33 +192,49 @@ class DocoWebServer:
                 raise HTTPException(status_code=500, detail=str(e))
 
         @self.app.get("/templates/{template_id}")
-        async def get_template_details(
-            template_id: str,
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
-        ):
+        async def get_template_details(template_id: str):
             """Get detailed information about a template."""
             self.logger.info("Get template details request", template_id=template_id)
             try:
                 details = self.template_registry.get_template_details(template_id)
                 if not details:
-                    raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "error": "TEMPLATE_NOT_FOUND",
+                            "message": f"Template '{template_id}' not found",
+                        },
+                    )
 
                 return JSONResponse(
                     content={
-                        "template_id": details.template_id,
-                        "name": details.name,
-                        "description": details.description,
-                        "group": details.group,
-                        "global_parameters": [
-                            {
-                                "name": p.get("name") if isinstance(p, dict) else p.name,
-                                "type": p.get("type") if isinstance(p, dict) else p.type,
-                                "description": p.get("description") if isinstance(p, dict) else p.description,
-                                "required": p.get("required", True) if isinstance(p, dict) else p.required,
-                                "default": p.get("default") if isinstance(p, dict) else p.default,
-                            }
-                            for p in details.global_parameters
-                        ],
+                        "status": "success",
+                        "data": {
+                            "template_id": details.template_id,
+                            "name": details.name,
+                            "description": details.description,
+                            "group": details.group,
+                            "global_parameters": [
+                                {
+                                    "name": p.get("name") if isinstance(p, dict) else p.name,
+                                    "type": p.get("type") if isinstance(p, dict) else p.type,
+                                    "description": (
+                                        p.get("description")
+                                        if isinstance(p, dict)
+                                        else p.description
+                                    ),
+                                    "required": (
+                                        p.get("required", True)
+                                        if isinstance(p, dict)
+                                        else p.required
+                                    ),
+                                    "default": (
+                                        p.get("default") if isinstance(p, dict) else p.default
+                                    ),
+                                }
+                                for p in details.global_parameters
+                            ],
+                        },
                     }
                 )
             except HTTPException:
@@ -162,18 +243,26 @@ class DocoWebServer:
                 self.logger.error(f"Error getting template details: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-        @self.app.get("/fragments")
-        async def list_fragments(
-            group: Optional[str] = None,
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
-        ):
-            """List available standalone fragments."""
-            self.logger.info("List fragments request", group=group)
+        @self.app.get("/templates/{template_id}/fragments")
+        async def list_template_fragments(template_id: str):
+            """List fragments available in a template."""
+            self.logger.info("List template fragments request", template_id=template_id)
             try:
-                fragments = self.fragment_registry.list_fragments(group=group)
+                template = self.template_registry.get_template_details(template_id)
+                if not template:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "error": "TEMPLATE_NOT_FOUND",
+                            "message": f"Template '{template_id}' not found",
+                        },
+                    )
+
+                fragments = self.fragment_registry.list_fragments()
                 return JSONResponse(
                     content={
-                        "fragments": [
+                        "status": "success",
+                        "data": [
                             {
                                 "fragment_id": f["fragment_id"],
                                 "name": f["name"],
@@ -181,25 +270,69 @@ class DocoWebServer:
                                 "group": f["group"],
                             }
                             for f in fragments
-                        ]
+                        ],
                     }
                 )
+            except HTTPException:
+                raise
             except Exception as e:
                 self.logger.error(f"Error listing fragments: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+        @self.app.get("/fragments/{fragment_id}")
+        async def get_fragment_details(fragment_id: str, template_id: Optional[str] = None):
+            """Get detailed information about a fragment."""
+            self.logger.info(
+                "Get fragment details request", fragment_id=fragment_id, template_id=template_id
+            )
+            try:
+                schema = self.fragment_registry.get_fragment_schema(fragment_id)
+                if not schema:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "error": "FRAGMENT_NOT_FOUND",
+                            "message": f"Fragment '{fragment_id}' not found",
+                        },
+                    )
+
+                return JSONResponse(
+                    content={
+                        "status": "success",
+                        "data": {
+                            "fragment_id": schema.fragment_id,
+                            "name": schema.name,
+                            "description": schema.description,
+                            "group": schema.group,
+                            "parameters": [
+                                {
+                                    "name": p.name,
+                                    "type": p.type,
+                                    "description": p.description,
+                                    "required": p.required,
+                                    "default": p.default,
+                                }
+                                for p in schema.parameters
+                            ],
+                        },
+                    }
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"Error getting fragment details: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
         @self.app.get("/styles")
-        async def list_styles(
-            group: Optional[str] = None,
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
-        ):
+        async def list_styles(group: Optional[str] = None):
             """List available styles."""
             self.logger.info("List styles request", group=group)
             try:
                 styles = self.style_registry.list_styles(group=group)
                 return JSONResponse(
                     content={
-                        "styles": [
+                        "status": "success",
+                        "data": [
                             {
                                 "style_id": s.style_id,
                                 "name": s.name,
@@ -207,201 +340,215 @@ class DocoWebServer:
                                 "group": s.group,
                             }
                             for s in styles
-                        ]
+                        ],
                     }
                 )
             except Exception as e:
                 self.logger.error(f"Error listing styles: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-        @self.app.get("/groups")
-        async def list_groups(
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
-        ):
-            """List all available groups across templates, fragments, and styles."""
-            self.logger.info("List groups request")
-            try:
-                all_groups = set()
-                all_groups.update(self.template_registry.list_groups())
-                all_groups.update(self.fragment_registry.list_groups())
-                all_groups.update(self.style_registry.list_groups())
+        # ====================================================================
+        # DOCUMENT RENDERING ENDPOINT (auth required via X-Auth-Token header)
+        # ====================================================================
+        # NOTE: Web server only renders pre-finalized sessions.
+        # Use MCP server for full session lifecycle (create, add fragments, etc.)
 
-                return JSONResponse(
-                    content={"groups": sorted(list(all_groups))}
-                )
-            except Exception as e:
-                self.logger.error(f"Error listing groups: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
-
-        @self.app.post("/validate")
-        async def validate_document(
-            request_body: Dict[str, Any],
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        @self.app.post("/render/{session_id}")
+        async def get_document(
+            session_id: str,
+            body: Optional[Dict[str, Any]] = None,
+            x_auth_token: Optional[str] = Header(None),
         ):
             """
-            Validate a document against its template.
-            
+            Render a finalized document session to the specified format.
+
             Request body should contain:
-            - template_id: The template to validate against
-            - group: The group (mandatory)
-            - parameters: Global template parameters
-            - fragments: List of fragments in the document
+            - format: Output format (html, markdown, pdf). Default: html
+            - style_id: Optional style ID override
+            - proxy: Optional bool - if true, store on server and return GUID instead of content
+
+            Returns:
+            - HTML format: Response with media_type="text/html"
+            - PDF format: Response with media_type="application/pdf"
+            - Markdown format: Response with media_type="text/markdown"
+            - Proxy mode: JSON with proxy_guid field
             """
-            group = token_info.group if token_info else None
-            template_id = request_body.get("template_id")
-            
+            auth_group = self._verify_auth_header(x_auth_token)
+
+            if body is None:
+                body = {}
+
+            output_format = body.get("format", "html").lower()
+            style_id = body.get("style_id")
+            proxy = body.get("proxy", False)
+
             self.logger.info(
-                "Validation request",
-                template_id=template_id,
-                group=group
+                "Render document request",
+                session_id=session_id,
+                format=output_format,
+                proxy=proxy,
+                auth_group=auth_group,
             )
 
             try:
-                # Create document session
-                session_id = str(uuid.uuid4())
-                now = datetime.now().isoformat()
-                
-                final_group = group or request_body.get("group")
-                if not final_group:
-                    raise ValueError("group is required")
-                if not template_id:
-                    raise ValueError("template_id is required")
-                
-                session = DocumentSession(
-                    session_id=session_id,
-                    template_id=template_id,
-                    created_at=now,
-                    updated_at=now,
-                    group=final_group,
-                    global_parameters=request_body.get("parameters", {}),
-                    fragments=request_body.get("fragments", [])
-                )
-
-                # Validate the document
-                validation_result = self.validator.validate(session)
-
-                if not validation_result.is_valid:
-                    self.logger.warning(
-                        "Validation failed",
-                        template_id=session.template_id,
-                        error_count=len(validation_result.errors)
-                    )
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "valid": False,
-                            "error_summary": validation_result.get_error_summary(),
-                            "errors": validation_result.get_json_errors(),
-                        }
+                # Get the session
+                session = await self.session_manager.get_session(session_id)
+                if not session:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "error": "SESSION_NOT_FOUND",
+                            "message": f"Session '{session_id}' not found",
+                        },
                     )
 
-                self.logger.info(
-                    "Validation passed",
-                    template_id=session.template_id
-                )
-                return JSONResponse(
-                    content={"valid": True, "message": "Document is valid"}
-                )
-
-            except ValueError as e:
-                self.logger.error(f"Invalid request: {str(e)}")
-                raise HTTPException(status_code=400, detail=str(e))
-            except Exception as e:
-                self.logger.error(f"Validation error: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
-
-        @self.app.post("/render")
-        async def render_document(
-            request_body: Dict[str, Any],
-            format: str = Query("html", description="Output format: html, markdown, or pdf"),
-            token_info: Optional[TokenInfo] = Depends(auth_dep)
-        ):
-            """
-            Render a document to the specified format.
-            
-            Request body should contain:
-            - template_id: The template to render
-            - group: The group (mandatory)
-            - style_id: Optional style to apply
-            - parameters: Global template parameters
-            - fragments: List of fragments in the document
-            """
-            group = token_info.group if token_info else None
-            template_id = request_body.get("template_id")
-
-            self.logger.info(
-                "Render request",
-                template_id=template_id,
-                format=format,
-                group=group
-            )
-
-            try:
-                # Create document session
-                session_id = str(uuid.uuid4())
-                now = datetime.now().isoformat()
-                
-                final_group = group or request_body.get("group")
-                if not final_group:
-                    raise ValueError("group is required")
-                if not template_id:
-                    raise ValueError("template_id is required")
-                
-                session = DocumentSession(
-                    session_id=session_id,
-                    template_id=template_id,
-                    created_at=now,
-                    updated_at=now,
-                    group=final_group,
-                    global_parameters=request_body.get("parameters", {}),
-                    fragments=request_body.get("fragments", [])
-                )
-
-                # Validate the document
-                validation_result = self.validator.validate(session)
-                if not validation_result.is_valid:
-                    self.logger.warning(
-                        "Validation failed before render",
-                        template_id=template_id,
-                        error_count=len(validation_result.errors)
-                    )
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "error": "Validation failed",
-                            "error_summary": validation_result.get_error_summary(),
-                            "errors": validation_result.get_json_errors(),
-                        }
+                # Verify group access if auth_group is set
+                if auth_group and session.group != auth_group:
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "error": "ACCESS_DENIED",
+                            "message": f"Access denied to group '{session.group}'",
+                        },
                     )
 
                 # Render the document
-                output_format = OutputFormat(format.lower())
-                style_id = request_body.get("style_id")
-                output_obj = await self.engine.render_document(session, output_format, style_id)
-                output = output_obj.content
-
-                self.logger.info(
-                    "Render completed",
-                    template_id=template_id,
-                    format=format,
-                    output_size=len(output) if output else 0
+                output_format_obj = OutputFormat(output_format)
+                output_obj = await self.engine.render_document(
+                    session=session, output_format=output_format_obj, style_id=style_id, proxy=proxy
                 )
 
-                # Return appropriate response based on format
-                if output_format == OutputFormat.HTML:
-                    return Response(content=output, media_type="text/html")
-                elif output_format in (OutputFormat.MARKDOWN, OutputFormat.MD):
-                    return Response(content=output, media_type="text/markdown")
-                elif output_format == OutputFormat.PDF:
-                    return Response(content=output, media_type="application/pdf")
-                else:
-                    return JSONResponse(
-                        content={"output": output}
-                    )
+                self.logger.info(
+                    "Document rendered successfully",
+                    session_id=session_id,
+                    format=output_format,
+                    proxy=proxy,
+                    output_size=len(output_obj.content) if output_obj.content else 0,
+                )
 
+                # Return appropriate response based on format and proxy mode
+                if proxy:
+                    # Proxy mode: return GUID instead of content
+                    return JSONResponse(
+                        content={
+                            "status": "success",
+                            "data": {
+                                "proxy_guid": output_obj.proxy_guid,
+                                "format": output_format,
+                                "message": "Document stored in proxy mode",
+                            },
+                        }
+                    )
+                else:
+                    # Direct render: return content with appropriate media type
+                    if output_format_obj == OutputFormat.HTML:
+                        return Response(content=output_obj.content, media_type="text/html")
+                    elif output_format_obj in (OutputFormat.MARKDOWN, OutputFormat.MD):
+                        return Response(content=output_obj.content, media_type="text/markdown")
+                    elif output_format_obj == OutputFormat.PDF:
+                        return Response(content=output_obj.content, media_type="application/pdf")
+                    else:
+                        # Fallback: return as JSON
+                        return JSONResponse(
+                            content={
+                                "status": "success",
+                                "data": {"format": output_format, "content": output_obj.content},
+                            }
+                        )
+
+            except HTTPException:
+                raise
             except ValueError as e:
-                self.logger.error(f"Invalid request: {str(e)}")
+                self.logger.error(f"Invalid format or request: {str(e)}")
                 raise HTTPException(status_code=400, detail=str(e))
             except Exception as e:
-                self.logger.error(f"Rendering error: {str(e)}")
+                self.logger.error(f"Error rendering document: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
+
+        # ====================================================================
+        # PROXY DOCUMENT RETRIEVAL ENDPOINT
+        # ====================================================================
+
+        @self.app.get("/proxy/{proxy_guid}")
+        async def get_proxy_document(
+            proxy_guid: str,
+            group: str = "default",
+            x_auth_token: Optional[str] = Header(None),
+        ):
+            """
+            Retrieve a previously stored proxy document.
+
+            Args:
+                proxy_guid: The proxy document GUID
+                group: The document group (default: "default")
+                x_auth_token: Optional authentication token
+
+            Returns:
+                Document content with appropriate media type based on format
+            """
+            auth_group = self._verify_auth_header(x_auth_token)
+
+            self.logger.info(
+                "Proxy document retrieval request",
+                proxy_guid=proxy_guid,
+                group=group,
+                auth_group=auth_group,
+            )
+
+            # Verify group access if auth_group is set
+            if auth_group and group != auth_group:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "ACCESS_DENIED",
+                        "message": f"Access denied to group '{group}'",
+                    },
+                )
+
+            try:
+                # Retrieve the proxy document
+                output_obj = await self.engine.get_proxy_document(proxy_guid, group)
+
+                self.logger.info(
+                    "Proxy document retrieved successfully",
+                    proxy_guid=proxy_guid,
+                    group=group,
+                    format=output_obj.format.value,
+                    size=len(output_obj.content) if output_obj.content else 0,
+                )
+
+                # Return content with appropriate media type
+                if output_obj.format == OutputFormat.HTML:
+                    return Response(content=output_obj.content, media_type="text/html")
+                elif output_obj.format in (OutputFormat.MARKDOWN, OutputFormat.MD):
+                    return Response(content=output_obj.content, media_type="text/markdown")
+                elif output_obj.format == OutputFormat.PDF:
+                    return Response(content=output_obj.content, media_type="application/pdf")
+                else:
+                    # Fallback: return as text
+                    return Response(content=output_obj.content, media_type="text/plain")
+
+            except HTTPException:
+                raise
+            except ValueError as e:
+                # ValueError from engine indicates document not found
+                error_msg = str(e)
+                if "not found" in error_msg.lower():
+                    raise HTTPException(
+                        status_code=404,
+                        detail={
+                            "error": "PROXY_NOT_FOUND",
+                            "message": error_msg,
+                        },
+                    )
+                else:
+                    raise HTTPException(status_code=400, detail=error_msg)
+            except Exception as e:
+                self.logger.error(f"Error retrieving proxy document: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "error": "RETRIEVAL_ERROR",
+                        "message": f"Failed to retrieve proxy document: {str(e)}",
+                    },
+                )

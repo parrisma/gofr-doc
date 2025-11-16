@@ -1,0 +1,154 @@
+/* Light Theme - Light theme with clean, bright colors */
+
+:root {
+  /* Background and Text Colors */
+  --doco-bg: #FFFFFF;
+  --doco-text: #000000;
+  --doco-grid: #E0E0E0;
+  --doco-default: #1f77b4;
+  --doco-fragment-bg: #FAFAFA;
+  
+  /* Theme Color Palette */
+  --doco-blue: #1f77b4;
+  --doco-orange: #ff7f0e;
+  --doco-green: #2ca02c;
+  --doco-red: #d62728;
+  --doco-purple: #9467bd;
+  --doco-brown: #8c564b;
+  --doco-pink: #e377c2;
+  --doco-gray: #7f7f7f;
+  
+  /* Font Settings */
+  --doco-font-family: sans-serif;
+  --doco-font-size: 10px;
+  --doco-font-size-lg: 12px;
+}
+
+body {
+  background-color: var(--doco-bg);
+  color: var(--doco-text);
+  font-family: var(--doco-font-family);
+  font-size: var(--doco-font-size);
+}
+
+a {
+  color: var(--doco-blue);
+}
+
+a:hover {
+  color: var(--doco-orange);
+}
+
+.grid,
+.border {
+  border-color: var(--doco-grid);
+}
+
+.accent {
+  color: var(--doco-default);
+}
+
+.section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--doco-grid);
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Fragment Styles */
+.fragment {
+  border: 1px solid var(--doco-grid);
+  border-radius: 4px;
+  padding: 16px;
+  margin: 12px 0;
+  background-color: var(--doco-fragment-bg);
+}
+
+.header {
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0 0 8px 0;
+  font-size: 1.2em;
+}
+
+.metadata {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9em;
+  color: var(--doco-gray);
+}
+
+.content {
+  margin-top: 12px;
+}
+
+.source {
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.source a {
+  color: var(--doco-blue);
+  text-decoration: none;
+}
+
+.source a:hover {
+  text-decoration: underline;
+}
+
+.impact {
+  margin-top: 8px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.badge.impact-high {
+  background-color: #FFEBEE;
+  color: #C62828;
+}
+
+.badge.impact-medium {
+  background-color: #FFF3E0;
+  color: #E65100;
+}
+
+.badge.impact-low {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.badge.impact-1,
+.badge.impact-2,
+.badge.impact-3 {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.badge.impact-4,
+.badge.impact-5,
+.badge.impact-6,
+.badge.impact-7 {
+  background-color: #FFF3E0;
+  color: #E65100;
+}
+
+.badge.impact-8,
+.badge.impact-9,
+.badge.impact-10 {
+  background-color: #FFEBEE;
+  color: #C62828;
+}

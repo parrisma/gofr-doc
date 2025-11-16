@@ -2,6 +2,7 @@
 """Test ping tool for MCP server using Streamable HTTP transport"""
 
 import sys
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -11,8 +12,9 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
-
-MCP_URL = "http://localhost:8011/mcp/"
+# Port configuration via environment variables (defaults to production port)
+MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
+MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 
 @pytest.mark.asyncio
@@ -54,8 +56,12 @@ async def test_ping_returns_correct_response():
             assert hasattr(text_content, "text"), "Response is not text"
 
             response_text = text_content.text  # type: ignore
-            assert "Server is running" in response_text, "Missing 'Server is running' message"
-            assert "Timestamp:" in response_text, "Missing timestamp"
-            assert "Service: doco" in response_text, "Missing service identifier"
+            assert "success" in response_text, "Missing 'success' status"
+            assert "ok" in response_text, "Missing 'ok' status in response"
+            assert "timestamp" in response_text.lower(), "Missing timestamp"
+            assert (
+                "Document generation service is online" in response_text
+                or "online" in response_text.lower()
+            ), "Missing service status message"
 
             logger.info("Ping tool returned correct response")

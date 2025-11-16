@@ -1,0 +1,25 @@
+fragment_id: news
+group: public
+name: News Story
+description: A comprehensive news story with summary, metadata, and impact rating
+parameters:
+  - name: story_summary
+    type: string
+    description: Executive summary of the news story
+    required: true
+  - name: date
+    type: string
+    description: Publication date (YYYY-MM-DD format recommended)
+    required: true
+  - name: source
+    type: string
+    description: Source URL or reference
+    required: true
+  - name: author
+    type: string
+    description: Author name
+    required: true
+  - name: impact_rating
+    type: string
+    description: Impact rating (e.g., High, Medium, Low or 1-10 scale)
+    required: true

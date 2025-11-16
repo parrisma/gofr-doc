@@ -3,11 +3,19 @@ import argparse
 import os
 from app.web_server import DocoWebServer
 from app.logger import Logger, session_logger
+from app.startup import validate_data_directory_structure
 import sys
 
 logger: Logger = session_logger
 
 if __name__ == "__main__":
+    # Validate data directory structure at startup
+    try:
+        validate_data_directory_structure(logger)
+    except RuntimeError as e:
+        logger.error("FATAL: Data directory validation failed", error=str(e))
+        sys.exit(1)
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="doco Web Server - Document rendering REST API")
     parser.add_argument(
@@ -19,8 +27,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=8010,
-        help="Port number to listen on (default: 8010)",
+        default=int(os.environ.get("DOCO_WEB_PORT", "8010")),
+        help="Port number to listen on (default: 8010, or DOCO_WEB_PORT env var)",
     )
     parser.add_argument(
         "--jwt-secret",
@@ -39,22 +47,41 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable authentication (WARNING: insecure, for development only)",
     )
+    parser.add_argument(
+        "--templates-dir",
+        type=str,
+        default=None,
+        help="Path to templates directory (default: data/docs/templates)",
+    )
+    parser.add_argument(
+        "--fragments-dir",
+        type=str,
+        default=None,
+        help="Path to fragments directory (default: data/docs/fragments)",
+    )
+    parser.add_argument(
+        "--styles-dir",
+        type=str,
+        default=None,
+        help="Path to styles directory (default: data/docs/styles)",
+    )
     args = parser.parse_args()
 
     # Validate JWT secret if authentication is enabled
-    jwt_secret = (
-        args.jwt_secret
-        or os.environ.get("DOCO_JWT_SECRET")
-    )
+    jwt_secret = args.jwt_secret or os.environ.get("DOCO_JWT_SECRET")
     if not args.no_auth and not jwt_secret:
         logger.error(
             "FATAL: Authentication enabled but no JWT secret provided. Set DOCO_JWT_SECRET environment variable or use --jwt-secret flag, or use --no-auth to disable authentication"
         )
         sys.exit(1)
 
-    # Initialize server with JWT configuration
+    # Initialize server
+    # Note: Authentication is handled via X-Auth-Token header (group:token format)
     server = DocoWebServer(
-        jwt_secret=jwt_secret, token_store_path=args.token_store, require_auth=not args.no_auth
+        templates_dir=args.templates_dir,
+        fragments_dir=args.fragments_dir,
+        styles_dir=args.styles_dir,
+        require_auth=not args.no_auth,
     )
 
     try:

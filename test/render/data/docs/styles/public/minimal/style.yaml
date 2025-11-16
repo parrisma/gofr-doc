@@ -1,0 +1,5 @@
+style_id: minimal
+group: public
+name: Minimal Style
+description: Clean, minimal styling with reduced formatting
+version: "1.0.0"
