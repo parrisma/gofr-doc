@@ -11,8 +11,7 @@ from datetime import datetime
 from pathlib import Path as SysPath
 from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional, Union
 
-from mcp.server import NotificationOptions, Server
-from mcp.server.models import InitializationOptions
+from mcp.server import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 from pydantic import ValidationError as PydanticValidationError
@@ -29,30 +28,20 @@ from app.styles import StyleRegistry  # noqa: E402
 from app.templates import TemplateRegistry  # noqa: E402
 from app.validation.document_models import (  # noqa: E402
     AbortDocumentSessionInput,
-    AbortSessionOutput,
     AddFragmentInput,
-    AddFragmentOutput,
     CreateDocumentSessionInput,
-    CreateSessionOutput,
     ErrorResponse,
     FragmentDetailsOutput,
     FragmentListItem,
     GetDocumentInput,
-    GetDocumentOutput,
     GetFragmentDetailsInput,
     GetTemplateDetailsInput,
     ListSessionFragmentsInput,
-    ListSessionFragmentsOutput,
     ListTemplateFragmentsInput,
+    OutputFormat,
     PingOutput,
     RemoveFragmentInput,
-    RemoveFragmentOutput,
-    SessionFragmentInfo,
     SetGlobalParametersInput,
-    SetGlobalParametersOutput,
-    StyleListItem,
-    TemplateDetailsOutput,
-    TemplateListItem,
 )
 
 ToolResponse = List[Union[TextContent, ImageContent, EmbeddedResource]]
@@ -172,8 +161,8 @@ def _model_dump(model: Any) -> Dict[str, Any]:
     raise TypeError("Model does not support model_dump")
 
 
-@app.initialize()
-async def handle_initialize() -> InitializationOptions:
+async def initialize_server() -> None:
+    """Initialize server components."""
     logger.info("Initialising document MCP server")
 
     global template_registry, style_registry, session_store, session_manager, rendering_engine
@@ -193,11 +182,6 @@ async def handle_initialize() -> InitializationOptions:
         template_registry=template_registry,
         style_registry=style_registry,
         logger=logger,
-    )
-
-    return InitializationOptions(
-        server_name="doco-document-service",
-        notifications=NotificationOptions(enabled=False),
     )
 
 
@@ -367,7 +351,7 @@ async def handle_list_tools() -> List[Tool]:
 async def _tool_ping(arguments: Dict[str, Any]) -> ToolResponse:
     output = PingOutput(
         status="ok",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.utcnow().isoformat(),
         message="Document generation service is online.",
     )
     return _success(_model_dump(output))
@@ -375,7 +359,15 @@ async def _tool_ping(arguments: Dict[str, Any]) -> ToolResponse:
 
 async def _tool_list_templates(arguments: Dict[str, Any]) -> ToolResponse:
     registry = _ensure_template_registry()
-    templates = [item.model_dump(mode="json") for item in registry.list_templates()]
+    templates = [
+        {
+            "template_id": item.template_id,
+            "name": item.name,
+            "description": item.description,
+            "group": item.group,
+        }
+        for item in registry.list_templates()
+    ]
     return _success({"templates": templates})
 
 
@@ -440,14 +432,21 @@ async def _tool_get_fragment_details(arguments: Dict[str, Any]) -> ToolResponse:
 
 async def _tool_list_styles(arguments: Dict[str, Any]) -> ToolResponse:
     registry = _ensure_style_registry()
-    styles = [item.model_dump(mode="json") for item in registry.list_styles()]
+    styles = [
+        {
+            "style_id": item.style_id,
+            "name": item.name,
+            "description": item.description,
+        }
+        for item in registry.list_styles()
+    ]
     return _success({"styles": styles})
 
 
 async def _tool_create_session(arguments: Dict[str, Any]) -> ToolResponse:
     payload = CreateDocumentSessionInput.model_validate(arguments)
     manager = _ensure_manager()
-    output = await manager.create_session(template_id=payload.template_id)
+    output = await manager.create_session(template_id=payload.template_id, group=payload.group)
     return _success(_model_dump(output))
 
 
@@ -518,7 +517,7 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
     try:
         output = await renderer.render_document(
             session=session,
-            output_format=payload.format,
+            output_format=OutputFormat(payload.format),
             style_id=payload.style_id,
         )
     except ValueError as exc:
@@ -607,6 +606,7 @@ async def handle_streamable_http(scope, receive, send) -> None:
 @contextlib.asynccontextmanager
 async def lifespan(starlette_app) -> AsyncIterator[None]:
     logger.info("Starting StreamableHTTP session manager")
+    await initialize_server()
     async with session_manager_http.run():
         logger.info("StreamableHTTP session manager ready")
         yield

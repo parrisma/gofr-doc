@@ -1,7 +1,7 @@
 """Rendering engine for document generation."""
 from typing import Optional
 import html2text
-from weasyprint import HTML, CSS
+from weasyprint import HTML
 from io import BytesIO
 import base64
 
@@ -9,6 +9,7 @@ from app.validation.document_models import (
     DocumentSession,
     OutputFormat,
     GetDocumentOutput,
+    FragmentInstance,
 )
 from app.templates.registry import TemplateRegistry
 from app.styles.registry import StyleRegistry
@@ -57,13 +58,15 @@ class RenderingEngine:
             ValueError: If style not found or rendering fails
         """
         # Determine style
+        # Note: StyleRegistry is initialized with session.group, 
+        # so style_exists/get_default_style_id operate within that group
         if style_id is None:
             style_id = self.style_registry.get_default_style_id()
             if style_id is None:
-                raise ValueError("No styles available")
+                raise ValueError(f"No styles available in group '{session.group}'")
 
         if not self.style_registry.style_exists(style_id):
-            raise ValueError(f"Style '{style_id}' not found")
+            raise ValueError(f"Style '{style_id}' not found in group '{session.group}'")
 
         # Generate HTML
         html_content = await self._render_html(session, style_id)
@@ -113,10 +116,11 @@ class RenderingEngine:
         # Render fragments
         rendered_fragments = []
         for fragment_instance in session.fragments:
-            fragment_html = await self._render_fragment(
-                session.template_id, fragment_instance.fragment_id, fragment_instance.parameters
-            )
-            rendered_fragments.append(fragment_html)
+            if isinstance(fragment_instance, FragmentInstance):
+                fragment_html = await self._render_fragment(
+                    session.template_id, fragment_instance.fragment_id, fragment_instance.parameters
+                )
+                rendered_fragments.append(fragment_html)
 
         # Render main document
         html_content = template.render(

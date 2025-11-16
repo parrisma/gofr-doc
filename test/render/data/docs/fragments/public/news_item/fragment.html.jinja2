@@ -1,0 +1,10 @@
+<div class="fragment-news-item">
+    <h4>{{ headline }}</h4>
+    {% if byline %}
+    <p><em>By {{ byline }}</em></p>
+    {% endif %}
+    <p>{{ body }}</p>
+    {% if date %}
+    <p><small>{{ date }}</small></p>
+    {% endif %}
+</div>

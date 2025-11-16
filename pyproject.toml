@@ -43,8 +43,8 @@ target-version = ["py311"]
 line-length = 100
 target-version = "py311"
 
-[tool.uv]
-dev-dependencies = [
+[tool.uv.dependency-groups]
+dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",

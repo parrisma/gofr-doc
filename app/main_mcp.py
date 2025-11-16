@@ -1,4 +1,3 @@
-import uvicorn
 import argparse
 import os
 import sys
@@ -11,7 +10,7 @@ logger: Logger = session_logger
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="doco MCP Server - Graph rendering via Model Context Protocol"
+        description="doco MCP Server - Document rendering via Model Context Protocol"
     )
     parser.add_argument(
         "--host",

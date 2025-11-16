@@ -51,7 +51,23 @@ class SessionStore:
         return self.base_dir / f"{session_id}.json"
 
     def _save_session_sync(self, session: DocumentSession) -> None:
-        data = session.model_dump(mode="json")
+        data = {
+            "session_id": session.session_id,
+            "template_id": session.template_id,
+            "group": session.group,
+            "global_parameters": session.global_parameters,
+            "fragments": [
+                {
+                    "fragment_id": f.fragment_id,
+                    "fragment_instance_guid": f.fragment_instance_guid,
+                    "parameters": f.parameters,
+                    "created_at": f.created_at,
+                }
+                for f in session.fragments
+            ],
+            "created_at": session.created_at,
+            "updated_at": session.updated_at,
+        }
         path = self._session_path(session.session_id)
         with path.open("w", encoding="utf-8") as handle:
             json.dump(data, handle, ensure_ascii=False, indent=2)

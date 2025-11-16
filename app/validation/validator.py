@@ -1,6 +1,7 @@
 """Validator for document generation system matching mcp_server interface."""
 from typing import Any, Dict, List, Optional
-from app.validation.models import ValidationError, ValidationResult
+from app.validation.error import ValidationError
+from app.validation.result import ValidationResult
 
 
 class Validator:

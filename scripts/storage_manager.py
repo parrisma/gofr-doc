@@ -1,26 +1,39 @@
 #!/usr/bin/env python3
 """Storage Management CLI
 
-Command-line utility to manage stored images including purging old data.
+Command-line utility to manage stored sessions and data including purging old data,
+listing sessions, and displaying storage statistics.
 """
 
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.storage.file_storage import FileStorage
 from app.logger import Logger, session_logger
+from app.config import Config
+
+
+def resolve_storage_dir(cli_dir: Optional[str]) -> str:
+    """Resolve storage directory from CLI, environment variable, or project default."""
+    if cli_dir:
+        return cli_dir
+    
+    return str(Config.get_storage_dir())
 
 
 def purge_images(args):
     """Purge images older than specified age"""
     logger: Logger = session_logger
 
+    storage_dir = resolve_storage_dir(args.storage_dir)
+
     try:
-        storage = FileStorage(args.storage_dir)
+        storage = FileStorage(storage_dir)
 
         if args.age_days == 0:
             if args.group:
@@ -49,8 +62,10 @@ def list_images(args):
     """List stored images"""
     logger: Logger = session_logger
 
+    storage_dir = resolve_storage_dir(args.storage_dir)
+
     try:
-        storage = FileStorage(args.storage_dir)
+        storage = FileStorage(storage_dir)
         images = storage.list_images(group=args.group)
 
         if not images:
@@ -95,9 +110,11 @@ def stats(args):
     """Show storage statistics"""
     logger: Logger = session_logger
 
+    storage_dir = resolve_storage_dir(args.storage_dir)
+
     try:
-        storage = FileStorage(args.storage_dir)
-        images = storage.list_images()
+        storage = FileStorage(storage_dir)
+        images = storage.list_images(group=args.group)
 
         total_size = 0
         groups = {}
@@ -111,10 +128,11 @@ def stats(args):
                 total_size += size
                 groups[group] = groups.get(group, 0) + 1
 
-        logger.info("Storage Statistics:")
+        group_filter = f" in group '{args.group}'" if args.group else ""
+        logger.info(f"Storage Statistics{group_filter}:")
         logger.info(f"Total images:     {len(images)}")
         logger.info(f"Total size:       {total_size:,} bytes ({total_size / (1024*1024):.2f} MB)")
-        logger.info(f"Storage dir:      {storage.storage_dir}")
+        logger.info(f"Storage dir:      {storage_dir}")
 
         if groups:
             logger.info("Images by group:")
@@ -130,21 +148,36 @@ def stats(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="doco Storage Manager - Manage stored images and data",
+        description="doco Storage Manager - Manage stored sessions and data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Purge images older than 30 days
+  # Purge images older than 30 days (uses project data/storage by default)
   python storage_manager.py purge --age-days 30
 
-  # Purge all images in 'test_group'
-  python storage_manager.py purge --age-days 0 --group test_group --yes
+  # Purge all images in 'research' group (requires confirmation)
+  python storage_manager.py purge --age-days 0 --group research
+
+  # Skip confirmation for purge
+  python storage_manager.py purge --age-days 0 --yes
 
   # List all images with details
   python storage_manager.py list --verbose
 
+  # Filter images by group
+  python storage_manager.py list --group research --verbose
+
   # Show storage statistics
   python storage_manager.py stats
+
+  # Show statistics for a specific group
+  python storage_manager.py stats --group research
+
+  # Use custom storage directory
+  python storage_manager.py --storage-dir /custom/path stats
+
+Environment Variables:
+    DOCO_DATA_DIR       Override project data directory (optional)
         """,
     )
 
@@ -152,13 +185,18 @@ Examples:
         "--storage-dir",
         type=str,
         default=None,
-        help="Storage directory (default: from app.config)",
+        help="Storage directory path (default: project data/storage or DOCO_DATA_DIR env var)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # Purge command
-    purge_parser = subparsers.add_parser("purge", help="Purge old images")
+    purge_parser = subparsers.add_parser(
+        "purge",
+        help="Purge images older than specified days",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Purge images from storage by age or group"
+    )
     purge_parser.add_argument(
         "--age-days",
         type=int,
@@ -174,26 +212,42 @@ Examples:
     purge_parser.add_argument(
         "--yes",
         action="store_true",
-        help="Skip confirmation prompt",
+        help="Skip confirmation prompt when deleting all images",
     )
 
     # List command
-    list_parser = subparsers.add_parser("list", help="List stored images")
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List stored images",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="List and inspect stored images"
+    )
     list_parser.add_argument(
         "--group",
         type=str,
         default=None,
-        help="Filter by group",
+        help="Filter by group name",
     )
     list_parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
-        help="Show detailed information",
+        help="Show detailed information (GUID, format, group, size, created time)",
     )
 
     # Stats command
-    stats_parser = subparsers.add_parser("stats", help="Show storage statistics")
+    stats_parser = subparsers.add_parser(
+        "stats",
+        help="Show storage statistics",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Display storage usage statistics"
+    )
+    stats_parser.add_argument(
+        "--group",
+        type=str,
+        default=None,
+        help="Filter statistics by group name",
+    )
 
     args = parser.parse_args()
 

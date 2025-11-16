@@ -1,0 +1,21 @@
+fragment_id: news_item
+group: public
+name: News Item
+description: A news story with headline, byline, and body
+parameters:
+  - name: headline
+    type: string
+    description: News headline
+    required: true
+  - name: byline
+    type: string
+    description: Author byline
+    required: false
+  - name: body
+    type: string
+    description: News article body
+    required: true
+  - name: date
+    type: string
+    description: Publication date
+    required: false

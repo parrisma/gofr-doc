@@ -1,10 +1,9 @@
 """Template registry system for managing document templates."""
-import os
-import yaml
 from typing import Dict, List, Optional
 from pathlib import Path
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+from jinja2 import TemplateNotFound
 
+from app.registry_base import BaseRegistry
 from app.validation.document_models import (
     TemplateSchema,
     TemplateMetadata,
@@ -14,41 +13,46 @@ from app.validation.document_models import (
     TemplateDetailsOutput,
 )
 from app.logger import Logger
+from app.exceptions import TemplateNotFoundError, FragmentNotFoundError, GroupMismatchError
 
 
-class TemplateRegistry:
+class TemplateRegistry(BaseRegistry):
     """Manages loading, validation, and discovery of document templates."""
 
-    def __init__(self, templates_dir: str, logger: Logger):
+    def __init__(self, templates_dir: str, logger: Logger, 
+                 group: Optional[str] = None, 
+                 groups: Optional[List[str]] = None):
         """
         Initialize the template registry.
 
         Args:
             templates_dir: Path to directory containing template definitions
             logger: Logger instance
+            group: Single group to load (e.g., "public")
+            groups: Multiple groups to load (e.g., ["public", "research"])
         """
-        self.templates_dir = Path(templates_dir)
-        self.logger = logger
         self._templates: Dict[str, TemplateSchema] = {}
-        self._jinja_env: Optional[Environment] = None
-        self._load_templates()
+        super().__init__(templates_dir, logger, group, groups)
 
-    def _load_templates(self) -> None:
-        """Load all templates from the templates directory."""
-        if not self.templates_dir.exists():
-            self.logger.error(f"Templates directory not found: {self.templates_dir}")
+    def _get_registry_type(self) -> str:
+        """Get registry type for migration."""
+        return "templates"
+
+    def _load_items(self) -> None:
+        """Load all templates from all configured groups."""
+        for group in self.groups:
+            self._load_group_items(group)
+
+    def _load_group_items(self, group: str) -> None:
+        """Load templates from a specific group directory."""
+        group_dir = self.registry_dir / group
+        
+        if not group_dir.exists():
+            self.logger.warning(f"Group directory not found: {group_dir}")
             return
-
-        # Setup Jinja2 environment
-        self._jinja_env = Environment(
-            loader=FileSystemLoader(str(self.templates_dir)),
-            autoescape=select_autoescape(["html", "xml"]),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
-
-        # Load each template directory
-        for template_dir in self.templates_dir.iterdir():
+        
+        # Load each template directory in the group
+        for template_dir in group_dir.iterdir():
             if not template_dir.is_dir():
                 continue
 
@@ -60,32 +64,111 @@ class TemplateRegistry:
                 continue
 
             try:
-                with open(schema_file, "r") as f:
-                    schema_data = yaml.safe_load(f)
+                schema_data = self._load_yaml_file(schema_file)
+                if not schema_data:
+                    continue
 
-                template_schema = TemplateSchema(**schema_data)
+                # Convert nested dicts to dataclass instances
+                template_schema = self._build_template_schema(schema_data)
                 template_id = template_schema.metadata.template_id
+                
+                # Validate group/directory match
+                self._validate_group_match(
+                    expected_group=group,
+                    actual_group=template_schema.metadata.group,
+                    item_id=template_id,
+                    item_type="template",
+                    file_path=str(schema_file)
+                )
 
                 self._templates[template_id] = template_schema
                 self.logger.info(
-                    f"Loaded template: {template_id} ({template_schema.metadata.name})"
+                    f"Loaded template: {template_id} from group '{group}' ({template_schema.metadata.name})"
                 )
 
+            except GroupMismatchError as e:
+                self.logger.error(f"Group mismatch in {template_dir.name}: {e}")
             except Exception as e:
                 self.logger.error(
                     f"Failed to load template from {template_dir.name}: {e}"
                 )
 
-    def list_templates(self) -> List[TemplateListItem]:
-        """Get a list of all available templates."""
-        return [
-            TemplateListItem(
+    def _build_template_schema(self, data: dict) -> TemplateSchema:
+        """Build a TemplateSchema from loaded YAML data."""
+        # Build metadata
+        metadata_data = data.get("metadata", {})
+        metadata = TemplateMetadata(**metadata_data)
+        
+        # Build global parameters
+        global_params = []
+        for param_data in data.get("global_parameters", []):
+            global_params.append(ParameterSchema(**param_data))
+        
+        # Build fragments - these are references within the template
+        # They don't have a separate group; they inherit the template's group
+        fragments = []
+        for frag_data in data.get("fragments", []):
+            params = []
+            for param_data in frag_data.get("parameters", []):
+                params.append(ParameterSchema(**param_data))
+            frag_data_copy = frag_data.copy()
+            frag_data_copy["parameters"] = params
+            # Add group from template metadata (embedded fragments inherit template group)
+            frag_data_copy["group"] = metadata.group
+            fragments.append(FragmentSchema(**frag_data_copy))
+        
+        return TemplateSchema(
+            metadata=metadata,
+            global_parameters=global_params,
+            fragments=fragments
+        )
+
+    def list_templates(self, group: Optional[str] = None) -> List[TemplateListItem]:
+        """
+        Get a list of available templates.
+        
+        Args:
+            group: Filter by specific group (None = all loaded groups)
+        """
+        if group:
+            if group not in self.groups:
+                return []
+            # Filter by group
+            items = [
+                TemplateListItem(
+                    template_id=schema.metadata.template_id,
+                    name=schema.metadata.name,
+                    description=schema.metadata.description,
+                    group=schema.metadata.group,
+                )
+                for schema in self._templates.values()
+                if schema.metadata.group == group
+            ]
+        else:
+            # All loaded groups
+            items = [
+                TemplateListItem(
+                    template_id=schema.metadata.template_id,
+                    name=schema.metadata.name,
+                    description=schema.metadata.description,
+                    group=schema.metadata.group,
+                )
+                for schema in self._templates.values()
+            ]
+        return items
+
+    def get_items_by_group(self) -> Dict[str, List[TemplateListItem]]:
+        """Get all templates organized by group."""
+        result = {group: [] for group in self.groups}
+        for schema in self._templates.values():
+            item = TemplateListItem(
                 template_id=schema.metadata.template_id,
                 name=schema.metadata.name,
                 description=schema.metadata.description,
+                group=schema.metadata.group,
             )
-            for schema in self._templates.values()
-        ]
+            result[schema.metadata.group].append(item)
+        return result
 
     def get_template_schema(self, template_id: str) -> Optional[TemplateSchema]:
         """Get the full schema for a template."""
@@ -101,6 +184,7 @@ class TemplateRegistry:
             template_id=schema.metadata.template_id,
             name=schema.metadata.name,
             description=schema.metadata.description,
+            group=schema.metadata.group,
             global_parameters=schema.global_parameters,
         )
 
@@ -136,12 +220,14 @@ class TemplateRegistry:
         Raises:
             TemplateNotFound: If template file doesn't exist
         """
-        if self._jinja_env is None:
-            raise RuntimeError("Jinja environment not initialized")
-
-        # Template files are in: templates/{template_id}/{template_file}
-        template_path = f"{template_id}/{template_file}"
-        return self._jinja_env.get_template(template_path)
+        schema = self._templates.get(template_id)
+        if not schema:
+            raise TemplateNotFoundError(template_id)
+        
+        # Template files are in: templates/{group}/{template_id}/{template_file}
+        group = schema.metadata.group
+        template_path = f"{group}/{template_id}/{template_file}"
+        return self._get_jinja_template(template_path)
 
     def validate_global_parameters(
         self, template_id: str, parameters: Dict

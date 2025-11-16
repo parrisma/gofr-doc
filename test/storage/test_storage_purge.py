@@ -9,7 +9,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 import tempfile
 import shutil
-import time
 from datetime import datetime, timedelta
 from app.storage.file_storage import FileStorage
 from app.logger import Logger, session_logger
@@ -377,7 +376,6 @@ def test_purge_cleans_orphaned_metadata(temp_storage_dir):
     # Create images
     guid1 = storage.save_image(b"image1", format="png", group="test")
     guid2 = storage.save_image(b"image2", format="png", group="test")
-    guid3 = storage.save_image(b"image3", format="png", group="other")
 
     # Verify initial state
     assert len(storage.metadata) == 3, "Should have 3 metadata entries"

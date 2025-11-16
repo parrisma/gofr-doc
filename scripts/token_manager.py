@@ -21,10 +21,7 @@ from app.logger import Logger, session_logger
 def resolve_jwt_secret(cli_secret: Optional[str]) -> Optional[str]:
     """Resolve JWT secret from CLI or environment variable."""
 
-    return (
-        cli_secret
-        or os.environ.get("DOCO_JWT_SECRET")
-    )
+    return cli_secret or os.environ.get("DOCO_JWT_SECRET")
 
 
 def create_token(args):
@@ -35,9 +32,7 @@ def create_token(args):
     jwt_secret = resolve_jwt_secret(args.secret)
     if not jwt_secret:
         logger.error("FATAL: No JWT secret provided")
-        logger.error(
-            "Set DOCO_JWT_SECRET environment variable or use --secret flag"
-        )
+        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
         return 1
 
     # Initialize auth service
@@ -88,9 +83,7 @@ def list_tokens(args):
     jwt_secret = resolve_jwt_secret(args.secret)
     if not jwt_secret:
         logger.error("FATAL: No JWT secret provided")
-        logger.error(
-            "Set DOCO_JWT_SECRET environment variable or use --secret flag"
-        )
+        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
         return 1
 
     # Initialize auth service
@@ -116,10 +109,11 @@ def list_tokens(args):
             expires = info.get("expires_at", "N/A")
 
             # Parse dates if possible
+
             try:
                 issued_dt = datetime.fromisoformat(issued)
                 issued_str = issued_dt.strftime("%Y-%m-%d %H:%M")
-            except:
+            except Exception:
                 issued_str = issued[:16] if len(issued) > 16 else issued
 
             try:
@@ -129,7 +123,7 @@ def list_tokens(args):
                 # Check if expired
                 if expires_dt < datetime.utcnow():
                     expires_str += " (EXPIRED)"
-            except:
+            except Exception:
                 expires_str = expires[:16] if len(expires) > 16 else expires
 
             token_preview = token[:20] + "..."
@@ -149,9 +143,7 @@ def revoke_token(args):
     jwt_secret = resolve_jwt_secret(args.secret)
     if not jwt_secret:
         logger.error("FATAL: No JWT secret provided")
-        logger.error(
-            "Set DOCO_JWT_SECRET environment variable or use --secret flag"
-        )
+        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
         return 1
 
     # Initialize auth service
@@ -177,9 +169,7 @@ def verify_token(args):
     jwt_secret = resolve_jwt_secret(args.secret)
     if not jwt_secret:
         logger.error("FATAL: No JWT secret provided")
-        logger.error(
-            "Set DOCO_JWT_SECRET environment variable or use --secret flag"
-        )
+        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
         return 1
 
     # Initialize auth service
@@ -261,7 +251,7 @@ Environment Variables:
     )
 
     # List tokens
-    list_parser = subparsers.add_parser("list", help="List all tokens")
+    subparsers.add_parser("list", help="List all tokens")
 
     # Revoke token
     revoke_parser = subparsers.add_parser("revoke", help="Revoke a token")

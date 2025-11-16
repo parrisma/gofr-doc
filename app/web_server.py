@@ -1,48 +1,97 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import JSONResponse, Response, HTMLResponse
-from app.validation import GraphDataValidator
-from app.storage import get_storage
+"""Doco Web Server - Document rendering REST API."""
+from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi.responses import JSONResponse, Response
+from app.rendering.engine import RenderingEngine
+from app.templates.registry import TemplateRegistry
+from app.fragments.registry import FragmentRegistry
+from app.styles.registry import StyleRegistry
+from app.validation.document_models import DocumentSession, OutputFormat
+from app.validation import Validator
+from app.storage.file_storage import FileStorage
 from app.auth import TokenInfo, verify_token, optional_verify_token, init_auth_service
 from app.logger import Logger, session_logger
+from app.config import Config
 from datetime import datetime
-import base64
-import os
-from typing import Optional
+from typing import Optional, Dict, Any
+from pathlib import Path
+import uuid
 
 
 class DocoWebServer:
+    """FastAPI web server for document rendering with group support."""
+
     def __init__(
         self,
+        templates_dir: Optional[str] = None,
+        fragments_dir: Optional[str] = None,
+        styles_dir: Optional[str] = None,
         jwt_secret: Optional[str] = None,
         token_store_path: Optional[str] = None,
         require_auth: bool = True,
     ):
-        self.app = FastAPI(title="doco", description="Document rendering service")
-        self.renderer = GraphRenderer()
-        self.validator = GraphDataValidator()
-        self.storage = get_storage()
+        """
+        Initialize the Doco web server.
+
+        Args:
+            templates_dir: Templates directory path
+            fragments_dir: Fragments directory path
+            styles_dir: Styles directory path
+            jwt_secret: JWT secret for authentication
+            token_store_path: Path to token store file
+            require_auth: Whether to require authentication
+        """
+        self.app = FastAPI(
+            title="doco",
+            description="Document rendering service with template and fragment support"
+        )
+
+        # Set up registries
+        project_root = Path(__file__).parent.parent
+        self.templates_dir = templates_dir or str(project_root / "templates")
+        self.fragments_dir = fragments_dir or str(project_root / "fragments")
+        self.styles_dir = styles_dir or str(project_root / "styles")
+
+        self.template_registry = TemplateRegistry(self.templates_dir, session_logger)
+        self.fragment_registry = FragmentRegistry(self.fragments_dir, session_logger)
+        self.style_registry = StyleRegistry(self.styles_dir, session_logger)
+        self.storage = FileStorage(str(Config.get_storage_dir()))
+
+        # Set up rendering engine
+        self.engine = RenderingEngine(
+            self.template_registry,
+            self.style_registry,
+            session_logger
+        )
+
+        # Set up validator
+        self.validator = Validator()
+
         self.require_auth = require_auth
+        self.logger: Logger = session_logger
 
         # Initialize auth service only if auth is required
         if require_auth:
             init_auth_service(secret_key=jwt_secret, token_store_path=token_store_path)
 
-        self.logger: Logger = session_logger
         self.logger.info(
-            "Web server initialized", version="1.0.0", authentication_enabled=require_auth
+            "Doco web server initialized",
+            templates_dir=self.templates_dir,
+            fragments_dir=self.fragments_dir,
+            styles_dir=self.styles_dir,
+            authentication_enabled=require_auth
         )
         self._setup_routes()
 
     def _get_auth_dependency(self):
-        """Get the appropriate auth dependency based on require_auth setting"""
+        """Get the appropriate auth dependency based on require_auth setting."""
         return verify_token if self.require_auth else optional_verify_token
 
     def _setup_routes(self):
+        """Set up all API routes."""
+
         @self.app.get("/ping")
         async def ping():
-            """
-            Health check endpoint that returns the current server time.
-            """
+            """Health check endpoint."""
             current_time = datetime.now().isoformat()
             self.logger.debug("Ping request received", timestamp=current_time)
             return JSONResponse(
@@ -51,431 +100,308 @@ class DocoWebServer:
 
         auth_dep = self._get_auth_dependency()
 
-        @self.app.post("/render")
-        async def render_graph(
-            data: GraphParams, token_info: Optional[TokenInfo] = Depends(auth_dep)
+        @self.app.get("/templates")
+        async def list_templates(
+            group: Optional[str] = None,
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        ):
+            """List available templates."""
+            self.logger.info("List templates request", group=group)
+            try:
+                templates = self.template_registry.list_templates(group=group)
+                return JSONResponse(
+                    content={
+                        "templates": [
+                            {
+                                "template_id": t.template_id,
+                                "name": t.name,
+                                "description": t.description,
+                                "group": t.group,
+                            }
+                            for t in templates
+                        ]
+                    }
+                )
+            except Exception as e:
+                self.logger.error(f"Error listing templates: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.get("/templates/{template_id}")
+        async def get_template_details(
+            template_id: str,
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        ):
+            """Get detailed information about a template."""
+            self.logger.info("Get template details request", template_id=template_id)
+            try:
+                details = self.template_registry.get_template_details(template_id)
+                if not details:
+                    raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+
+                return JSONResponse(
+                    content={
+                        "template_id": details.template_id,
+                        "name": details.name,
+                        "description": details.description,
+                        "group": details.group,
+                        "global_parameters": [
+                            {
+                                "name": p.get("name") if isinstance(p, dict) else p.name,
+                                "type": p.get("type") if isinstance(p, dict) else p.type,
+                                "description": p.get("description") if isinstance(p, dict) else p.description,
+                                "required": p.get("required", True) if isinstance(p, dict) else p.required,
+                                "default": p.get("default") if isinstance(p, dict) else p.default,
+                            }
+                            for p in details.global_parameters
+                        ],
+                    }
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"Error getting template details: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.get("/fragments")
+        async def list_fragments(
+            group: Optional[str] = None,
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        ):
+            """List available standalone fragments."""
+            self.logger.info("List fragments request", group=group)
+            try:
+                fragments = self.fragment_registry.list_fragments(group=group)
+                return JSONResponse(
+                    content={
+                        "fragments": [
+                            {
+                                "fragment_id": f["fragment_id"],
+                                "name": f["name"],
+                                "description": f["description"],
+                                "group": f["group"],
+                            }
+                            for f in fragments
+                        ]
+                    }
+                )
+            except Exception as e:
+                self.logger.error(f"Error listing fragments: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.get("/styles")
+        async def list_styles(
+            group: Optional[str] = None,
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        ):
+            """List available styles."""
+            self.logger.info("List styles request", group=group)
+            try:
+                styles = self.style_registry.list_styles(group=group)
+                return JSONResponse(
+                    content={
+                        "styles": [
+                            {
+                                "style_id": s.style_id,
+                                "name": s.name,
+                                "description": s.description,
+                                "group": s.group,
+                            }
+                            for s in styles
+                        ]
+                    }
+                )
+            except Exception as e:
+                self.logger.error(f"Error listing styles: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.get("/groups")
+        async def list_groups(
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        ):
+            """List all available groups across templates, fragments, and styles."""
+            self.logger.info("List groups request")
+            try:
+                all_groups = set()
+                all_groups.update(self.template_registry.list_groups())
+                all_groups.update(self.fragment_registry.list_groups())
+                all_groups.update(self.style_registry.list_groups())
+
+                return JSONResponse(
+                    content={"groups": sorted(list(all_groups))}
+                )
+            except Exception as e:
+                self.logger.error(f"Error listing groups: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.post("/validate")
+        async def validate_document(
+            request_body: Dict[str, Any],
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
         ):
             """
-            Render a graph with comprehensive error handling.
-            Requires JWT authentication unless --no-auth flag is used.
-
-            This endpoint ensures the server never crashes by catching all exceptions
-            and returning appropriate HTTP error responses.
+            Validate a document against its template.
+            
+            Request body should contain:
+            - template_id: The template to validate against
+            - group: The group (mandatory)
+            - parameters: Global template parameters
+            - fragments: List of fragments in the document
             """
             group = token_info.group if token_info else None
-            datasets = data.get_datasets()
-            data_points = len(datasets[0][0]) if datasets else 0
-
+            template_id = request_body.get("template_id")
+            
             self.logger.info(
-                "Received render request",
-                chart_type=data.type,
-                format=data.format,
-                theme=data.theme,
-                num_datasets=len(datasets),
-                data_points=data_points,
-                group=group,
+                "Validation request",
+                template_id=template_id,
+                group=group
             )
 
-            # Validate the input data
             try:
-                self.logger.debug("Starting validation")
-                validation_result = self.validator.validate(data)
+                # Create document session
+                session_id = str(uuid.uuid4())
+                now = datetime.now().isoformat()
+                
+                final_group = group or request_body.get("group")
+                if not final_group:
+                    raise ValueError("group is required")
+                if not template_id:
+                    raise ValueError("template_id is required")
+                
+                session = DocumentSession(
+                    session_id=session_id,
+                    template_id=template_id,
+                    created_at=now,
+                    updated_at=now,
+                    group=final_group,
+                    global_parameters=request_body.get("parameters", {}),
+                    fragments=request_body.get("fragments", [])
+                )
+
+                # Validate the document
+                validation_result = self.validator.validate(session)
 
                 if not validation_result.is_valid:
                     self.logger.warning(
                         "Validation failed",
-                        error_count=len(validation_result.errors),
-                        errors=[e.field for e in validation_result.errors],
+                        template_id=session.template_id,
+                        error_count=len(validation_result.errors)
                     )
-                    # Return detailed validation errors
-                    raise HTTPException(
+                    return JSONResponse(
                         status_code=400,
-                        detail={
-                            "error": "Validation failed",
-                            "message": validation_result.get_error_summary(),
+                        content={
+                            "valid": False,
+                            "error_summary": validation_result.get_error_summary(),
                             "errors": validation_result.get_json_errors(),
-                        },
+                        }
                     )
-            except HTTPException:
-                # Re-raise HTTP exceptions
-                raise
-            except Exception as e:
-                self.logger.error(
-                    "Unexpected validation error", error=str(e), error_type=type(e).__name__
-                )
-                # Catch any unexpected validation errors
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Validation system error",
-                        "message": f"Unexpected error during validation: {str(e)}",
-                        "suggestions": [
-                            "This is an internal error",
-                            "Please verify your input data format",
-                        ],
-                    },
-                )
-
-            # Render the graph
-            try:
-                self.logger.debug("Starting render", group=group)
-                image_data = self.renderer.render(data, group=group)
-                self.logger.info(
-                    "Render completed successfully",
-                    chart_type=data.type,
-                    format=data.format,
-                    output_size=len(image_data) if isinstance(image_data, (str, bytes)) else 0,
-                    group=group,
-                )
-            except ValueError as e:
-                self.logger.error(
-                    "Configuration error during render",
-                    error=str(e),
-                    chart_type=data.type,
-                    theme=data.theme,
-                )
-                # Handle configuration errors (invalid type, theme, etc.)
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "error": "Configuration error",
-                        "message": str(e),
-                        "suggestions": [
-                            "Check that the chart type is valid (line, scatter, bar)",
-                            "Verify the theme name is correct (light, dark)",
-                            "Ensure the format is supported (png, jpg, svg, pdf)",
-                        ],
-                    },
-                )
-            except RuntimeError as e:
-                self.logger.error("Runtime error during render", error=str(e), chart_type=data.type)
-                # Handle rendering errors
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Rendering failed",
-                        "message": str(e),
-                        "suggestions": [
-                            "Verify your data values are valid numbers",
-                            "Check that arrays are not empty",
-                            "Try reducing the data size or simplifying the request",
-                        ],
-                    },
-                )
-            except MemoryError:
-                datasets = data.get_datasets()
-                data_points = len(datasets[0][0]) if datasets else 0
-                self.logger.critical(
-                    "Out of memory during render",
-                    data_points=data_points,
-                    num_datasets=len(datasets),
-                    chart_type=data.type,
-                )
-                # Handle memory errors for large datasets
-                raise HTTPException(
-                    status_code=413,
-                    detail={
-                        "error": "Request too large",
-                        "message": "Not enough memory to render this graph",
-                        "suggestions": [
-                            "Reduce the number of data points",
-                            "Use a lower resolution format",
-                            "Try rendering in smaller batches",
-                        ],
-                    },
-                )
-            except Exception as e:
-                self.logger.error(
-                    "Unexpected error during render",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    chart_type=data.type,
-                )
-                # Catch any other unexpected errors
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Unexpected rendering error",
-                        "message": str(e),
-                        "error_type": type(e).__name__,
-                        "suggestions": [
-                            "An unexpected error occurred",
-                            "Please verify your input data",
-                        ],
-                    },
-                )
-
-            # Return the rendered image
-            try:
-                if data.return_base64:
-                    # Ensure we have a string for base64 response
-                    if isinstance(image_data, bytes):
-                        image_data = image_data.decode("utf-8")
-                    self.logger.debug("Returning base64 response")
-                    return JSONResponse(content={"image": image_data})
-
-                # Return image directly with appropriate content type
-                media_types = {
-                    "png": "image/png",
-                    "jpg": "image/jpeg",
-                    "svg": "image/svg+xml",
-                    "pdf": "application/pdf",
-                    "bmp": "image/bmp",
-                }
-
-                # Ensure we have bytes for direct response
-                if isinstance(image_data, str):
-                    # Check if it's a GUID (proxy mode)
-                    try:
-                        from uuid import UUID
-
-                        UUID(image_data)
-                        # It's a GUID, return JSON with GUID
-                        self.logger.debug("Returning GUID response (proxy mode)", guid=image_data)
-                        return JSONResponse(
-                            content={
-                                "guid": image_data,
-                                "format": data.format,
-                                "message": f"Image saved with GUID: {image_data}",
-                                "retrieve_url": f"/render/{image_data}",
-                                "html_url": f"/render/{image_data}/html",
-                            }
-                        )
-                    except ValueError:
-                        # Not a GUID, it's base64
-                        image_data = base64.b64decode(image_data)
-
-                self.logger.debug(
-                    "Returning direct image response",
-                    media_type=media_types.get(data.format, "image/png"),
-                )
-                return Response(
-                    content=image_data, media_type=media_types.get(data.format, "image/png")
-                )
-            except Exception as e:
-                self.logger.error(
-                    "Failed to create response", error=str(e), error_type=type(e).__name__
-                )
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Response creation failed",
-                        "message": f"Failed to create HTTP response: {str(e)}",
-                        "suggestions": [
-                            "The image was rendered but could not be returned",
-                            "Try a different output format",
-                        ],
-                    },
-                )
-
-        @self.app.get("/render/{guid}")
-        async def get_image_by_guid(guid: str, token_info: Optional[TokenInfo] = Depends(auth_dep)):
-            """
-            Retrieve a rendered image by its GUID.
-            Returns the raw image bytes with appropriate content type.
-            Requires JWT authentication and group access (unless --no-auth is used).
-            """
-            group = token_info.group if token_info else None
-            self.logger.info("Get image request", guid=guid, group=group)
-
-            try:
-                result = self.storage.get_image(guid, group=group)
-
-                if result is None:
-                    self.logger.warning("Image not found", guid=guid)
-                    raise HTTPException(
-                        status_code=404,
-                        detail={
-                            "error": "Image not found",
-                            "message": f"No image found for GUID: {guid}",
-                            "suggestions": [
-                                "Verify the GUID is correct",
-                                "The image may have been deleted",
-                            ],
-                        },
-                    )
-
-                image_data, img_format = result
-
-                media_types = {
-                    "png": "image/png",
-                    "jpg": "image/jpeg",
-                    "jpeg": "image/jpeg",
-                    "svg": "image/svg+xml",
-                    "pdf": "application/pdf",
-                    "bmp": "image/bmp",
-                }
 
                 self.logger.info(
-                    "Image retrieved", guid=guid, format=img_format, size=len(image_data)
+                    "Validation passed",
+                    template_id=session.template_id
+                )
+                return JSONResponse(
+                    content={"valid": True, "message": "Document is valid"}
                 )
 
-                return Response(
-                    content=image_data,
-                    media_type=media_types.get(img_format, "image/png"),
-                    headers={"Content-Disposition": f'inline; filename="{guid}.{img_format}"'},
-                )
-
-            except HTTPException:
-                raise
             except ValueError as e:
-                self.logger.error("Invalid GUID", guid=guid, error=str(e))
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "error": "Invalid GUID",
-                        "message": str(e),
-                    },
-                )
+                self.logger.error(f"Invalid request: {str(e)}")
+                raise HTTPException(status_code=400, detail=str(e))
             except Exception as e:
-                self.logger.error("Failed to retrieve image", guid=guid, error=str(e))
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Failed to retrieve image",
-                        "message": str(e),
-                    },
-                )
+                self.logger.error(f"Validation error: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
 
-        @self.app.get("/render/{guid}/html")
-        async def get_image_html(guid: str, token_info: Optional[TokenInfo] = Depends(auth_dep)):
+        @self.app.post("/render")
+        async def render_document(
+            request_body: Dict[str, Any],
+            format: str = Query("html", description="Output format: html, markdown, or pdf"),
+            token_info: Optional[TokenInfo] = Depends(auth_dep)
+        ):
             """
-            Retrieve a rendered image by its GUID and display it in an HTML page.
-            Useful for viewing images directly in a browser.
-            Requires JWT authentication and group access (unless --no-auth is used).
+            Render a document to the specified format.
+            
+            Request body should contain:
+            - template_id: The template to render
+            - group: The group (mandatory)
+            - style_id: Optional style to apply
+            - parameters: Global template parameters
+            - fragments: List of fragments in the document
             """
             group = token_info.group if token_info else None
-            self.logger.info("Get image HTML request", guid=guid, group=group)
+            template_id = request_body.get("template_id")
+
+            self.logger.info(
+                "Render request",
+                template_id=template_id,
+                format=format,
+                group=group
+            )
 
             try:
-                result = self.storage.get_image(guid, group=group)
+                # Create document session
+                session_id = str(uuid.uuid4())
+                now = datetime.now().isoformat()
+                
+                final_group = group or request_body.get("group")
+                if not final_group:
+                    raise ValueError("group is required")
+                if not template_id:
+                    raise ValueError("template_id is required")
+                
+                session = DocumentSession(
+                    session_id=session_id,
+                    template_id=template_id,
+                    created_at=now,
+                    updated_at=now,
+                    group=final_group,
+                    global_parameters=request_body.get("parameters", {}),
+                    fragments=request_body.get("fragments", [])
+                )
 
-                if result is None:
-                    self.logger.warning("Image not found for HTML display", guid=guid)
-                    raise HTTPException(
-                        status_code=404,
-                        detail={
-                            "error": "Image not found",
-                            "message": f"No image found for GUID: {guid}",
-                        },
+                # Validate the document
+                validation_result = self.validator.validate(session)
+                if not validation_result.is_valid:
+                    self.logger.warning(
+                        "Validation failed before render",
+                        template_id=template_id,
+                        error_count=len(validation_result.errors)
+                    )
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "error": "Validation failed",
+                            "error_summary": validation_result.get_error_summary(),
+                            "errors": validation_result.get_json_errors(),
+                        }
                     )
 
-                image_data, img_format = result
+                # Render the document
+                output_format = OutputFormat(format.lower())
+                style_id = request_body.get("style_id")
+                output_obj = await self.engine.render_document(session, output_format, style_id)
+                output = output_obj.content
 
-                # Encode image as base64 for embedding in HTML
-                base64_data = base64.b64encode(image_data).decode("utf-8")
+                self.logger.info(
+                    "Render completed",
+                    template_id=template_id,
+                    format=format,
+                    output_size=len(output) if output else 0
+                )
 
-                # Determine MIME type
-                mime_types = {
-                    "png": "image/png",
-                    "jpg": "image/jpeg",
-                    "jpeg": "image/jpeg",
-                    "bmp": "image/bmp",
-                    "svg": "image/svg+xml",
-                }
-                mime_type = mime_types.get(img_format, "image/png")
+                # Return appropriate response based on format
+                if output_format == OutputFormat.HTML:
+                    return Response(content=output, media_type="text/html")
+                elif output_format in (OutputFormat.MARKDOWN, OutputFormat.MD):
+                    return Response(content=output, media_type="text/markdown")
+                elif output_format == OutputFormat.PDF:
+                    return Response(content=output, media_type="application/pdf")
+                else:
+                    return JSONResponse(
+                        content={"output": output}
+                    )
 
-                # Create HTML page with embedded image
-                html_content = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>doco - Image {guid}</title>
-                    <style>
-                        body {{
-                            margin: 0;
-                            padding: 20px;
-                            background-color: #f5f5f5;
-                            font-family: Arial, sans-serif;
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                        }}
-                        .container {{
-                            background-color: white;
-                            padding: 20px;
-                            border-radius: 8px;
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                            max-width: 1200px;
-                        }}
-                        h1 {{
-                            color: #333;
-                            margin-top: 0;
-                        }}
-                        .info {{
-                            color: #666;
-                            margin-bottom: 20px;
-                            font-size: 14px;
-                        }}
-                        .info code {{
-                            background-color: #f0f0f0;
-                            padding: 2px 6px;
-                            border-radius: 3px;
-                            font-family: monospace;
-                        }}
-                        img {{
-                            max-width: 100%;
-                            height: auto;
-                            border: 1px solid #ddd;
-                            border-radius: 4px;
-                        }}
-                        .links {{
-                            margin-top: 20px;
-                            display: flex;
-                            gap: 10px;
-                        }}
-                        .links a {{
-                            padding: 8px 16px;
-                            background-color: #007bff;
-                            color: white;
-                            text-decoration: none;
-                            border-radius: 4px;
-                            font-size: 14px;
-                        }}
-                        .links a:hover {{
-                            background-color: #0056b3;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>doco Rendered Image</h1>
-                        <div class="info">
-                            <strong>GUID:</strong> <code>{guid}</code><br>
-                            <strong>Format:</strong> {img_format.upper()}<br>
-                            <strong>Size:</strong> {len(image_data):,} bytes
-                        </div>
-                        <img src="data:{mime_type};base64,{base64_data}" alt="Rendered graph {guid}">
-                        <div class="links">
-                            <a href="/render/{guid}" download="{guid}.{img_format}">Download Image</a>
-                            <a href="/ping">Server Status</a>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                """
-
-                self.logger.info("HTML page generated", guid=guid, format=img_format)
-
-                return HTMLResponse(content=html_content)
-
-            except HTTPException:
-                raise
             except ValueError as e:
-                self.logger.error("Invalid GUID for HTML", guid=guid, error=str(e))
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "error": "Invalid GUID",
-                        "message": str(e),
-                    },
-                )
+                self.logger.error(f"Invalid request: {str(e)}")
+                raise HTTPException(status_code=400, detail=str(e))
             except Exception as e:
-                self.logger.error("Failed to generate HTML", guid=guid, error=str(e))
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Failed to generate HTML page",
-                        "message": str(e),
-                    },
-                )
+                self.logger.error(f"Rendering error: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))

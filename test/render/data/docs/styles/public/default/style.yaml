@@ -1,0 +1,5 @@
+style_id: default
+group: public
+name: Default Style
+description: Standard professional styling
+version: "1.0.0"

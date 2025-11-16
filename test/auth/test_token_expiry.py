@@ -13,7 +13,6 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from app.auth import AuthService
 from app.logger import Logger, session_logger
-import time
 
 
 # Test configuration

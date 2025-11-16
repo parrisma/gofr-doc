@@ -1,0 +1,53 @@
+/* Default Style */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    background: white;
+    margin: 0;
+    padding: 20px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #222;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+h1 {
+    font-size: 28px;
+    border-bottom: 3px solid #007ACC;
+    padding-bottom: 10px;
+}
+
+h2 {
+    font-size: 22px;
+    border-bottom: 2px solid #0078d4;
+}
+
+h3 {
+    font-size: 18px;
+}
+
+p {
+    margin: 10px 0;
+}
+
+.metadata {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.fragment-paragraph,
+.fragment-section,
+.fragment-news-item {
+    margin-bottom: 15px;
+}
+
+.fragment-paragraph p,
+.fragment-section p,
+.fragment-news-item p {
+    margin: 5px 0;
+}

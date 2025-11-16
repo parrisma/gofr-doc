@@ -1,7 +1,7 @@
 """Session manager for document generation sessions."""
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from app.validation.document_models import (
     DocumentSession,
@@ -40,12 +40,13 @@ class SessionManager:
         self.template_registry = template_registry
         self.logger = logger
 
-    async def create_session(self, template_id: str) -> CreateSessionOutput:
+    async def create_session(self, template_id: str, group: str) -> CreateSessionOutput:
         """
         Create a new document session.
 
         Args:
             template_id: Template to use for this session
+            group: Group context for this session
 
         Returns:
             CreateSessionOutput with session_id
@@ -57,11 +58,12 @@ class SessionManager:
             raise ValueError(f"Template '{template_id}' not found")
 
         session_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.utcnow().isoformat()
 
         session = DocumentSession(
             session_id=session_id,
             template_id=template_id,
+            group=group,
             global_parameters=None,
             fragments=[],
             created_at=now,
@@ -120,7 +122,7 @@ class SessionManager:
 
         # Update session
         session.global_parameters = parameters
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.utcnow().isoformat()
 
         await self.session_store.save_session(session)
 
@@ -165,10 +167,10 @@ class SessionManager:
         # Create fragment instance
         fragment_instance_guid = str(uuid.uuid4())
         fragment_instance = FragmentInstance(
-            fragment_instance_guid=fragment_instance_guid,
             fragment_id=fragment_id,
             parameters=parameters,
-            created_at=datetime.utcnow(),
+            fragment_instance_guid=fragment_instance_guid,
+            created_at=datetime.utcnow().isoformat(),
         )
 
         # Determine insertion position
@@ -176,7 +178,7 @@ class SessionManager:
 
         # Insert fragment
         session.fragments.insert(insert_index, fragment_instance)
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.utcnow().isoformat()
 
         await self.session_store.save_session(session)
 
@@ -262,7 +264,7 @@ class SessionManager:
                 f"Fragment instance '{fragment_instance_guid}' not found in session"
             )
 
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.utcnow().isoformat()
 
         await self.session_store.save_session(session)
 

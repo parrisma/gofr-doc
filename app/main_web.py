@@ -9,7 +9,7 @@ logger: Logger = session_logger
 
 if __name__ == "__main__":
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="doco Web Server - Graph rendering REST API")
+    parser = argparse.ArgumentParser(description="doco Web Server - Document rendering REST API")
     parser.add_argument(
         "--host",
         type=str,

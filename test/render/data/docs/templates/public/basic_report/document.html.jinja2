@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+        }
+        h1 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        h3 {
+            margin-top: 20px;
+            color: #333;
+        }
+        p {
+            text-align: justify;
+        }
+        .metadata {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    {% if author %}
+    <div class="metadata">
+        <strong>Author:</strong> {{ author }}
+    </div>
+    {% endif %}
+    
+    <!-- Fragments will be inserted here -->
+    {% for fragment in fragments %}
+    <div class="fragment" id="fragment_{{ loop.index }}">
+        {{ fragment.html | safe }}
+    </div>
+    {% endfor %}
+</body>
+</html>

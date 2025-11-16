@@ -4,10 +4,8 @@ Stores images as files in a directory with GUID-based filenames.
 Supports group-based segregation for access control.
 """
 
-import os
 import uuid
 import json
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Tuple, List
@@ -152,7 +150,7 @@ class FileStorage(ImageStorageBase):
                     requested_group=group,
                     stored_group=stored_group,
                 )
-                raise ValueError(f"Access denied: image belongs to different group")
+                raise ValueError("Access denied: image belongs to different group")
 
         self.logger.debug("Retrieving image from file", guid=identifier, group=group)
 
@@ -215,7 +213,7 @@ class FileStorage(ImageStorageBase):
                     requested_group=group,
                     stored_group=stored_group,
                 )
-                raise ValueError(f"Access denied: image belongs to different group")
+                raise ValueError("Access denied: image belongs to different group")
 
         deleted = False
         for ext in ["png", "jpg", "jpeg", "svg", "pdf"]:

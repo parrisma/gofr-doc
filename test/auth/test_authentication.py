@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.auth import AuthService
 from app.logger import Logger, session_logger
 

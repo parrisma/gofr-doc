@@ -1,0 +1,40 @@
+metadata:
+  template_id: basic_report
+  group: public
+  name: Basic Report
+  description: A simple report with title and content sections
+  version: "1.0.0"
+global_parameters:
+  - name: title
+    type: string
+    description: Document title
+    required: true
+  - name: author
+    type: string
+    description: Document author
+    required: false
+fragments:
+  - fragment_id: paragraph
+    name: Paragraph
+    description: A paragraph of text
+    parameters:
+      - name: text
+        type: string
+        description: Paragraph content
+        required: true
+      - name: heading
+        type: string
+        description: Optional paragraph heading
+        required: false
+  - fragment_id: section
+    name: Section
+    description: A section with heading and content
+    parameters:
+      - name: heading
+        type: string
+        description: Section heading
+        required: true
+      - name: content
+        type: string
+        description: Section content
+        required: true

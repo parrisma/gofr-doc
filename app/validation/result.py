@@ -1,27 +1,7 @@
-"""Validation models for document generation system."""
-from typing import Optional, List, Dict, Any
+"""Validation result model for document generation system."""
+from typing import Any, Dict, List
 from pydantic import BaseModel
-
-
-class ValidationError(BaseModel):
-    """Detailed validation error with helpful suggestions"""
-
-    field: str
-    message: str
-    received_value: Any = None
-    expected: str
-    suggestions: List[str] = []
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "field": "template_id",
-                "message": "Template not found",
-                "received_value": "unknown_template",
-                "expected": "Valid template identifier",
-                "suggestions": ["Call list_templates to see available templates"]
-            }
-        }
+from app.validation.error import ValidationError
 
 
 class ValidationResult(BaseModel):

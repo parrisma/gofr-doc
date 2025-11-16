@@ -1,4 +1,5 @@
 style_id: missing
+group: public
 name: Missing CSS Style
 description: Style intentionally missing CSS file
 version: "1.0.0"

@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
+import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
@@ -18,8 +19,29 @@ from app.logger import Logger, session_logger
 MCP_URL = "http://localhost:8011/mcp/"
 
 
+async def is_mcp_server_running() -> bool:
+    """Check if MCP server is running and accessible"""
+    try:
+        async with httpx.AsyncClient(timeout=1.0) as client:
+            response = await client.get(MCP_URL.rstrip("/"))
+            return response.status_code < 500  # Server is running if not 5xx
+    except Exception:
+        return False
+
+
+@pytest.fixture
+async def mcp_server_available():
+    """Fixture to skip tests if MCP server is not running"""
+    if not await is_mcp_server_running():
+        pytest.skip(
+            "MCP server is not running. Start it with: python -m app.main_mcp",
+            allow_module_level=False,
+        )
+    return True
+
+
 @pytest.mark.asyncio
-async def test_list_tools():
+async def test_list_tools(mcp_server_available):
     """Test that MCP server exposes expected tools"""
     logger: Logger = session_logger
     logger.info("Testing MCP server tool listing")
@@ -39,7 +61,7 @@ async def test_list_tools():
 
 
 @pytest.mark.asyncio
-async def test_render_line_chart():
+async def test_render_line_chart(mcp_server_available):
     """Test rendering a line chart"""
     logger: Logger = session_logger
     logger.info("Testing line chart rendering")
@@ -59,11 +81,11 @@ async def test_render_line_chart():
 
             result = await session.call_tool("render_graph", line_args)
             assert len(result.content) > 0, "No content returned"
-            logger.info(f"Line chart rendered successfully")
+            logger.info("Line chart rendered successfully")
 
 
 @pytest.mark.asyncio
-async def test_render_bar_chart():
+async def test_render_bar_chart(mcp_server_available):
     """Test rendering a bar chart"""
     logger: Logger = session_logger
     logger.info("Testing bar chart rendering")
@@ -83,11 +105,11 @@ async def test_render_bar_chart():
 
             result = await session.call_tool("render_graph", bar_args)
             assert len(result.content) > 0, "No content returned"
-            logger.info(f"Bar chart rendered successfully")
+            logger.info("Bar chart rendered successfully")
 
 
 @pytest.mark.asyncio
-async def test_render_scatter_plot():
+async def test_render_scatter_plot(mcp_server_available):
     """Test rendering a scatter plot"""
     logger: Logger = session_logger
     logger.info("Testing scatter plot rendering")
@@ -107,11 +129,11 @@ async def test_render_scatter_plot():
 
             result = await session.call_tool("render_graph", scatter_args)
             assert len(result.content) > 0, "No content returned"
-            logger.info(f"Scatter plot rendered successfully")
+            logger.info("Scatter plot rendered successfully")
 
 
 @pytest.mark.asyncio
-async def test_render_with_dark_theme():
+async def test_render_with_dark_theme(mcp_server_available):
     """Test rendering with dark theme"""
     logger: Logger = session_logger
     logger.info("Testing dark theme rendering")
@@ -130,11 +152,11 @@ async def test_render_with_dark_theme():
 
             result = await session.call_tool("render_graph", dark_args)
             assert len(result.content) > 0, "No content returned"
-            logger.info(f"Dark theme chart rendered successfully")
+            logger.info("Dark theme chart rendered successfully")
 
 
 @pytest.mark.asyncio
-async def test_validation_mismatched_arrays(test_jwt_token):
+async def test_validation_mismatched_arrays(mcp_server_available, test_jwt_token):
     """Test validation catches mismatched array lengths"""
     logger: Logger = session_logger
     logger.info("Testing validation for mismatched arrays")
@@ -166,7 +188,7 @@ async def test_validation_mismatched_arrays(test_jwt_token):
 
 
 @pytest.mark.asyncio
-async def test_validation_invalid_chart_type(test_jwt_token):
+async def test_validation_invalid_chart_type(mcp_server_available, test_jwt_token):
     """Test validation catches invalid chart type"""
     logger: Logger = session_logger
     logger.info("Testing validation for invalid chart type")
@@ -183,11 +205,11 @@ async def test_validation_invalid_chart_type(test_jwt_token):
                 "token": test_jwt_token,
             }
 
-            result = await session.call_tool("render_graph", error_args)
+            await session.call_tool("render_graph", error_args)
 
 
 @pytest.mark.asyncio
-async def test_validation_empty_arrays(test_jwt_token):
+async def test_validation_empty_arrays(mcp_server_available, test_jwt_token):
     """Test validation catches empty arrays"""
     logger: Logger = session_logger
     logger.info("Testing validation for empty arrays")
@@ -219,7 +241,7 @@ async def test_validation_empty_arrays(test_jwt_token):
 
 
 @pytest.mark.asyncio
-async def test_validation_invalid_alpha(test_jwt_token):
+async def test_validation_invalid_alpha(mcp_server_available, test_jwt_token):
     """Test validation catches invalid alpha value"""
     logger: Logger = session_logger
     logger.info("Testing validation for invalid alpha")
