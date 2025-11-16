@@ -1,3 +1,9 @@
+# Add public storage dir function
+def get_public_storage_dir() -> str:
+    """Get public storage directory as string"""
+    return str(Config.get_storage_dir() / "public")
+
+
 """Application configuration
 
 Centralized configuration for data persistence paths.

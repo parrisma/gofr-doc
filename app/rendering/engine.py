@@ -1,6 +1,7 @@
 """Rendering engine for document generation."""
 
 from typing import Optional
+from datetime import datetime
 import html2text
 from weasyprint import HTML
 from io import BytesIO
@@ -260,7 +261,7 @@ class RenderingEngine:
                 output_format.value if isinstance(output_format, OutputFormat) else output_format
             ),
             "content": content,
-            "created_at": str(uuid.uuid4()),  # Use timestamp-like value
+            "created_at": datetime.utcnow().isoformat() + "Z",
         }
 
         try:

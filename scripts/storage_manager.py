@@ -28,8 +28,8 @@ def resolve_storage_dir(cli_dir: Optional[str]) -> str:
     return str(Config.get_storage_dir())
 
 
-def purge_images(args):
-    """Purge images older than specified age"""
+def purge_documents(args):
+    """Purge documents older than specified age"""
     logger: Logger = session_logger
 
     storage_dir = resolve_storage_dir(args.storage_dir)
@@ -39,9 +39,9 @@ def purge_images(args):
 
         if args.age_days == 0:
             if args.group:
-                msg = f"Purging ALL images in group '{args.group}'"
+                msg = f"Purging ALL documents in group '{args.group}'"
             else:
-                msg = "Purging ALL images"
+                msg = "Purging ALL documents"
             logger.warning(f"WARNING: {msg}")
 
             if not args.yes:
@@ -52,7 +52,7 @@ def purge_images(args):
 
         deleted = storage.purge(age_days=args.age_days, group=args.group)
 
-        logger.info(f"Purge completed: {deleted} image(s) deleted")
+        logger.info(f"Purge completed: {deleted} document(s) deleted")
         return 0
 
     except Exception as e:
@@ -60,21 +60,21 @@ def purge_images(args):
         return 1
 
 
-def list_images(args):
-    """List stored images"""
+def list_documents(args):
+    """List stored documents"""
     logger: Logger = session_logger
 
     storage_dir = resolve_storage_dir(args.storage_dir)
 
     try:
         storage = FileStorage(storage_dir)
-        images = storage.list_images(group=args.group)
+        documents = storage.list_documents(group=args.group)
 
-        if not images:
-            logger.info("No images found.")
+        if not documents:
+            logger.info("No documents found.")
             return 0
 
-        logger.info(f"{len(images)} Image(s) Found:")
+        logger.info(f"{len(documents)} Document(s) Found:")
 
         if args.verbose:
             logger.info(
@@ -82,7 +82,7 @@ def list_images(args):
             )
             logger.info("-" * 100)
 
-            for guid in images:
+            for guid in documents:
                 # Get metadata
                 if guid in storage.metadata:
                     meta = storage.metadata[guid]
@@ -98,13 +98,13 @@ def list_images(args):
 
                 logger.info(f"{guid:<40} {fmt:<8} {grp:<15} {size:<12} {created}")
         else:
-            for guid in images:
+            for guid in documents:
                 logger.info(guid)
 
         return 0
 
     except Exception as e:
-        logger.error(f"Error listing images: {str(e)}")
+        logger.error(f"Error listing documents: {str(e)}")
         return 1
 
 
@@ -116,12 +116,12 @@ def stats(args):
 
     try:
         storage = FileStorage(storage_dir)
-        images = storage.list_images(group=args.group)
+        documents = storage.list_documents(group=args.group)
 
         total_size = 0
         groups = {}
 
-        for guid in images:
+        for guid in documents:
             if guid in storage.metadata:
                 meta = storage.metadata[guid]
                 size = meta.get("size", 0)
@@ -132,14 +132,14 @@ def stats(args):
 
         group_filter = f" in group '{args.group}'" if args.group else ""
         logger.info(f"Storage Statistics{group_filter}:")
-        logger.info(f"Total images:     {len(images)}")
+        logger.info(f"Total documents:  {len(documents)}")
         logger.info(f"Total size:       {total_size:,} bytes ({total_size / (1024*1024):.2f} MB)")
         logger.info(f"Storage dir:      {storage_dir}")
 
         if groups:
-            logger.info("Images by group:")
+            logger.info("Documents by group:")
             for group, count in sorted(groups.items()):
-                logger.info(f"  {group:<15} {count:>5} images")
+                logger.info(f"  {group:<15} {count:>5} documents")
 
         return 0
 
@@ -506,9 +506,9 @@ Environment Variables:
             return 1
 
         if args.command == "purge":
-            return purge_images(args)
+            return purge_documents(args)
         elif args.command == "list":
-            return list_images(args)
+            return list_documents(args)
         elif args.command == "stats":
             return stats(args)
 
