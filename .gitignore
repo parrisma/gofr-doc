@@ -159,3 +159,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Data storage - sessions and documents
+data/sessions/**/*.json
+data/storage/**/*.json
+
