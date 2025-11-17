@@ -15,7 +15,9 @@ from app.logger import Logger, session_logger
 
 
 class FileStorage(DocumentStorageBase):
-    """File-based document storage using GUID filenames in 'public' only"""
+    """File-based document storage using GUID filenames with group-based segregation"""
+
+    DEFAULT_GROUP = "public"
 
     def __init__(self, storage_dir: Optional[str] = None):
         """
@@ -40,7 +42,7 @@ class FileStorage(DocumentStorageBase):
             raise RuntimeError(f"Failed to create storage directory: {str(e)}")
 
     def _load_metadata(self) -> None:
-        """Load document metadata from 'public' only"""
+        """Load document metadata"""
         if self.metadata_file.exists():
             try:
                 with open(self.metadata_file, "r") as f:
@@ -72,14 +74,16 @@ class FileStorage(DocumentStorageBase):
             self.logger.error("Failed to save metadata", error=str(e))
             raise RuntimeError(f"Failed to save metadata: {str(e)}")
 
-    def save_document(self, document_data: bytes, format: str = "json") -> str:
+    def save_document(
+        self, document_data: bytes, format: str = "json", group: Optional[str] = None
+    ) -> str:
         """
         Save document data to disk with a unique GUID
 
         Args:
             document_data: Raw document bytes
             format: Document format (png, jpg, svg, pdf, json, etc.)
-            # Only 'public' group is supported
+            group: Optional group name for access control (defaults to 'public')
 
         Returns:
             GUID string (identifier without extension)
@@ -87,6 +91,10 @@ class FileStorage(DocumentStorageBase):
         Raises:
             RuntimeError: If save fails
         """
+        # Use default group if not provided
+        if group is None:
+            group = self.DEFAULT_GROUP
+
         # Generate unique GUID
         guid = str(uuid.uuid4())
         filename = f"{guid}.{format.lower()}"
@@ -97,7 +105,7 @@ class FileStorage(DocumentStorageBase):
             guid=guid,
             format=format,
             size=len(document_data),
-            group="public",
+            group=group,
         )
 
         try:
@@ -107,27 +115,25 @@ class FileStorage(DocumentStorageBase):
             # Store metadata with timestamp
             self.metadata[guid] = {
                 "format": format.lower(),
-                "group": "public",
+                "group": group,
                 "size": len(document_data),
                 "created_at": datetime.utcnow().isoformat(),
             }
             self._save_metadata()
 
-            self.logger.info(
-                "Document saved to file", guid=guid, path=str(filepath), group="public"
-            )
+            self.logger.info("Document saved to file", guid=guid, path=str(filepath), group=group)
             return guid
         except Exception as e:
             self.logger.error("Failed to save document file", guid=guid, error=str(e))
             raise RuntimeError(f"Failed to save document: {str(e)}")
 
-    def get_document(self, identifier: str) -> Optional[bytes]:
+    def get_document(self, identifier: str, group: Optional[str] = None) -> Optional[bytes]:
         """
         Retrieve document data by GUID
 
         Args:
             identifier: GUID string (without extension)
-            # Only 'public' group is supported
+            group: Optional group name for access control (if specified, validates group match)
 
         Returns:
             Document bytes or None if not found
@@ -142,9 +148,18 @@ class FileStorage(DocumentStorageBase):
             self.logger.warning("Invalid GUID format", guid=identifier)
             raise ValueError(f"Invalid GUID format: {identifier}")
 
-        # Only 'public' group is supported
+        # Check group match if group is specified
+        if group is not None and identifier in self.metadata:
+            if self.metadata[identifier].get("group") != group:
+                self.logger.warning(
+                    "Group mismatch on document retrieval",
+                    guid=identifier,
+                    expected_group=group,
+                    actual_group=self.metadata[identifier].get("group"),
+                )
+                return None
 
-        self.logger.debug("Retrieving document from file", guid=identifier, group="public")
+        self.logger.debug("Retrieving document from file", guid=identifier, group=group)
 
         # Try common formats (prefer metadata format if available)
         formats = ["png", "jpg", "jpeg", "svg", "pdf", "json"]
@@ -164,7 +179,7 @@ class FileStorage(DocumentStorageBase):
                         guid=identifier,
                         format=ext,
                         size=len(document_data),
-                        group="public",
+                        group=group,
                     )
                     return document_data
                 except Exception as e:
@@ -180,7 +195,7 @@ class FileStorage(DocumentStorageBase):
 
         Args:
             identifier: GUID string (without extension)
-            group: Optional group name for access control (ignored)
+            group: Optional group name for access control (if specified, validates group match)
 
         Returns:
             True if deleted, False if not found
@@ -195,7 +210,16 @@ class FileStorage(DocumentStorageBase):
             self.logger.warning("Invalid GUID format for deletion", guid=identifier)
             return False
 
-        # Ignore group argument, always operate on 'public'
+        # Check group match if group is specified
+        if group is not None and identifier in self.metadata:
+            if self.metadata[identifier].get("group") != group:
+                self.logger.warning(
+                    "Group mismatch on document deletion",
+                    guid=identifier,
+                    expected_group=group,
+                    actual_group=self.metadata[identifier].get("group"),
+                )
+                return False
 
         deleted = False
         for ext in ["png", "jpg", "jpeg", "svg", "pdf", "json"]:
@@ -204,7 +228,7 @@ class FileStorage(DocumentStorageBase):
                 try:
                     filepath.unlink()
                     self.logger.info(
-                        "Document file deleted", guid=identifier, format=ext, group="public"
+                        "Document file deleted", guid=identifier, format=ext, group=group
                     )
                     deleted = True
                 except Exception as e:
@@ -222,10 +246,9 @@ class FileStorage(DocumentStorageBase):
     def list_documents(self, group: Optional[str] = None) -> List[str]:
         """
         List all stored document GUIDs, optionally filtered by group
-        Searches for documents with common file extensions (.png, .jpg, .svg, .pdf, .json, etc.)
 
         Args:
-            group: Optional group name to filter by (currently ignored, all documents are in 'public')
+            group: Optional group name to filter by (if None, lists all groups)
 
         Returns:
             List of GUID strings
@@ -251,11 +274,17 @@ class FileStorage(DocumentStorageBase):
                     guid = filepath.stem
                     try:
                         uuid.UUID(guid)
-                        guids.add(guid)
+                        # If group filter specified, check it
+                        if group is not None:
+                            if guid in self.metadata and self.metadata[guid].get("group") == group:
+                                guids.add(guid)
+                        else:
+                            # No group filter, list all
+                            guids.add(guid)
                     except ValueError:
                         # Skip non-GUID files
                         pass
-            self.logger.debug("Listed document files", count=len(guids), group="public")
+            self.logger.debug("Listed document files", count=len(guids), group=group)
             return sorted(guids)
         except Exception as e:
             self.logger.error("Failed to list document files", error=str(e))
@@ -267,7 +296,7 @@ class FileStorage(DocumentStorageBase):
 
         Args:
             identifier: GUID string (without extension)
-            group: Optional group name for access control (ignored, all documents are in 'public')
+            group: Optional group name for access control (if specified, validates group match)
 
         Returns:
             True if document exists, False otherwise
@@ -277,6 +306,11 @@ class FileStorage(DocumentStorageBase):
             uuid.UUID(identifier)
         except ValueError:
             return False
+
+        # Check group match if group is specified
+        if group is not None and identifier in self.metadata:
+            if self.metadata[identifier].get("group") != group:
+                return False
 
         # Check for any matching file with common extensions in storage dir
         for ext in ["png", "jpg", "jpeg", "svg", "pdf", "json"]:
@@ -292,7 +326,7 @@ class FileStorage(DocumentStorageBase):
 
         Args:
             age_days: Delete documents older than this many days. 0 means delete all.
-            group: Optional group name to filter by (ignored, all documents are in 'public')
+            group: Optional group name to filter by (if None, purges all groups)
 
         Returns:
             Number of documents deleted
@@ -300,7 +334,7 @@ class FileStorage(DocumentStorageBase):
         Raises:
             RuntimeError: If purge fails
         """
-        self.logger.info("Starting purge", age_days=age_days, group="public")
+        self.logger.info("Starting purge", age_days=age_days, group=group)
 
         deleted_count = 0
         cutoff_time = None
@@ -323,11 +357,16 @@ class FileStorage(DocumentStorageBase):
                     # Skip non-GUID files
                     continue
 
+                # Check if document belongs to the requested group (if group filter specified)
+                if group is not None:
+                    if guid not in self.metadata or self.metadata[guid].get("group") != group:
+                        continue
+
                 # Determine file age
                 should_delete = False
 
                 if age_days == 0:
-                    # Delete all documents
+                    # Delete all documents (in this group if filtered)
                     should_delete = True
                 elif cutoff_time is not None:
                     # Check age from metadata or file modification time
@@ -357,9 +396,14 @@ class FileStorage(DocumentStorageBase):
                             "Failed to delete file during purge", guid=guid, error=str(e)
                         )
 
-            # Clean up orphaned metadata entries (entries without corresponding files)
+            # Clean up orphaned metadata entries (entries without corresponding files) for this group
             orphaned_guids = []
             for guid in list(self.metadata.keys()):
+                # Check if this metadata belongs to the requested group (if group filter specified)
+                if group is not None:
+                    if self.metadata[guid].get("group") != group:
+                        continue
+
                 # Check if file exists
                 file_exists = False
                 for ext in ["png", "jpg", "jpeg", "svg", "pdf", "json"]:
@@ -394,7 +438,7 @@ class FileStorage(DocumentStorageBase):
                 self._save_metadata()
 
             self.logger.info(
-                "Purge completed", deleted_count=deleted_count, age_days=age_days, group="public"
+                "Purge completed", deleted_count=deleted_count, age_days=age_days, group=group
             )
             return deleted_count
 
@@ -413,14 +457,14 @@ class FileStorage(DocumentStorageBase):
         Backward compatibility wrapper: save_image -> save_document
         Stores document data and returns GUID.
         """
-        return self.save_document(document_data=image_data, format=format)
+        return self.save_document(document_data=image_data, format=format, group=group)
 
     def get_image(self, identifier: str, group: Optional[str] = None) -> Optional[tuple]:
         """
         Backward compatibility wrapper: get_image -> get_document
         Returns tuple of (document_bytes, format) for test compatibility.
         """
-        data = self.get_document(identifier)
+        data = self.get_document(identifier, group=group)
         if data is not None:
             fmt = self.metadata.get(identifier, {}).get("format", "png")
             return (data, fmt)
@@ -430,7 +474,7 @@ class FileStorage(DocumentStorageBase):
         """
         Backward compatibility wrapper: delete_image -> delete_document
         """
-        return self.delete_document(identifier)
+        return self.delete_document(identifier, group=group)
 
     def list_images(self, group: Optional[str] = None) -> List[str]:
         """
