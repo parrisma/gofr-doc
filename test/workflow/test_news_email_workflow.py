@@ -23,11 +23,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 import json
-from urllib.request import urlopen
-from urllib.error import HTTPError
+from urllib.request import urlopen, Request
 from mcp.client.streamable_http import streamablehttp_client
 from mcp import ClientSession
 from mcp.types import TextContent
+
+# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
 
 # Port configuration via environment variables (defaults to production ports)
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
@@ -37,9 +38,13 @@ MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 WEB_URL = f"http://localhost:{WEB_PORT}"
 
 
-def _http_get(url):
+def _http_get(url, headers=None):
     """Simple HTTP GET helper."""
-    with urlopen(url) as response:
+    request = Request(url)
+    if headers:
+        for key, value in headers.items():
+            request.add_header(key, value)
+    with urlopen(request) as response:
         return {
             "status_code": response.status,
             "headers": dict(response.headers),
@@ -67,24 +72,28 @@ def _safe_json_parse(text):
         return {}
 
 
+# Note: Using auth_service and mcp_headers from conftest.py (default 'test_group')
+
+
 class TestNewsEmailWorkflow:
     """Test complete news email workflow through MCP and web servers."""
 
     @pytest.mark.asyncio
-    async def test_complete_news_email_workflow(self):
+    async def test_complete_news_email_workflow(self, mcp_headers):
         """Test complete workflow: create → add content → render → retrieve via both methods."""
 
         # ================================================================
         # PART 1: Create and build document via MCP
         # ================================================================
 
-        async with streamablehttp_client(MCP_URL) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
                 # Step 1: Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "news_email"}
+                    "create_document_session",
+                    arguments={"template_id": "news_email", "group": "test_group"},
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 session_id = resp.get("data", {}).get("session_id")
@@ -223,7 +232,7 @@ class TestNewsEmailWorkflow:
         # ================================================================
 
         # Step 8: Get document via web server proxy endpoint
-        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}?group=public")
+        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}", headers=mcp_headers)
         assert (
             web_response["status_code"] == 200
         ), f"Web server returned {web_response['status_code']}"
@@ -253,16 +262,17 @@ class TestNewsEmailWorkflow:
         assert "Professional Investors" in mcp_html, "Missing recipient type"
 
     @pytest.mark.asyncio
-    async def test_workflow_multiple_renders_same_content(self):
+    async def test_workflow_multiple_renders_same_content(self, mcp_headers):
         """Test that multiple renders of same session produce identical content."""
 
-        async with streamablehttp_client(MCP_URL) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
                 # Create and build document
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "news_email"}
+                    "create_document_session",
+                    arguments={"template_id": "news_email", "group": "test_group"},
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 session_id = resp.get("data", {}).get("session_id")
@@ -325,19 +335,20 @@ class TestNewsEmailWorkflow:
                 assert len(html_renders[0]) > 100, "Rendered content too short"
 
     @pytest.mark.asyncio
-    async def test_workflow_proxy_persistence(self):
+    async def test_workflow_proxy_persistence(self, mcp_headers):
         """Test that proxy documents remain accessible after session ends."""
 
         proxy_guid = None
         session_id = None
 
         # Create and render with proxy
-        async with streamablehttp_client(MCP_URL) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "news_email"}
+                    "create_document_session",
+                    arguments={"template_id": "news_email", "group": "test_group"},
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 session_id = resp.get("data", {}).get("session_id")
@@ -378,7 +389,7 @@ class TestNewsEmailWorkflow:
         assert proxy_guid, "No proxy_guid created"
 
         # Retrieve via web server
-        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}?group=public")
+        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}", headers=mcp_headers)
         assert (
             web_response["status_code"] == 200
         ), "Proxy document not accessible after session closed"

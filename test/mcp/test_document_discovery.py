@@ -19,6 +19,8 @@ from app.logger import Logger, session_logger
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
+# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+
 
 def skip_if_mcp_unavailable(func):
     """Decorator to skip tests if MCP server is unavailable."""
@@ -70,9 +72,9 @@ def logger() -> Logger:
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_templates_tool_exists():
+async def test_list_templates_tool_exists(mcp_headers):
     """Test that list_templates tool is available in MCP server."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -86,11 +88,11 @@ async def test_list_templates_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_templates_returns_templates(logger):
+async def test_list_templates_returns_templates(logger, mcp_headers):
     """Test that list_templates returns available templates."""
     logger.info("Testing list_templates tool")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -111,11 +113,11 @@ async def test_list_templates_returns_templates(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_templates_response_structure(logger):
+async def test_list_templates_response_structure(logger, mcp_headers):
     """Test that list_templates returns properly structured response."""
     logger.info("Testing list_templates response structure")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -149,9 +151,9 @@ async def test_list_templates_response_structure(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_template_details_tool_exists():
+async def test_get_template_details_tool_exists(mcp_headers):
     """Test that get_template_details tool is available."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -163,9 +165,9 @@ async def test_get_template_details_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_template_details_requires_template_id():
+async def test_get_template_details_requires_template_id(mcp_headers):
     """Test that get_template_details requires template_id parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -184,11 +186,11 @@ async def test_get_template_details_requires_template_id():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_template_details_invalid_template(logger):
+async def test_get_template_details_invalid_template(logger, mcp_headers):
     """Test that get_template_details returns error for non-existent template."""
     logger.info("Testing get_template_details with invalid template")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -208,11 +210,11 @@ async def test_get_template_details_invalid_template(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_template_details_returns_schema(logger):
+async def test_get_template_details_returns_schema(logger, mcp_headers):
     """Test that get_template_details returns template schema with global parameters."""
     logger.info("Testing get_template_details returns schema")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -259,9 +261,9 @@ async def test_get_template_details_returns_schema(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_template_fragments_tool_exists():
+async def test_list_template_fragments_tool_exists(mcp_headers):
     """Test that list_template_fragments tool is available."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -273,9 +275,9 @@ async def test_list_template_fragments_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_template_fragments_requires_template_id():
+async def test_list_template_fragments_requires_template_id(mcp_headers):
     """Test that list_template_fragments requires template_id parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -290,11 +292,11 @@ async def test_list_template_fragments_requires_template_id():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_template_fragments_returns_fragments(logger):
+async def test_list_template_fragments_returns_fragments(logger, mcp_headers):
     """Test that list_template_fragments returns fragment list."""
     logger.info("Testing list_template_fragments")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -338,9 +340,9 @@ async def test_list_template_fragments_returns_fragments(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_fragment_details_tool_exists():
+async def test_get_fragment_details_tool_exists(mcp_headers):
     """Test that get_fragment_details tool is available."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -352,9 +354,9 @@ async def test_get_fragment_details_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_fragment_details_requires_parameters():
+async def test_get_fragment_details_requires_parameters(mcp_headers):
     """Test that get_fragment_details requires template_id and fragment_id."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -370,11 +372,11 @@ async def test_get_fragment_details_requires_parameters():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_fragment_details_invalid_fragment(logger):
+async def test_get_fragment_details_invalid_fragment(logger, mcp_headers):
     """Test that get_fragment_details returns error for non-existent fragment."""
     logger.info("Testing get_fragment_details with invalid fragment")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -405,11 +407,11 @@ async def test_get_fragment_details_invalid_fragment(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_fragment_details_returns_schema(logger):
+async def test_get_fragment_details_returns_schema(logger, mcp_headers):
     """Test that get_fragment_details returns fragment parameter schema."""
     logger.info("Testing get_fragment_details returns schema")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -463,9 +465,9 @@ async def test_get_fragment_details_returns_schema(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_styles_tool_exists():
+async def test_list_styles_tool_exists(mcp_headers):
     """Test that list_styles tool is available."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -477,11 +479,11 @@ async def test_list_styles_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_styles_returns_styles(logger):
+async def test_list_styles_returns_styles(logger, mcp_headers):
     """Test that list_styles returns available styles."""
     logger.info("Testing list_styles tool")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

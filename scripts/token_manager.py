@@ -16,12 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.auth import AuthService
 from app.logger import Logger, session_logger
-
-
-def resolve_jwt_secret(cli_secret: Optional[str]) -> Optional[str]:
-    """Resolve JWT secret from CLI or environment variable."""
-
-    return cli_secret or os.environ.get("DOCO_JWT_SECRET")
+from app.startup.auth_config import resolve_jwt_secret_for_cli
 
 
 def create_token(args):
@@ -29,10 +24,9 @@ def create_token(args):
     logger: Logger = session_logger
 
     # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret(args.secret)
+    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
     if not jwt_secret:
-        logger.error("FATAL: No JWT secret provided")
-        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
+        # resolve_jwt_secret_for_cli already logs the error and exits
         return 1
 
     # Initialize auth service
@@ -80,10 +74,9 @@ def list_tokens(args):
     logger: Logger = session_logger
 
     # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret(args.secret)
+    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
     if not jwt_secret:
-        logger.error("FATAL: No JWT secret provided")
-        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
+        # resolve_jwt_secret_for_cli already logs the error and exits
         return 1
 
     # Initialize auth service
@@ -140,10 +133,9 @@ def revoke_token(args):
     logger: Logger = session_logger
 
     # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret(args.secret)
+    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
     if not jwt_secret:
-        logger.error("FATAL: No JWT secret provided")
-        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
+        # resolve_jwt_secret_for_cli already logs the error and exits
         return 1
 
     # Initialize auth service
@@ -166,10 +158,9 @@ def verify_token(args):
     logger: Logger = session_logger
 
     # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret(args.secret)
+    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
     if not jwt_secret:
-        logger.error("FATAL: No JWT secret provided")
-        logger.error("Set DOCO_JWT_SECRET environment variable or use --secret flag")
+        # resolve_jwt_secret_for_cli already logs the error and exits
         return 1
 
     # Initialize auth service

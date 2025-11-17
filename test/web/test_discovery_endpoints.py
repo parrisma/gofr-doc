@@ -25,7 +25,7 @@ from app.web_server import DocoWebServer
 @pytest.fixture
 def client():
     """Create a test client for the web server"""
-    server = DocoWebServer(require_auth=False)  # Disable auth for tests
+    server = DocoWebServer(require_auth=False, auth_service=None)  # Disable auth for tests
     return TestClient(server.app)
 
 
@@ -409,7 +409,13 @@ class TestAuthenticationHeaders:
 
     def test_auth_enabled_server_requires_headers(self):
         """Test that auth-enabled server requires headers"""
-        server = DocoWebServer(require_auth=True)
+        from app.auth import AuthService
+
+        auth_service = AuthService(
+            secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
+            token_store_path="/tmp/doco_test_tokens.json",
+        )
+        server = DocoWebServer(require_auth=True, auth_service=auth_service)
         client = TestClient(server.app)
 
         # Discovery endpoints should still work without auth

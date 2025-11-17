@@ -28,7 +28,14 @@ import uuid
 def client():
     """Create a test client for the web server"""
     test_data_dir = Path(__file__).parent.parent / "render" / "data" / "docs"
+    from app.auth import AuthService
+
+    auth_service = AuthService(
+        secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
+        token_store_path="/tmp/doco_test_tokens.json",
+    )
     server = DocoWebServer(
+        auth_service=auth_service,
         templates_dir=str(test_data_dir / "templates"),
         fragments_dir=str(test_data_dir / "fragments"),
         styles_dir=str(test_data_dir / "styles"),
@@ -220,7 +227,7 @@ class TestProxyRetrievalEndpoint:
         proxy_guid = render_response.json()["data"]["proxy_guid"]
 
         # Now retrieve the document via proxy
-        proxy_response = client.get(f"/proxy/{proxy_guid}?group=public")
+        proxy_response = client.get(f"/proxy/{proxy_guid}")
 
         assert proxy_response.status_code == 200
         assert proxy_response.headers["content-type"] == "text/html; charset=utf-8"
@@ -260,8 +267,8 @@ class TestProxyRetrievalEndpoint:
 
         proxy_guid = render_response.json()["data"]["proxy_guid"]
 
-        # Retrieve with group parameter
-        proxy_response = client.get(f"/proxy/{proxy_guid}?group=public")
+        # Retrieve proxy document (group verified from stored metadata)
+        proxy_response = client.get(f"/proxy/{proxy_guid}")
 
         assert proxy_response.status_code == 200
         assert "Group Test Corp" in proxy_response.text
@@ -270,19 +277,16 @@ class TestProxyRetrievalEndpoint:
         """Test that invalid proxy GUID returns 404"""
         fake_guid = str(uuid.uuid4())
 
-        response = client.get(f"/proxy/{fake_guid}?group=public")
+        response = client.get(f"/proxy/{fake_guid}")
 
         assert response.status_code == 404
         data = response.json()
         assert "detail" in data
 
-    def test_get_proxy_document_invalid_group_returns_404(self, client):
-        """Test that requesting from wrong group returns 404"""
-        fake_guid = str(uuid.uuid4())
-
-        response = client.get(f"/proxy/{fake_guid}?group=nonexistent_group")
-
-        assert response.status_code == 404
+    def test_get_proxy_document_invalid_group_returns_404(self, client, session_manager):
+        """Test retrieving non-existent proxy document returns 404."""
+        fake_guid = "00000000-0000-0000-0000-000000000000"
+        response = client.get(f"/proxy/{fake_guid}")
 
     @pytest.mark.asyncio
     async def test_get_proxy_document_different_formats(self, client, session_manager):
@@ -312,7 +316,7 @@ class TestProxyRetrievalEndpoint:
             json={"format": "html", "style_id": "dark", "proxy": True},
         )
         html_guid = html_render.json()["data"]["proxy_guid"]
-        html_response = client.get(f"/proxy/{html_guid}?group=public")
+        html_response = client.get(f"/proxy/{html_guid}")
         assert html_response.status_code == 200
         assert html_response.headers["content-type"] == "text/html; charset=utf-8"
 
@@ -322,7 +326,8 @@ class TestProxyRetrievalEndpoint:
             json={"format": "markdown", "style_id": "dark", "proxy": True},
         )
         md_guid = md_render.json()["data"]["proxy_guid"]
-        md_response = client.get(f"/proxy/{md_guid}?group=public")
+        # Retrieve Markdown
+        md_response = client.get(f"/proxy/{md_guid}")
         assert md_response.status_code == 200
         assert md_response.headers["content-type"] == "text/markdown; charset=utf-8"
 
@@ -399,7 +404,7 @@ class TestProxyWorkflow:
         proxy_guid = proxy_data["proxy_guid"]
 
         # Step 7: Retrieve from proxy
-        proxy_response = client.get(f"/proxy/{proxy_guid}?group=public")
+        proxy_response = client.get(f"/proxy/{proxy_guid}")
 
         assert proxy_response.status_code == 200
         html_content = proxy_response.text
@@ -454,5 +459,5 @@ class TestProxyWorkflow:
         assert guid1 != guid2
 
         # Both should be retrievable
-        assert client.get(f"/proxy/{guid1}?group=public").status_code == 200
-        assert client.get(f"/proxy/{guid2}?group=public").status_code == 200
+        assert client.get(f"/proxy/{guid1}").status_code == 200
+        assert client.get(f"/proxy/{guid2}").status_code == 200

@@ -22,6 +22,8 @@ from app.logger import Logger, session_logger
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
+# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+
 
 def skip_if_mcp_unavailable(func):
     """Decorator to skip tests if MCP server is unavailable."""
@@ -133,9 +135,9 @@ def logger() -> Logger:
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_tool_exists():
+async def test_add_fragment_tool_exists(mcp_headers):
     """Verify add_fragment tool is registered."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -145,9 +147,9 @@ async def test_add_fragment_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_requires_session_id(logger):
+async def test_add_fragment_requires_session_id(logger, mcp_headers):
     """Verify add_fragment requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -165,9 +167,9 @@ async def test_add_fragment_requires_session_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_requires_fragment_id(logger):
+async def test_add_fragment_requires_fragment_id(logger, mcp_headers):
     """Verify add_fragment requires fragment_id parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -185,9 +187,9 @@ async def test_add_fragment_requires_fragment_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_requires_parameters(logger):
+async def test_add_fragment_requires_parameters(logger, mcp_headers):
     """Verify add_fragment requires parameters argument."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -205,9 +207,9 @@ async def test_add_fragment_requires_parameters(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_invalid_session(logger):
+async def test_add_fragment_invalid_session(logger, mcp_headers):
     """Verify add_fragment handles non-existent session."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -232,9 +234,9 @@ async def test_add_fragment_invalid_session(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_session_fragments_tool_exists():
+async def test_list_session_fragments_tool_exists(mcp_headers):
     """Verify list_session_fragments tool is registered."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -244,9 +246,9 @@ async def test_list_session_fragments_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_session_fragments_requires_session_id(logger):
+async def test_list_session_fragments_requires_session_id(logger, mcp_headers):
     """Verify list_session_fragments requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -258,9 +260,9 @@ async def test_list_session_fragments_requires_session_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_session_fragments_invalid_session(logger):
+async def test_list_session_fragments_invalid_session(logger, mcp_headers):
     """Verify list_session_fragments handles non-existent session."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -280,9 +282,9 @@ async def test_list_session_fragments_invalid_session(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_tool_exists():
+async def test_remove_fragment_tool_exists(mcp_headers):
     """Verify remove_fragment tool is registered."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -292,9 +294,9 @@ async def test_remove_fragment_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_requires_session_id(logger):
+async def test_remove_fragment_requires_session_id(logger, mcp_headers):
     """Verify remove_fragment requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -309,9 +311,9 @@ async def test_remove_fragment_requires_session_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_requires_guid(logger):
+async def test_remove_fragment_requires_guid(logger, mcp_headers):
     """Verify remove_fragment requires fragment_instance_guid parameter."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -326,9 +328,9 @@ async def test_remove_fragment_requires_guid(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_invalid_session(logger):
+async def test_remove_fragment_invalid_session(logger, mcp_headers):
     """Verify remove_fragment handles non-existent session."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

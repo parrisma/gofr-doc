@@ -4,6 +4,7 @@
 import sys
 import os
 from pathlib import Path
+from typing import Dict
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -16,14 +17,16 @@ from app.logger import Logger, session_logger
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
+# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+
 
 @pytest.mark.asyncio
-async def test_ping_tool_available():
+async def test_ping_tool_available(mcp_headers):
     """Test that ping tool is available in tool list"""
     logger: Logger = session_logger
     logger.info("Testing ping tool availability")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             logger.info("MCP server initialized successfully")
@@ -38,12 +41,12 @@ async def test_ping_tool_available():
 
 
 @pytest.mark.asyncio
-async def test_ping_returns_correct_response():
+async def test_ping_returns_correct_response(mcp_headers):
     """Test that ping tool returns timestamp and service info"""
     logger: Logger = session_logger
     logger.info("Testing ping tool response")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

@@ -261,6 +261,7 @@ class RenderingEngine:
                 output_format.value if isinstance(output_format, OutputFormat) else output_format
             ),
             "content": content,
+            "group": group,  # Store group ownership for verification on retrieval
             "created_at": datetime.utcnow().isoformat() + "Z",
         }
 
@@ -275,16 +276,15 @@ class RenderingEngine:
             self.logger.error(f"Failed to store proxy document: {e}")
             raise ValueError(f"Failed to store proxy document: {e}")
 
-    async def get_proxy_document(self, proxy_guid: str, group: str) -> GetProxyDocumentOutput:
+    async def get_proxy_document(self, proxy_guid: str) -> GetProxyDocumentOutput:
         """
         Retrieve a previously stored proxy document.
 
         Args:
             proxy_guid: GUID of the proxy document
-            group: Group where document is stored
 
         Returns:
-            GetProxyDocumentOutput with document content
+            GetProxyDocumentOutput with document content and stored group
 
         Raises:
             ValueError: If document not found
@@ -292,21 +292,35 @@ class RenderingEngine:
         from pathlib import Path
         import json
 
-        proxy_file = Path(self.proxy_dir) / group / f"{proxy_guid}.json"
+        # Search all group directories for the proxy document
+        proxy_dir_path = Path(self.proxy_dir)
+        found_file = None
 
-        if not proxy_file.exists():
-            raise ValueError(f"Proxy document '{proxy_guid}' not found in group '{group}'")
+        for group_dir in proxy_dir_path.iterdir():
+            if group_dir.is_dir():
+                candidate_file = group_dir / f"{proxy_guid}.json"
+                if candidate_file.exists():
+                    found_file = candidate_file
+                    break
+
+        if not found_file:
+            raise ValueError(f"Proxy document '{proxy_guid}' not found")
 
         try:
-            with proxy_file.open("r", encoding="utf-8") as f:
+            with found_file.open("r", encoding="utf-8") as f:
                 proxy_data = json.load(f)
 
-            self.logger.info(f"Retrieved proxy document {proxy_guid} from group {group}")
+            stored_group = proxy_data.get("group")
+            if not stored_group:
+                raise ValueError(f"Proxy document '{proxy_guid}' missing group metadata")
+
+            self.logger.info(f"Retrieved proxy document {proxy_guid} from group {stored_group}")
 
             return GetProxyDocumentOutput(
                 proxy_guid=proxy_guid,
                 format=OutputFormat(proxy_data["format"]),
                 content=proxy_data["content"],
+                group=stored_group,  # Include stored group for verification
                 message="Proxy document retrieved successfully",
             )
 

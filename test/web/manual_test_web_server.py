@@ -25,7 +25,9 @@ async def test_web_server():
 
     # Create server instance with auth
     server = DocoWebServer(
-        jwt_secret="test-secret-key", token_store_path="/tmp/manual_test_tokens.json"
+        auth_service=None,
+        jwt_secret="test-secret-key",
+        token_store_path="/tmp/manual_test_tokens.json",
     )
     app = server.app
 

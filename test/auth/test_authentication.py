@@ -16,15 +16,25 @@ from app.logger import Logger, session_logger
 # Test configuration
 TEST_GROUP = "secure"
 TEST_EXPIRY_SECONDS = 90
-TEST_JWT_SECRET = "test-secret-key-for-auth-testing"
+from app.storage import get_storage
+
+# Note: auth_service fixture overridden below for auth tests requiring isolation
 
 
 @pytest.fixture
 def auth_service():
-    """Create an auth service for testing"""
+    """
+    Create an isolated AuthService for auth unit tests.
+
+    Auth tests need isolated token stores to verify token counts, listing, etc.
+    without interference from other tests using the shared store.
+    """
     with tempfile.TemporaryDirectory(prefix="doco_auth_test_") as temp_dir:
         token_store = f"{temp_dir}/tokens.json"
-        service = AuthService(secret_key=TEST_JWT_SECRET, token_store_path=token_store)
+        service = AuthService(
+            secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
+            token_store_path=token_store,
+        )
         yield service
 
 
@@ -41,9 +51,7 @@ class TestAuthTokenCreation:
     def test_create_token(self, auth_service):
         """Test token creation with correct parameters"""
         logger: Logger = session_logger
-        logger.info(
-            "Testing token creation", group=TEST_GROUP, expiry_seconds=TEST_EXPIRY_SECONDS
-        )
+        logger.info("Testing token creation", group=TEST_GROUP, expiry_seconds=TEST_EXPIRY_SECONDS)
 
         token = auth_service.create_token(group=TEST_GROUP, expires_in_seconds=TEST_EXPIRY_SECONDS)
 
@@ -111,6 +119,8 @@ class TestAuthTokenCreation:
         """Test that tokens persist across AuthService instances"""
         logger: Logger = session_logger
         logger.info("Testing token persistence")
+
+        TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
 
         with tempfile.TemporaryDirectory(prefix="doco_persist_test_") as temp_dir:
             token_store = f"{temp_dir}/tokens.json"

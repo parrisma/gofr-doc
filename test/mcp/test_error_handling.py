@@ -25,6 +25,8 @@ import functools
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
+# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+
 
 def skip_if_mcp_unavailable(func):
     """Decorator to skip tests if MCP server is unavailable"""
@@ -50,11 +52,11 @@ def _extract_text(content_list) -> str:
 
 
 @asynccontextmanager
-async def mcp_session():
+async def mcp_session(mcp_headers):
     """Context manager for MCP client session"""
     from mcp.client.streamable_http import streamablehttp_client
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             yield session
@@ -67,12 +69,12 @@ async def mcp_session():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_create_session_handles_missing_template_id():
+async def test_create_session_handles_missing_template_id(mcp_headers):
     """Test that create_document_session handles missing template_id gracefully"""
     logger: Logger = session_logger
     logger.info("Testing create_session with missing template_id")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Call without template_id
         result = await session.call_tool("create_document_session", arguments={})
         text = _extract_text(result.content)
@@ -84,12 +86,12 @@ async def test_create_session_handles_missing_template_id():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_handles_missing_required_parameters():
+async def test_add_fragment_handles_missing_required_parameters(mcp_headers):
     """Test add_fragment handles missing required parameters"""
     logger: Logger = session_logger
     logger.info("Testing add_fragment with missing parameters")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # First create a valid session
         create_result = await session.call_tool(
             "create_document_session", arguments={"template_id": "default"}
@@ -116,12 +118,12 @@ async def test_add_fragment_handles_missing_required_parameters():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_template_with_invalid_id_doesnt_crash():
+async def test_get_template_with_invalid_id_doesnt_crash(mcp_headers):
     """Test that get_template_details handles invalid template_id without crashing"""
     logger: Logger = session_logger
     logger.info("Testing get_template_details with invalid ID")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Call with non-existent template
         result = await session.call_tool(
             "get_template_details", arguments={"template_id": "nonexistent_xyz_12345"}
@@ -135,12 +137,12 @@ async def test_get_template_with_invalid_id_doesnt_crash():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_with_invalid_session_id_fails_gracefully():
+async def test_add_fragment_with_invalid_session_id_fails_gracefully(mcp_headers):
     """Test add_fragment with invalid session fails gracefully"""
     logger: Logger = session_logger
     logger.info("Testing add_fragment with invalid session")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         result = await session.call_tool(
             "add_fragment",
             arguments={
@@ -158,12 +160,12 @@ async def test_add_fragment_with_invalid_session_id_fails_gracefully():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_with_invalid_guid_fails_gracefully():
+async def test_remove_fragment_with_invalid_guid_fails_gracefully(mcp_headers):
     """Test remove_fragment with invalid GUID fails gracefully"""
     logger: Logger = session_logger
     logger.info("Testing remove_fragment with invalid GUID")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Create a valid session
         create_result = await session.call_tool(
             "create_document_session", arguments={"template_id": "default"}
@@ -193,12 +195,12 @@ async def test_remove_fragment_with_invalid_guid_fails_gracefully():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_all_tools_return_parseable_responses():
+async def test_all_tools_return_parseable_responses(mcp_headers):
     """Test that all tools return responses that can be parsed"""
     logger: Logger = session_logger
     logger.info("Testing all tools return parseable responses")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Test a few key tools with valid inputs
         tools_to_test = [
             ("ping", {}),
@@ -219,12 +221,12 @@ async def test_all_tools_return_parseable_responses():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_error_responses_are_readable():
+async def test_error_responses_are_readable(mcp_headers):
     """Test that error responses are readable and informative"""
     logger: Logger = session_logger
     logger.info("Testing error responses are readable")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Trigger known error condition
         result = await session.call_tool(
             "get_template_details", arguments={"template_id": "does_not_exist_xyz"}
@@ -244,12 +246,12 @@ async def test_error_responses_are_readable():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_session_remains_valid_after_invalid_operation():
+async def test_session_remains_valid_after_invalid_operation(mcp_headers):
     """Test that session remains usable after attempting invalid operation"""
     logger: Logger = session_logger
     logger.info("Testing session resilience after invalid operation")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Create a session
         create_result = await session.call_tool(
             "create_document_session", arguments={"template_id": "default"}
@@ -283,12 +285,12 @@ async def test_session_remains_valid_after_invalid_operation():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_mixed_valid_and_invalid_operations():
+async def test_mixed_valid_and_invalid_operations(mcp_headers):
     """Test handling sequence of valid and invalid operations"""
     logger: Logger = session_logger
     logger.info("Testing mixed valid/invalid operation sequence")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Create session (valid)
         create_result = await session.call_tool(
             "create_document_session", arguments={"template_id": "default"}
@@ -328,12 +330,12 @@ async def test_mixed_valid_and_invalid_operations():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_all_expected_tools_available():
+async def test_all_expected_tools_available(mcp_headers):
     """Test that all expected MCP tools are available"""
     logger: Logger = session_logger
     logger.info("Testing all expected tools are available")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         tools = await session.list_tools()
         tool_names = [t.name for t in tools.tools]
 
@@ -361,12 +363,12 @@ async def test_all_expected_tools_available():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_tool_descriptions_are_present():
+async def test_tool_descriptions_are_present(mcp_headers):
     """Test that all tools have descriptions"""
     logger: Logger = session_logger
     logger.info("Testing tool descriptions are present")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         tools = await session.list_tools()
 
         for tool in tools.tools:
@@ -384,12 +386,12 @@ async def test_tool_descriptions_are_present():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_abort_session_then_operations_fail_gracefully():
+async def test_abort_session_then_operations_fail_gracefully(mcp_headers):
     """Test that operations on aborted session fail gracefully"""
     logger: Logger = session_logger
     logger.info("Testing operations after session abort")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Create and abort session
         create_result = await session.call_tool(
             "create_document_session", arguments={"template_id": "default"}
@@ -422,12 +424,12 @@ async def test_abort_session_then_operations_fail_gracefully():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_response_data_types_are_correct():
+async def test_response_data_types_are_correct(mcp_headers):
     """Test that responses have expected data types"""
     logger: Logger = session_logger
     logger.info("Testing response data types")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         # Get templates
         result = await session.call_tool("list_templates", arguments={})
         text = _extract_text(result.content)
@@ -439,12 +441,12 @@ async def test_response_data_types_are_correct():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_session_id_format_validation():
+async def test_session_id_format_validation(mcp_headers):
     """Test that created sessions have valid IDs"""
     logger: Logger = session_logger
     logger.info("Testing session ID format")
 
-    async with mcp_session() as session:
+    async with mcp_session(mcp_headers) as session:
         result = await session.call_tool(
             "create_document_session", arguments={"template_id": "default"}
         )

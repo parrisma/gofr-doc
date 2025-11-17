@@ -18,7 +18,13 @@ from app.web_server import DocoWebServer
 @pytest.fixture
 def client():
     """Create a test client for the web server"""
-    server = DocoWebServer()
+    from app.auth import AuthService
+
+    auth_service = AuthService(
+        secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
+        token_store_path="/tmp/doco_test_tokens.json",
+    )
+    server = DocoWebServer(auth_service=auth_service)
     return TestClient(server.app)
 
 

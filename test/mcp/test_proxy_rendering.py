@@ -148,7 +148,7 @@ async def test_proxy_document_can_be_retrieved(session_manager, rendering_engine
     proxy_guid = output.proxy_guid
 
     # Retrieve the proxy document
-    retrieved = await rendering_engine.get_proxy_document(proxy_guid, "public")
+    retrieved = await rendering_engine.get_proxy_document(proxy_guid)
 
     # Verify retrieved document
     assert retrieved.proxy_guid == proxy_guid
@@ -186,7 +186,7 @@ async def test_proxy_mode_works_with_pdf(session_manager, rendering_engine):
     assert output.format == OutputFormat.PDF
 
     # Retrieve PDF proxy document
-    retrieved = await rendering_engine.get_proxy_document(output.proxy_guid, "public")
+    retrieved = await rendering_engine.get_proxy_document(output.proxy_guid)
     assert retrieved.format == OutputFormat.PDF
     assert len(retrieved.content) > 0, "PDF content should be base64-encoded"
 
@@ -195,7 +195,7 @@ async def test_proxy_mode_works_with_pdf(session_manager, rendering_engine):
 async def test_proxy_document_not_found_error(rendering_engine):
     """Test error handling for non-existent proxy documents."""
     with pytest.raises(ValueError, match="not found"):
-        await rendering_engine.get_proxy_document("nonexistent-guid", "public")
+        await rendering_engine.get_proxy_document("nonexistent-guid")
 
 
 @pytest.mark.asyncio
@@ -257,14 +257,11 @@ async def test_proxy_documents_segregated_by_group(session_manager, rendering_en
 
     guid1 = output1.proxy_guid
 
-    # Verify document can be retrieved from public group
-    retrieved1 = await rendering_engine.get_proxy_document(guid1, "public")
+    # Retrieve document and verify stored group
+    retrieved1 = await rendering_engine.get_proxy_document(guid1)
     assert retrieved1.proxy_guid == guid1
     assert "Public content" in retrieved1.content
-
-    # Verify document NOT found in wrong group
-    with pytest.raises(ValueError, match="not found"):
-        await rendering_engine.get_proxy_document(guid1, "private")
+    assert retrieved1.group == "public", "Stored group should match creation group"
 
 
 @pytest.mark.asyncio
@@ -313,8 +310,9 @@ async def test_multiple_proxy_documents_independent(session_manager, rendering_e
     guid2 = output2.proxy_guid
 
     # Verify both documents exist and have correct content
-    retrieved1 = await rendering_engine.get_proxy_document(guid1, "public")
-    retrieved2 = await rendering_engine.get_proxy_document(guid2, "public")
+    # Retrieve and verify both
+    retrieved1 = await rendering_engine.get_proxy_document(guid1)
+    retrieved2 = await rendering_engine.get_proxy_document(guid2)
 
     assert "Content 1" in retrieved1.content
     assert "Content 2" in retrieved2.content

@@ -4,14 +4,15 @@ import sys
 import asyncio
 from app.auth import AuthService
 from app.logger import Logger, session_logger
-from app.startup import validate_data_directory_structure
+import app.startup_validation
+from app.startup.auth_config import resolve_auth_config
 
 logger: Logger = session_logger
 
 if __name__ == "__main__":
     # Validate data directory structure at startup
     try:
-        validate_data_directory_structure(logger)
+        app.startup_validation.validate_data_directory_structure(logger)
     except RuntimeError as e:
         logger.error("FATAL: Data directory validation failed", error=str(e))
         sys.exit(1)
@@ -66,18 +67,18 @@ if __name__ == "__main__":
     # Create logger for startup messages
     startup_logger: Logger = session_logger
 
-    # Validate JWT secret if authentication is enabled
-    jwt_secret = args.jwt_secret or os.environ.get("DOCO_JWT_SECRET")
-    if not args.no_auth and not jwt_secret:
-        startup_logger.error(
-            "FATAL: Authentication enabled but no JWT secret provided. Set DOCO_JWT_SECRET environment variable or use --jwt-secret flag, or use --no-auth to disable authentication"
-        )
-        sys.exit(1)
+    # Resolve authentication configuration
+    jwt_secret, token_store_path = resolve_auth_config(
+        jwt_secret_arg=args.jwt_secret,
+        token_store_arg=args.token_store,
+        require_auth=not args.no_auth,
+        logger=startup_logger,
+    )
 
     # Initialize auth service only if auth is required
     auth_service = None
-    if not args.no_auth:
-        auth_service = AuthService(secret_key=jwt_secret, token_store_path=args.token_store)
+    if jwt_secret:
+        auth_service = AuthService(secret_key=jwt_secret, token_store_path=token_store_path)
         startup_logger.info("Authentication service initialized", jwt_enabled=True)
     else:
         startup_logger.info("Authentication disabled", jwt_enabled=False)

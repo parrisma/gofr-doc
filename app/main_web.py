@@ -2,8 +2,10 @@ import uvicorn
 import argparse
 import os
 from app.web_server import DocoWebServer
+from app.auth import AuthService
 from app.logger import Logger, session_logger
-from app.startup import validate_data_directory_structure
+import app.startup_validation
+from app.startup.auth_config import resolve_auth_config
 import sys
 
 logger: Logger = session_logger
@@ -11,7 +13,7 @@ logger: Logger = session_logger
 if __name__ == "__main__":
     # Validate data directory structure at startup
     try:
-        validate_data_directory_structure(logger)
+        app.startup_validation.validate_data_directory_structure(logger)
     except RuntimeError as e:
         logger.error("FATAL: Data directory validation failed", error=str(e))
         sys.exit(1)
@@ -68,20 +70,29 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Validate JWT secret if authentication is enabled
-    jwt_secret = args.jwt_secret or os.environ.get("DOCO_JWT_SECRET")
-    if not args.no_auth and not jwt_secret:
-        logger.error(
-            "FATAL: Authentication enabled but no JWT secret provided. Set DOCO_JWT_SECRET environment variable or use --jwt-secret flag, or use --no-auth to disable authentication"
-        )
-        sys.exit(1)
+    jwt_secret, token_store_path = resolve_auth_config(
+        jwt_secret_arg=args.jwt_secret,
+        token_store_arg=args.token_store,
+        require_auth=not args.no_auth,
+        logger=logger,
+    )
+
+    # Initialize AuthService if authentication is enabled
+    auth_service = None
+    if jwt_secret:
+        auth_service = AuthService(secret_key=jwt_secret, token_store_path=token_store_path)
+        logger.info("Authentication service initialized", jwt_enabled=True)
+    else:
+        logger.warning("⚠️ Auth disabled: running in no-auth mode (insecure)")
 
     # Initialize server
-    # Note: Authentication is handled via X-Auth-Token header (group:token format)
+    # Note: AuthService is injected for token verification
     server = DocoWebServer(
         templates_dir=args.templates_dir,
         fragments_dir=args.fragments_dir,
         styles_dir=args.styles_dir,
         require_auth=not args.no_auth,
+        auth_service=auth_service,
     )
 
     try:

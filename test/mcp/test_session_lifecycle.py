@@ -19,6 +19,8 @@ from app.logger import Logger, session_logger
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
+# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+
 
 def skip_if_mcp_unavailable(func):
     """Decorator to skip tests if MCP server is unavailable."""
@@ -70,9 +72,9 @@ def logger() -> Logger:
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_create_document_session_tool_exists():
+async def test_create_document_session_tool_exists(mcp_headers):
     """Test that create_document_session tool is available in MCP server."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -88,11 +90,11 @@ async def test_create_document_session_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_create_document_session_requires_template_id(logger):
+async def test_create_document_session_requires_template_id(logger, mcp_headers):
     """Test that create_document_session requires template_id parameter."""
     logger.info("Testing create_document_session requires template_id")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -111,11 +113,11 @@ async def test_create_document_session_requires_template_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_create_document_session_invalid_template(logger):
+async def test_create_document_session_invalid_template(logger, mcp_headers):
     """Test that create_document_session returns error for non-existent template."""
     logger.info("Testing create_document_session with invalid template")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -135,11 +137,11 @@ async def test_create_document_session_invalid_template(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_create_document_session_success(logger):
+async def test_create_document_session_success(logger, mcp_headers):
     """Test that create_document_session successfully creates a session."""
     logger.info("Testing create_document_session success")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -179,9 +181,9 @@ async def test_create_document_session_success(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_set_global_parameters_tool_exists():
+async def test_set_global_parameters_tool_exists(mcp_headers):
     """Test that set_global_parameters tool is available in MCP server."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -197,11 +199,11 @@ async def test_set_global_parameters_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_set_global_parameters_requires_session_id(logger):
+async def test_set_global_parameters_requires_session_id(logger, mcp_headers):
     """Test that set_global_parameters requires session_id parameter."""
     logger.info("Testing set_global_parameters requires session_id")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -223,11 +225,11 @@ async def test_set_global_parameters_requires_session_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_set_global_parameters_invalid_session(logger):
+async def test_set_global_parameters_invalid_session(logger, mcp_headers):
     """Test that set_global_parameters returns error for invalid session."""
     logger.info("Testing set_global_parameters with invalid session")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -247,11 +249,11 @@ async def test_set_global_parameters_invalid_session(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_set_global_parameters_success(logger):
+async def test_set_global_parameters_success(logger, mcp_headers):
     """Test that set_global_parameters successfully sets parameters."""
     logger.info("Testing set_global_parameters success with news_email template")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -368,9 +370,9 @@ async def test_set_global_parameters_success(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_abort_document_session_tool_exists():
+async def test_abort_document_session_tool_exists(mcp_headers):
     """Test that abort_document_session tool is available in MCP server."""
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -386,11 +388,11 @@ async def test_abort_document_session_tool_exists():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_abort_document_session_requires_session_id(logger):
+async def test_abort_document_session_requires_session_id(logger, mcp_headers):
     """Test that abort_document_session requires session_id parameter."""
     logger.info("Testing abort_document_session requires session_id")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -409,11 +411,11 @@ async def test_abort_document_session_requires_session_id(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_abort_document_session_invalid_session(logger):
+async def test_abort_document_session_invalid_session(logger, mcp_headers):
     """Test that abort_document_session returns error for invalid session."""
     logger.info("Testing abort_document_session with invalid session")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -432,11 +434,11 @@ async def test_abort_document_session_invalid_session(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_abort_document_session_success(logger):
+async def test_abort_document_session_success(logger, mcp_headers):
     """Test that abort_document_session successfully aborts a session."""
     logger.info("Testing abort_document_session success")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -471,11 +473,11 @@ async def test_abort_document_session_success(logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_create_set_abort_workflow(logger):
+async def test_create_set_abort_workflow(logger, mcp_headers):
     """Test complete workflow: create session, set parameters, abort."""
     logger.info("Testing complete session lifecycle workflow")
 
-    async with streamablehttp_client(MCP_URL) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

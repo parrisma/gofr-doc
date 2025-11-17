@@ -5,7 +5,7 @@ Minimal web server that exposes:
 - get_document endpoint (render pre-built sessions or proxy retrieval)
 
 Does NOT implement session lifecycle - use MCP server for session workflows.
-Authentication via X-Auth-Token header (group:token format).
+Authentication via X-Auth-Token header (group:token format) or Authorization Bearer.
 """
 
 from fastapi import FastAPI, HTTPException, Header
@@ -33,6 +33,7 @@ class DocoWebServer:
         styles_dir: Optional[str] = None,
         styles_group: str = "public",
         require_auth: bool = True,
+        auth_service: Optional[Any] = None,
     ):
         """
         Initialize the Doco web server.
@@ -43,6 +44,7 @@ class DocoWebServer:
             styles_dir: Styles directory path
             styles_group: Default styles group
             require_auth: Whether to require authentication via X-Auth-Token header
+            auth_service: AuthService instance for token verification (required if require_auth=True)
 
         Endpoints exposed:
             GET /ping - Health check
@@ -86,6 +88,7 @@ class DocoWebServer:
         )
 
         self.require_auth = require_auth
+        self.auth_service = auth_service
         self.logger: Logger = session_logger
 
         self.logger.info(
@@ -100,12 +103,14 @@ class DocoWebServer:
 
     def _extract_auth_group(self, authorization: Optional[str]) -> Optional[str]:
         """
-        Extract group from X-Auth-Token header.
+        Extract group from X-Auth-Token header or Authorization Bearer header.
 
-        Header format: X-Auth-Token: <group>:<token>
+        Header formats:
+        - X-Auth-Token: <group>:<token>
+        - Authorization: Bearer <token> (token must be a JWT containing group)
 
         Args:
-            authorization: X-Auth-Token header value
+            authorization: Header value
 
         Returns:
             Group name if auth provided, None otherwise
@@ -114,37 +119,60 @@ class DocoWebServer:
             return None
 
         try:
-            # Expected format: "group:token"
-            parts = authorization.split(":", 1)
-            if len(parts) == 2:
-                return parts[0]
+            # Check for X-Auth-Token format: "group:token"
+            if ":" in authorization and not authorization.startswith("Bearer "):
+                parts = authorization.split(":", 1)
+                if len(parts) == 2:
+                    return parts[0]
+
+            # Check for Bearer format: extract group from JWT token
+            if authorization.startswith("Bearer "):
+                token = authorization[7:]  # Remove "Bearer " prefix
+                if self.auth_service:
+                    try:
+                        token_info = self.auth_service.verify_token(token)
+                        return token_info.group
+                    except Exception:
+                        # Token is invalid, return None
+                        pass
         except Exception:
             pass
 
         return None
 
-    def _verify_auth_header(self, authorization: Optional[str]) -> Optional[str]:
+    def _verify_auth_header(
+        self, x_auth_token: Optional[str], authorization: Optional[str]
+    ) -> Optional[str]:
         """
         Verify authentication header and return group.
 
+        Supports both X-Auth-Token (legacy) and Authorization: Bearer (standard) headers.
+
         Args:
-            authorization: X-Auth-Token header value
+            x_auth_token: X-Auth-Token header value (legacy format: group:token)
+            authorization: Authorization header value (standard format: Bearer token)
 
         Returns:
             Group name if auth valid, raises HTTPException if required but missing
         """
+        # Prefer X-Auth-Token if provided, fall back to Authorization
+        auth_header = x_auth_token or authorization
+
         if self.require_auth:
-            if not authorization:
+            if not auth_header:
                 raise HTTPException(
                     status_code=401,
                     detail={
                         "error": "AUTHENTICATION_REQUIRED",
-                        "message": "X-Auth-Token header required",
-                        "format": "X-Auth-Token: <group>:<token>",
+                        "message": "Authentication required. Use either X-Auth-Token or Authorization header.",
+                        "formats": [
+                            "X-Auth-Token: <group>:<token>",
+                            "Authorization: Bearer <token>",
+                        ],
                     },
                 )
 
-        return self._extract_auth_group(authorization)
+        return self._extract_auth_group(auth_header)
 
     def _setup_routes(self):
         """Set up all API routes for discovery and document rendering."""
@@ -358,6 +386,7 @@ class DocoWebServer:
             session_id: str,
             body: Optional[Dict[str, Any]] = None,
             x_auth_token: Optional[str] = Header(None),
+            authorization: Optional[str] = Header(None),
         ):
             """
             Render a finalized document session to the specified format.
@@ -373,7 +402,7 @@ class DocoWebServer:
             - Markdown format: Response with media_type="text/markdown"
             - Proxy mode: JSON with proxy_guid field
             """
-            auth_group = self._verify_auth_header(x_auth_token)
+            auth_group = self._verify_auth_header(x_auth_token, authorization)
 
             if body is None:
                 body = {}
@@ -472,47 +501,52 @@ class DocoWebServer:
         @self.app.get("/proxy/{proxy_guid}")
         async def get_proxy_document(
             proxy_guid: str,
-            group: str = "default",
             x_auth_token: Optional[str] = Header(None),
+            authorization: Optional[str] = Header(None),
         ):
             """
             Retrieve a previously stored proxy document.
 
             Args:
                 proxy_guid: The proxy document GUID
-                group: The document group (default: "default")
-                x_auth_token: Optional authentication token
+                x_auth_token: Optional authentication token (X-Auth-Token format)
+                authorization: Optional authentication token (Bearer format)
 
             Returns:
                 Document content with appropriate media type based on format
+
+            Note:
+                Group ownership is verified against the stored group metadata in the proxy
+                document, not from URL parameters. This prevents group parameter injection attacks.
             """
-            auth_group = self._verify_auth_header(x_auth_token)
-
-            self.logger.info(
-                "Proxy document retrieval request",
-                proxy_guid=proxy_guid,
-                group=group,
-                auth_group=auth_group,
-            )
-
-            # Verify group access if auth_group is set
-            if auth_group and group != auth_group:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "error": "ACCESS_DENIED",
-                        "message": f"Access denied to group '{group}'",
-                    },
-                )
+            auth_group = self._verify_auth_header(x_auth_token, authorization)
 
             try:
-                # Retrieve the proxy document
-                output_obj = await self.engine.get_proxy_document(proxy_guid, group)
+                # Retrieve the proxy document (reads stored group from metadata)
+                output_obj = await self.engine.get_proxy_document(proxy_guid)
+                stored_group = output_obj.group
+
+                self.logger.info(
+                    "Proxy document retrieval request",
+                    proxy_guid=proxy_guid,
+                    stored_group=stored_group,
+                    auth_group=auth_group,
+                )
+
+                # Verify group access: auth token group must match stored group
+                if auth_group and stored_group != auth_group:
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "error": "ACCESS_DENIED",
+                            "message": f"Access denied: document belongs to group '{stored_group}', token is for group '{auth_group}'",
+                        },
+                    )
 
                 self.logger.info(
                     "Proxy document retrieved successfully",
                     proxy_guid=proxy_guid,
-                    group=group,
+                    group=stored_group,
                     format=output_obj.format.value,
                     size=len(output_obj.content) if output_obj.content else 0,
                 )

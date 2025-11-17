@@ -518,16 +518,22 @@ class GetProxyDocumentInput:
 class GetProxyDocumentOutput:
     """Output from retrieving a proxied document."""
 
-    def __init__(self, proxy_guid: str, format: OutputFormat, content: str, message: str):
+    def __init__(
+        self, proxy_guid: str, format: OutputFormat, content: str, message: str, group: str = None
+    ):
         self.proxy_guid = proxy_guid
         self.format = format
         self.content = content
         self.message = message
+        self.group = group  # Stored group ownership for access control verification
 
     def model_dump(self, mode: str = "json") -> dict:
-        return {
+        result = {
             "proxy_guid": self.proxy_guid,
             "format": self.format.value if isinstance(self.format, OutputFormat) else self.format,
             "content": self.content,
             "message": self.message,
         }
+        if self.group is not None:
+            result["group"] = self.group
+        return result
