@@ -9,8 +9,10 @@ doco delivers a stateful, discoverable document generation API exposed to agenti
 - **Dual interface**: REST API on port 8010 and MCP Streamable HTTP endpoint on port 8011
 - **Stateful sessions**: Persistent across restarts; supports iterative fragment assembly and re-rendering
 - **Reusable styles**: Decoupled CSS bundles applied uniformly across output formats
-- **Optional JWT authentication**: Shared between web and MCP transports
+- **Group-based security**: Optional JWT authentication with multi-tenant isolation
+- **Session isolation**: Group-based access control prevents cross-tenant data access
 - **Structured session logging**: Per-request correlation and detailed diagnostics
+- **Proxy mode rendering**: Store rendered documents server-side for later retrieval
 
 ## Quick Start
 
@@ -28,37 +30,58 @@ uv sync
 uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text pyyaml
 ```
 
-### Running the Web Server
+### Running Without Authentication (Development)
 
 ```bash
-# Set JWT secret (required when authentication is enabled)
-export DOCO_JWT_SECRET="your-secure-secret-key"
-
-# Launch the FastAPI server
+# Launch the FastAPI server (no authentication)
 python -m app.main_web
 
+# Launch the MCP server (no authentication)
+python -m app.main_mcp
+
+# All sessions operate in the "public" group
 # REST API: http://localhost:8010
+# MCP endpoint: http://localhost:8011/mcp/
 # OpenAPI docs: http://localhost:8010/docs
 ```
 
-### Running the MCP Server
+### Running With Authentication (Production)
 
 ```bash
-# Uses the same DOCO_JWT_SECRET when auth is enabled
-python -m app.main_mcp
+# Set JWT secret (required for authentication)
+export DOCO_JWT_SECRET="your-secure-secret-key"
+export DOCO_TOKEN_STORE="/path/to/token_store.json"
 
-# MCP Streamable HTTP endpoint: http://localhost:8011/mcp/
+# Launch servers with authentication
+python -m app.main_web --jwt-secret "$DOCO_JWT_SECRET" --token-store "$DOCO_TOKEN_STORE"
+python -m app.main_mcp --jwt-secret "$DOCO_JWT_SECRET" --token-store "$DOCO_TOKEN_STORE"
+
+# Or use convenience scripts for testing
+bash scripts/run_web_auth.sh
+bash scripts/run_mcp_auth.sh
 ```
 
-### Create Authentication Tokens
+### Token Management
 
 ```bash
 # Create a JWT token for a group
-python3 scripts/token_manager.py create --group mygroup --expires 30
+python3 scripts/token_manager.py create --group engineering --expires 30
 
-# List existing tokens
+# List all active tokens
 python3 scripts/token_manager.py list
+
+# Revoke a token
+python3 scripts/token_manager.py revoke <token>
+
+# View token details
+python3 scripts/token_manager.py verify <token>
 ```
+
+**Security Note**: When authentication is enabled:
+- Sessions are bound to the group in the JWT token
+- Each group's sessions are isolated (multi-tenant)
+- Cross-group access attempts return generic "SESSION_NOT_FOUND" errors
+- Discovery tools (list_templates, list_styles) do not require authentication
 
 See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the full JWT configuration guide.
 
@@ -95,31 +118,74 @@ curl -X GET "http://localhost:8010/session/{session_id}/render?format=pdf&style_
 
 Use any MCP-compatible client to call document generation tools:
 
+**Discovery Tools** (no authentication required):
+- `ping` — health check and service status
+- `help` — comprehensive workflow documentation and guidance
 - `list_templates` — discover available templates
 - `get_template_details` — fetch template metadata and parameter schemas
 - `list_template_fragments` — list available fragments within a template
 - `get_fragment_details` — retrieve fragment parameter schema
 - `list_styles` — discover available rendering styles
-- `create_document_session` — start a new document session
+
+**Session Tools** (authentication required when enabled):
+- `create_document_session` — start a new document session (bound to authenticated group)
 - `set_global_parameters` — configure session-wide parameters
 - `add_fragment` — insert a fragment with parameters
 - `remove_fragment` — delete a fragment instance
 - `list_session_fragments` — inspect ordered fragments in a session
+- `get_session_status` — get current session state and readiness
+- `list_active_sessions` — list all sessions in your group
+- `validate_parameters` — pre-validate parameters before saving
 - `abort_document_session` — discard session and cleanup storage
 - `get_document` — render session in requested format (html, pdf, md)
+
+**Authentication Flow**:
+1. Client sends JWT token in `Authorization: Bearer <token>` header
+2. Server extracts group claim from token
+3. Session is tagged with the authenticated group
+4. All subsequent operations verify `session.group == caller.group`
+5. Cross-group access attempts are denied with generic errors
 
 See [docs/DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md) for detailed workflow examples.
 
 ## Configuration
 
+### Environment Variables
+
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `DOCO_JWT_SECRET` | auto-generated (web) / required for auth | Shared JWT secret used by both servers when authentication is enabled |
-| `DOCO_DATA_DIR` | `<repo>/data` | Base directory for auth and storage data |
-| `WEB_HOST` | `0.0.0.0` | Host interface for web server (via CLI flags) |
-| `MCP_HOST` | `0.0.0.0` | Host interface for MCP server (via CLI flags) |
+| `DOCO_JWT_SECRET` | None (auth disabled) | Shared JWT secret for both servers. When set, enables authentication and group-based isolation |
+| `DOCO_TOKEN_STORE` | `<data_dir>/auth/tokens.json` | Path to token store file for token management |
+| `DOCO_DATA_DIR` | `<repo>/data` | Base directory for auth, storage, sessions, and proxy documents |
+| `DOCO_MCP_PORT` | `8011` | Port for MCP server (used by tests) |
+| `DOCO_WEB_PORT` | `8010` | Port for web server (used by tests) |
 
-CLI flags in `app/main_web.py` and `app/main_mcp.py` allow overriding host, port, auth, and logging behaviour at runtime.
+### CLI Options
+
+Both `app/main_web.py` and `app/main_mcp.py` support:
+
+```bash
+python -m app.main_web \
+  --host 0.0.0.0 \
+  --port 8010 \
+  --jwt-secret "your-secret" \
+  --token-store "/path/to/tokens.json" \
+  --templates-dir "./templates" \
+  --styles-dir "./styles"
+```
+
+### Security Modes
+
+**No Authentication** (default):
+- All sessions operate in `"public"` group
+- No access control between sessions
+- Suitable for single-user development
+
+**With Authentication**:
+- Sessions bound to JWT token group claim
+- Multi-tenant isolation enforced
+- Group-based directory structure: `data/docs/{templates,styles,sessions}/{group}/`
+- Cross-group access denied with generic errors
 
 ## Project Structure
 
@@ -165,31 +231,88 @@ doco/
 ## Architecture Overview
 
 - **FastAPI Web Server** (`app/web_server.py`): REST endpoints for session lifecycle and rendering
-- **MCP Server** (`app/mcp_server.py`): Document tools over Streamable HTTP
-- **Template Registry** (`app/templates/`): YAML metadata + Jinja2 templates
+- **MCP Server** (`app/mcp_server.py`): Document tools over Streamable HTTP with group-based security
+- **Authentication Service** (`app/auth/`): JWT token management, verification, and group extraction
+- **Template Registry** (`app/templates/`): YAML metadata + Jinja2 templates with group isolation
 - **Style Registry** (`app/styles/`): CSS bundles decoupled from templates
 - **Rendering Engine** (`app/rendering/engine.py`): HTML generation → PDF/Markdown conversion
-- **Session Manager** (`app/sessions/`): Lifecycle, fragment assembly, persistence
+- **Session Manager** (`app/sessions/`): Lifecycle, fragment assembly, persistence with group boundaries
+- **Storage Layer** (`app/storage/`): File-system storage with group-based directory isolation
 - **Validation Layer** (`app/validation/`): Pydantic schemas enforcing document constraints
-- **Auth & Logging** (`app/auth/`, `app/logger/`): Shared JWT and structured logging
+- **Logging** (`app/logger/`): Structured logging with session correlation
+
+### Security Architecture
+
+```
+JWT Token → AuthService.verify_token() → TokenInfo.group
+                                              ↓
+                                    handle_call_tool() injects group
+                                              ↓
+                            Tool handlers verify session.group == caller.group
+                                              ↓
+                        Directory isolation: data/docs/{resource}/{group}/
+```
+
+**Key Security Features**:
+- JWT tokens contain `{"group": "...", "exp": ..., "iat": ...}` claims
+- Sessions are bound to the authenticated group during creation
+- All session operations verify group ownership before access
+- Generic "SESSION_NOT_FOUND" errors prevent information leakage
+- Discovery tools bypass authentication for public access
 
 ## Development
 
+### Running Tests
+
 ```bash
-# Run full test suite
+# Run full test suite (300+ tests)
 uv run pytest
 
-# Run only style tests
-uv run pytest test/styles
+# Run specific test categories
+uv run pytest test/mcp                # MCP server tests
+uv run pytest test/web                # Web API tests
+uv run pytest test/workflow           # End-to-end workflow tests
+uv run pytest test/auth               # Authentication tests
+uv run pytest test/storage            # Storage layer tests
 
-# Run MCP tests
-uv run pytest test/mcp
+# Run security tests
+uv run pytest test/mcp/test_mcp_group_security.py -v
 
-# Run web-layer tests
-uv run pytest test/web
+# Run with coverage
+uv run pytest --cov=app --cov-report=html
 ```
 
-Launch configurations for VS Code debugging are provided in `.vscode/launch.json`.
+### Test Server Management
+
+```bash
+# Start test servers with authentication
+bash scripts/run_mcp_auth.sh    # MCP server on port 8011
+bash scripts/run_web_auth.sh    # Web server on port 8010
+
+# Stop test servers
+pkill -f "python -m app.main_mcp"
+pkill -f "python -m app.main_web"
+```
+
+### VS Code Integration
+
+Launch configurations are provided in `.vscode/launch.json`:
+- **MCP Server (Dev - No Auth)**: Development without authentication
+- **MCP Server (Test - With Auth)**: Testing with JWT authentication
+- **Web Server (Dev - No Auth)**: Development without authentication  
+- **Web Server (Test - With Auth)**: Testing with JWT authentication
+- **MCP Server (Production - With Auth)**: Production configuration
+
+### Test Coverage
+
+The test suite includes:
+- **Unit tests**: Core functionality and business logic
+- **Integration tests**: MCP/Web server endpoints
+- **Security tests**: Group isolation and access control (5 comprehensive tests)
+- **Workflow tests**: End-to-end document generation scenarios
+- **Concurrency tests**: Session persistence and race conditions
+
+**Current Status**: ✅ 300/300 tests passing
 
 ## License
 

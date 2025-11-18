@@ -4,20 +4,18 @@ Provides shared fixtures for all tests, including temporary data directories,
 auth service setup, and test server token management.
 """
 
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add project root to sys.path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
-import tempfile
-import shutil
-import os
-from app.config import Config
-from app.storage import reset_storage, get_storage
-from app.storage.file_storage import FileStorage
 from app.auth import AuthService
+from app.config import Config
+from app.storage import get_storage, reset_storage
 
 
 # ============================================================================

@@ -1,8 +1,8 @@
 """Document generation validation models using Pydantic v2."""
 
-from typing import List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, List, Optional
 
 
 @dataclass
@@ -154,7 +154,11 @@ class OutputFormat(str, Enum):
 
 
 class GetDocumentOutput:
-    """Output from document rendering."""
+    """Output from document rendering.
+
+    When proxy=true, returns proxy_guid and download_url instead of content.
+    When proxy=false, returns full content for direct use.
+    """
 
     def __init__(
         self,
@@ -164,6 +168,7 @@ class GetDocumentOutput:
         content: str,
         message: str,
         proxy_guid: Optional[str] = None,
+        download_url: Optional[str] = None,
     ):
         self.session_id = session_id
         self.format = format
@@ -171,6 +176,7 @@ class GetDocumentOutput:
         self.content = content
         self.message = message
         self.proxy_guid = proxy_guid
+        self.download_url = download_url  # Full URL to download proxy document from web server
 
 
 class CreateSessionOutput:
@@ -258,11 +264,18 @@ class AbortSessionOutput:
 
 
 class GetTemplateDetailsInput:
-    """Input for get_template_details."""
+    """Input for get_template_details.
 
-    def __init__(self, template_id: str, token: Optional[str] = None):
+    Args:
+        template_id: Template identifier to retrieve details for
+        token: Optional JWT bearer token (for authentication if required)
+        group: Group context (injected from JWT token, defaults to 'public')
+    """
+
+    def __init__(self, template_id: str, token: Optional[str] = None, group: str = "public"):
         self.template_id = template_id
         self.token = token
+        self.group = group
 
     @classmethod
     def model_validate(cls, data: dict):
@@ -270,11 +283,18 @@ class GetTemplateDetailsInput:
 
 
 class ListTemplateFragmentsInput:
-    """Input for list_template_fragments."""
+    """Input for list_template_fragments.
 
-    def __init__(self, template_id: str, token: Optional[str] = None):
+    Args:
+        template_id: Template identifier to list fragments for
+        token: Optional JWT bearer token (for authentication if required)
+        group: Group context (injected from JWT token, defaults to 'public')
+    """
+
+    def __init__(self, template_id: str, token: Optional[str] = None, group: str = "public"):
         self.template_id = template_id
         self.token = token
+        self.group = group
 
     @classmethod
     def model_validate(cls, data: dict):
@@ -282,12 +302,22 @@ class ListTemplateFragmentsInput:
 
 
 class GetFragmentDetailsInput:
-    """Input for get_fragment_details."""
+    """Input for get_fragment_details.
 
-    def __init__(self, template_id: str, fragment_id: str, token: Optional[str] = None):
+    Args:
+        template_id: Template identifier containing the fragment
+        fragment_id: Fragment identifier to retrieve details for
+        token: Optional JWT bearer token (for authentication if required)
+        group: Group context (injected from JWT token, defaults to 'public')
+    """
+
+    def __init__(
+        self, template_id: str, fragment_id: str, token: Optional[str] = None, group: str = "public"
+    ):
         self.template_id = template_id
         self.fragment_id = fragment_id
         self.token = token
+        self.group = group
 
     @classmethod
     def model_validate(cls, data: dict):
@@ -295,7 +325,13 @@ class GetFragmentDetailsInput:
 
 
 class CreateDocumentSessionInput:
-    """Input for create_document_session."""
+    """Input for create_document_session.
+
+    Args:
+        template_id: Template identifier to use for the new session
+        group: Group context (injected from JWT token, determines session isolation boundary)
+        token: Optional JWT bearer token (required for authentication)
+    """
 
     def __init__(self, template_id: str, group: str = "public", token: Optional[str] = None):
         self.template_id = template_id
@@ -308,11 +344,21 @@ class CreateDocumentSessionInput:
 
 
 class SetGlobalParametersInput:
-    """Input for set_global_parameters."""
+    """Input for set_global_parameters.
 
-    def __init__(self, session_id: str, parameters: dict, token: Optional[str] = None):
+    Args:
+        session_id: Session identifier to set parameters for
+        parameters: Dictionary of global parameter values
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(
+        self, session_id: str, parameters: dict, group: str = "public", token: Optional[str] = None
+    ):
         self.session_id = session_id
         self.parameters = parameters
+        self.group = group
         self.token = token
 
     @classmethod
@@ -321,7 +367,16 @@ class SetGlobalParametersInput:
 
 
 class AddFragmentInput:
-    """Input for add_fragment."""
+    """Input for add_fragment.
+
+    Args:
+        session_id: Session identifier to add fragment to
+        fragment_id: Fragment identifier to instantiate
+        parameters: Dictionary of fragment parameter values
+        position: Optional position ('end', 'start', or index) for fragment placement
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
 
     def __init__(
         self,
@@ -329,12 +384,14 @@ class AddFragmentInput:
         fragment_id: str,
         parameters: dict,
         position: Optional[str] = None,
+        group: str = "public",
         token: Optional[str] = None,
     ):
         self.session_id = session_id
         self.fragment_id = fragment_id
         self.parameters = parameters
         self.position = position
+        self.group = group
         self.token = token
 
     @classmethod
@@ -343,11 +400,25 @@ class AddFragmentInput:
 
 
 class RemoveFragmentInput:
-    """Input for remove_fragment."""
+    """Input for remove_fragment.
 
-    def __init__(self, session_id: str, fragment_instance_guid: str, token: Optional[str] = None):
+    Args:
+        session_id: Session identifier to remove fragment from
+        fragment_instance_guid: Unique GUID of the fragment instance to remove
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(
+        self,
+        session_id: str,
+        fragment_instance_guid: str,
+        group: str = "public",
+        token: Optional[str] = None,
+    ):
         self.session_id = session_id
         self.fragment_instance_guid = fragment_instance_guid
+        self.group = group
         self.token = token
 
     @classmethod
@@ -356,10 +427,17 @@ class RemoveFragmentInput:
 
 
 class ListSessionFragmentsInput:
-    """Input for list_session_fragments."""
+    """Input for list_session_fragments.
 
-    def __init__(self, session_id: str, token: Optional[str] = None):
+    Args:
+        session_id: Session identifier to list fragments for
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(self, session_id: str, group: str = "public", token: Optional[str] = None):
         self.session_id = session_id
+        self.group = group
         self.token = token
 
     @classmethod
@@ -368,10 +446,86 @@ class ListSessionFragmentsInput:
 
 
 class AbortDocumentSessionInput:
-    """Input for abort_document_session."""
+    """Input for abort_document_session.
 
-    def __init__(self, session_id: str, token: Optional[str] = None):
+    Args:
+        session_id: Session identifier to abort and delete
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(self, session_id: str, group: str = "public", token: Optional[str] = None):
         self.session_id = session_id
+        self.group = group
+        self.token = token
+
+    @classmethod
+    def model_validate(cls, data: dict):
+        return cls(**data)
+
+
+class GetSessionStatusInput:
+    """Input for get_session_status.
+
+    Args:
+        session_id: Session identifier to check status for
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(self, session_id: str, group: str = "public", token: Optional[str] = None):
+        self.session_id = session_id
+        self.group = group
+        self.token = token
+
+    @classmethod
+    def model_validate(cls, data: dict):
+        return cls(**data)
+
+
+class ListActiveSessionsInput:
+    """Input for list_active_sessions.
+
+    Args:
+        group: Group context (injected from JWT token, only sessions in this group are returned)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(self, group: str = "public", token: Optional[str] = None):
+        self.group = group
+        self.token = token
+
+    @classmethod
+    def model_validate(cls, data: dict):
+        return cls(**data)
+
+
+class ValidateParametersInput:
+    """Input for validate_parameters.
+
+    Args:
+        template_id: Template identifier to validate against
+        parameters: Dictionary of parameter values to validate
+        parameter_type: Type of parameters ('global' or 'fragment')
+        fragment_id: Fragment identifier (required if parameter_type is 'fragment')
+        group: Group context (injected from JWT token, used to verify template ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(
+        self,
+        template_id: str,
+        parameters: dict,
+        parameter_type: str = "global",
+        fragment_id: Optional[str] = None,
+        group: str = "public",
+        token: Optional[str] = None,
+    ):
+        self.template_id = template_id
+        self.parameters = parameters
+        self.parameter_type = parameter_type
+        self.fragment_id = fragment_id
+        self.group = group
         self.token = token
 
     @classmethod
@@ -387,12 +541,14 @@ class GetDocumentInput:
         session_id: str,
         format: str,
         style_id: Optional[str] = None,
+        group: str = "public",
         token: Optional[str] = None,
         proxy: Optional[bool] = False,
     ):
         self.session_id = session_id
         self.format = format
         self.style_id = style_id
+        self.group = group
         self.token = token
         self.proxy = proxy or False
 
@@ -537,3 +693,121 @@ class GetProxyDocumentOutput:
         if self.group is not None:
             result["group"] = self.group
         return result
+
+
+class SessionStatusOutput:
+    """Output from get_session_status showing current session state."""
+
+    def __init__(
+        self,
+        session_id: str,
+        template_id: str,
+        group: str,
+        has_global_parameters: bool,
+        fragment_count: int,
+        is_ready_to_render: bool,
+        created_at: str,
+        updated_at: str,
+        message: str,
+    ):
+        self.session_id = session_id
+        self.template_id = template_id
+        self.group = group
+        self.has_global_parameters = has_global_parameters
+        self.fragment_count = fragment_count
+        self.is_ready_to_render = is_ready_to_render
+        self.created_at = created_at
+        self.updated_at = updated_at
+        self.message = message
+
+
+class SessionSummary:
+    """Summary information for a single session."""
+
+    def __init__(
+        self,
+        session_id: str,
+        template_id: str,
+        group: str,
+        fragment_count: int,
+        has_global_parameters: bool,
+        created_at: str,
+        updated_at: str,
+    ):
+        self.session_id = session_id
+        self.template_id = template_id
+        self.group = group
+        self.fragment_count = fragment_count
+        self.has_global_parameters = has_global_parameters
+        self.created_at = created_at
+        self.updated_at = updated_at
+
+
+class ListActiveSessionsOutput:
+    """Output from list_active_sessions showing all available sessions."""
+
+    def __init__(self, session_count: int, sessions: Optional[List[SessionSummary]] = None):
+        self.session_count = session_count
+        self.sessions = sessions or []
+
+
+class ValidationError:
+    """Detailed validation error with context."""
+
+    def __init__(
+        self,
+        parameter: str,
+        error: str,
+        expected_type: Optional[str] = None,
+        received_type: Optional[str] = None,
+        allowed_values: Optional[List[Any]] = None,
+        example: Optional[Any] = None,
+    ):
+        self.parameter = parameter
+        self.error = error
+        self.expected_type = expected_type
+        self.received_type = received_type
+        self.allowed_values = allowed_values
+        self.example = example
+
+
+class ValidateParametersOutput:
+    """Output from validate_parameters showing validation results."""
+
+    def __init__(
+        self,
+        is_valid: bool,
+        parameter_type: str,  # 'global' or 'fragment'
+        template_id: str,
+        fragment_id: Optional[str] = None,
+        errors: Optional[List[ValidationError]] = None,
+        message: str = "",
+    ):
+        self.is_valid = is_valid
+        self.parameter_type = parameter_type
+        self.template_id = template_id
+        self.fragment_id = fragment_id
+        self.errors = errors or []
+        self.message = message
+
+
+class HelpOutput:
+    """Output from help tool with comprehensive workflow documentation."""
+
+    def __init__(
+        self,
+        service_name: str,
+        version: str,
+        workflow_overview: str,
+        guid_persistence: str,
+        common_pitfalls: List[str],
+        example_workflows: List[dict],
+        tool_sequence: List[dict],
+    ):
+        self.service_name = service_name
+        self.version = version
+        self.workflow_overview = workflow_overview
+        self.guid_persistence = guid_persistence
+        self.common_pitfalls = common_pitfalls
+        self.example_workflows = example_workflows
+        self.tool_sequence = tool_sequence

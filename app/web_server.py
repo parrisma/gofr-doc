@@ -8,7 +8,7 @@ Does NOT implement session lifecycle - use MCP server for session workflows.
 Authentication via X-Auth-Token header (group:token format) or Authorization Bearer.
 """
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import JSONResponse, Response
 from app.rendering.engine import RenderingEngine
 from app.templates.registry import TemplateRegistry
@@ -384,6 +384,7 @@ class DocoWebServer:
         @self.app.post("/render/{session_id}")
         async def get_document(
             session_id: str,
+            request: Request,
             body: Optional[Dict[str, Any]] = None,
             x_auth_token: Optional[str] = Header(None),
             authorization: Optional[str] = Header(None),
@@ -457,14 +458,16 @@ class DocoWebServer:
 
                 # Return appropriate response based on format and proxy mode
                 if proxy:
-                    # Proxy mode: return GUID instead of content
+                    # Proxy mode: return GUID and download URL instead of content
+                    download_url = f"{request.url.scheme}://{request.headers.get('host', 'localhost:8000')}/proxy/{output_obj.proxy_guid}"
                     return JSONResponse(
                         content={
                             "status": "success",
                             "data": {
                                 "proxy_guid": output_obj.proxy_guid,
+                                "download_url": download_url,
                                 "format": output_format,
-                                "message": "Document stored in proxy mode",
+                                "message": "Document stored in proxy mode. Use download_url to retrieve the document.",
                             },
                         }
                     )

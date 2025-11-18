@@ -1,22 +1,23 @@
 """Session manager for document generation sessions."""
+
 import uuid
 from datetime import datetime
 from typing import Dict, Optional
 
-from app.validation.document_models import (
-    DocumentSession,
-    FragmentInstance,
-    CreateSessionOutput,
-    SetGlobalParametersOutput,
-    AddFragmentOutput,
-    RemoveFragmentOutput,
-    ListSessionFragmentsOutput,
-    SessionFragmentInfo,
-    AbortSessionOutput,
-)
 from app.logger import Logger
 from app.sessions.storage import SessionStore
 from app.templates.registry import TemplateRegistry
+from app.validation.document_models import (
+    AbortSessionOutput,
+    AddFragmentOutput,
+    CreateSessionOutput,
+    DocumentSession,
+    FragmentInstance,
+    ListSessionFragmentsOutput,
+    RemoveFragmentOutput,
+    SessionFragmentInfo,
+    SetGlobalParametersOutput,
+)
 
 
 class SessionManager:
@@ -42,11 +43,15 @@ class SessionManager:
 
     async def create_session(self, template_id: str, group: str) -> CreateSessionOutput:
         """
-        Create a new document session.
+        Create a new document session with group-based isolation.
+
+        The session will be bound to the specified group and stored in the
+        group-specific directory (data/docs/sessions/{group}/). All subsequent
+        operations on this session will verify group ownership.
 
         Args:
             template_id: Template to use for this session
-            group: Group context for this session
+            group: Group context for this session (determines isolation boundary)
 
         Returns:
             CreateSessionOutput with session_id
@@ -75,9 +80,7 @@ class SessionManager:
 
         self.logger.info(f"Created session {session_id} with template {template_id}")
 
-        return CreateSessionOutput(
-            session_id=session_id, template_id=template_id, created_at=now
-        )
+        return CreateSessionOutput(session_id=session_id, template_id=template_id, created_at=now)
 
     async def get_session(self, session_id: str) -> Optional[DocumentSession]:
         """
@@ -116,9 +119,7 @@ class SessionManager:
             session.template_id, parameters
         )
         if not is_valid:
-            raise ValueError(
-                f"Invalid global parameters: {'; '.join(errors)}"
-            )
+            raise ValueError(f"Invalid global parameters: {'; '.join(errors)}")
 
         # Update session
         session.global_parameters = parameters
@@ -160,9 +161,7 @@ class SessionManager:
             session.template_id, fragment_id, parameters
         )
         if not is_valid:
-            raise ValueError(
-                f"Invalid fragment parameters: {'; '.join(errors)}"
-            )
+            raise ValueError(f"Invalid fragment parameters: {'; '.join(errors)}")
 
         # Create fragment instance
         fragment_instance_guid = str(uuid.uuid4())
@@ -254,15 +253,11 @@ class SessionManager:
         # Find and remove fragment
         original_length = len(session.fragments)
         session.fragments = [
-            f
-            for f in session.fragments
-            if f.fragment_instance_guid != fragment_instance_guid
+            f for f in session.fragments if f.fragment_instance_guid != fragment_instance_guid
         ]
 
         if len(session.fragments) == original_length:
-            raise ValueError(
-                f"Fragment instance '{fragment_instance_guid}' not found in session"
-            )
+            raise ValueError(f"Fragment instance '{fragment_instance_guid}' not found in session")
 
         session.updated_at = datetime.utcnow().isoformat()
 
@@ -278,9 +273,7 @@ class SessionManager:
             message="Fragment removed successfully",
         )
 
-    async def list_session_fragments(
-        self, session_id: str
-    ) -> ListSessionFragmentsOutput:
+    async def list_session_fragments(self, session_id: str) -> ListSessionFragmentsOutput:
         """
         List all fragments in a session.
 
@@ -303,9 +296,7 @@ class SessionManager:
             fragment_schema = self.template_registry.get_fragment_schema(
                 session.template_id, fragment_instance.fragment_id
             )
-            fragment_name = (
-                fragment_schema.name if fragment_schema else "Unknown"
-            )
+            fragment_name = fragment_schema.name if fragment_schema else "Unknown"
 
             fragment_infos.append(
                 SessionFragmentInfo(
@@ -365,8 +356,209 @@ class SessionManager:
 
         if session.global_parameters is None:
             return False, (
-                "Global parameters not set. "
-                "Call set_global_parameters before rendering."
+                "Global parameters not set. " "Call set_global_parameters before rendering."
             )
 
         return True, None
+
+    async def get_session_status(self, session_id: str):
+        """
+        Get current status of a session.
+
+        Note: This method returns session information without group filtering.
+        The caller (MCP tool handler) is responsible for verifying that the
+        session belongs to the authenticated user's group before calling this method.
+
+        Args:
+            session_id: Session to check
+
+        Returns:
+            SessionStatusOutput with current state including group field
+
+        Raises:
+            ValueError: If session not found
+        """
+        from app.validation.document_models import SessionStatusOutput
+
+        session = await self.get_session(session_id)
+        if session is None:
+            raise ValueError(f"Session '{session_id}' not found")
+
+        has_globals = session.global_parameters is not None and len(session.global_parameters) > 0
+        is_ready, _ = await self.validate_session_for_render(session_id)
+
+        return SessionStatusOutput(
+            session_id=session.session_id,
+            template_id=session.template_id,
+            group=session.group,
+            has_global_parameters=has_globals,
+            fragment_count=len(session.fragments),
+            is_ready_to_render=is_ready,
+            created_at=session.created_at,
+            updated_at=session.updated_at,
+            message=f"Session '{session_id}' status retrieved successfully",
+        )
+
+    async def list_active_sessions(self):
+        """
+        List all active sessions with summary information.
+
+        Note: This method returns ALL sessions across all groups. The caller
+        (MCP tool handler) is responsible for filtering sessions by the
+        authenticated user's group before returning results to the client.
+
+        Returns:
+            ListActiveSessionsOutput with session summaries (includes group field for filtering)
+        """
+        from app.validation.document_models import ListActiveSessionsOutput, SessionSummary
+
+        session_ids = await self.session_store.list_sessions()
+        summaries = []
+
+        for session_id in session_ids:
+            session = await self.get_session(session_id)
+            if session:
+                has_globals = (
+                    session.global_parameters is not None and len(session.global_parameters) > 0
+                )
+                summaries.append(
+                    SessionSummary(
+                        session_id=session.session_id,
+                        template_id=session.template_id,
+                        group=session.group,
+                        fragment_count=len(session.fragments),
+                        has_global_parameters=has_globals,
+                        created_at=session.created_at,
+                        updated_at=session.updated_at,
+                    )
+                )
+
+        self.logger.info(f"Listed {len(summaries)} active sessions")
+
+        return ListActiveSessionsOutput(
+            session_count=len(summaries),
+            sessions=summaries,
+        )
+
+    async def validate_parameters(
+        self,
+        template_id: str,
+        parameters: Dict,
+        parameter_type: str = "global",
+        fragment_id: Optional[str] = None,
+    ):
+        """
+        Validate parameters without saving them.
+
+        Note: This method validates parameters without group filtering. The caller
+        (MCP tool handler) is responsible for verifying that the template or fragment
+        belongs to the authenticated user's group before calling this method.
+
+        Args:
+            template_id: Template to validate against
+            parameters: Parameters to validate
+            parameter_type: 'global' or 'fragment'
+            fragment_id: Required if parameter_type is 'fragment'
+
+        Returns:
+            ValidateParametersOutput with detailed validation results
+
+        Raises:
+            ValueError: If template or fragment not found
+        """
+        from app.validation.document_models import ValidateParametersOutput, ValidationError
+
+        if not self.template_registry.template_exists(template_id):
+            raise ValueError(f"Template '{template_id}' not found")
+
+        if parameter_type == "global":
+            is_valid, error_messages = self.template_registry.validate_global_parameters(
+                template_id, parameters
+            )
+
+            # Convert simple error messages to ValidationError objects with enhanced info
+            errors = []
+            if not is_valid:
+                # Get parameter schemas for enhanced error details
+                template_schema = self.template_registry.get_template_schema(template_id)
+                param_schemas = {p.name: p for p in template_schema.global_parameters}
+
+                for error_msg in error_messages:
+                    # Try to extract parameter name from error message
+                    param_name = error_msg.split("'")[1] if "'" in error_msg else "unknown"
+                    param_schema = param_schemas.get(param_name)
+
+                    errors.append(
+                        ValidationError(
+                            parameter=param_name,
+                            error=error_msg,
+                            expected_type=param_schema.type if param_schema else None,
+                            received_type=(
+                                type(parameters.get(param_name)).__name__
+                                if param_name in parameters
+                                else None
+                            ),
+                            example=param_schema.example if param_schema else None,
+                        )
+                    )
+
+            return ValidateParametersOutput(
+                is_valid=is_valid,
+                parameter_type="global",
+                template_id=template_id,
+                errors=errors,
+                message=(
+                    "Parameters valid" if is_valid else f"Found {len(errors)} validation errors"
+                ),
+            )
+
+        elif parameter_type == "fragment":
+            if not fragment_id:
+                raise ValueError("fragment_id required when parameter_type is 'fragment'")
+
+            is_valid, error_messages = self.template_registry.validate_fragment_parameters(
+                template_id, fragment_id, parameters
+            )
+
+            # Convert simple error messages to ValidationError objects
+            errors = []
+            if not is_valid:
+                fragment_schema = self.template_registry.get_fragment_schema(
+                    template_id, fragment_id
+                )
+                param_schemas = (
+                    {p.name: p for p in fragment_schema.parameters} if fragment_schema else {}
+                )
+
+                for error_msg in error_messages:
+                    param_name = error_msg.split("'")[1] if "'" in error_msg else "unknown"
+                    param_schema = param_schemas.get(param_name)
+
+                    errors.append(
+                        ValidationError(
+                            parameter=param_name,
+                            error=error_msg,
+                            expected_type=param_schema.type if param_schema else None,
+                            received_type=(
+                                type(parameters.get(param_name)).__name__
+                                if param_name in parameters
+                                else None
+                            ),
+                            example=param_schema.example if param_schema else None,
+                        )
+                    )
+
+            return ValidateParametersOutput(
+                is_valid=is_valid,
+                parameter_type="fragment",
+                template_id=template_id,
+                fragment_id=fragment_id,
+                errors=errors,
+                message=(
+                    "Parameters valid" if is_valid else f"Found {len(errors)} validation errors"
+                ),
+            )
+        else:
+            raise ValueError(
+                f"Invalid parameter_type '{parameter_type}'. Must be 'global' or 'fragment'"
+            )

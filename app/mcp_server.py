@@ -1,11 +1,31 @@
 #!/usr/bin/env python3
-"""Document generation MCP server."""
+"""Document generation MCP server with group-based security.
+
+This server implements the Model Context Protocol (MCP) for document generation with
+comprehensive group-based access control. All session operations verify that the caller's
+JWT token group matches the session's group to prevent cross-group data access.
+
+Security Model:
+- JWT Authentication: Bearer tokens with {"group": "...", "exp": ..., "iat": ...}
+- Group Isolation: Sessions, templates, styles, and fragments are isolated by group
+- Directory Boundaries: data/docs/{templates,styles,sessions}/{group}/
+- Session Verification: All operations verify session.group == caller_group
+- Discovery Tools: list_templates, get_template_details, etc. do NOT require authentication
+
+Authentication Flow:
+1. Client sends JWT token in Authorization: Bearer header
+2. _verify_auth() extracts and validates token → returns (auth_group, error)
+3. handle_call_tool() injects auth_group into tool arguments
+4. Tool handlers verify session.group == auth_group before operations
+5. Generic "SESSION_NOT_FOUND" errors prevent information leakage across groups
+"""
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import json
+import os
 import sys
 from contextvars import ContextVar
 from datetime import datetime
@@ -138,9 +158,19 @@ def _handle_validation_error(exc: PydanticValidationError) -> ToolResponse:
     )
 
 
-def _verify_auth(arguments: Dict[str, Any], require_token: bool) -> Optional[ToolResponse]:
+def _verify_auth(
+    arguments: Dict[str, Any], require_token: bool
+) -> tuple[Optional[str], Optional[ToolResponse]]:
+    """
+    Verify authentication and extract group from JWT token.
+
+    Returns:
+        Tuple of (group, error):
+        - group: The authenticated group name if token is valid, None if no auth provided
+        - error: ToolResponse error if auth failed, None if auth succeeded or not required
+    """
     if auth_service is None:
-        return None
+        return None, None
 
     # Try to get token from tool arguments first (for backward compatibility)
     token = arguments.get("token")
@@ -153,7 +183,7 @@ def _verify_auth(arguments: Dict[str, Any], require_token: bool) -> Optional[Too
 
     if not token:
         if require_token:
-            return _error(
+            return None, _error(
                 code="AUTH_REQUIRED",
                 message="This operation requires authentication but no token was provided.",
                 recovery=(
@@ -164,10 +194,11 @@ def _verify_auth(arguments: Dict[str, Any], require_token: bool) -> Optional[Too
                     "NOTE: Discovery tools (list_templates, get_template_details, list_styles) do NOT require authentication."
                 ),
             )
-        return None
+        return None, None
 
     try:
-        auth_service.verify_token(token)
+        token_info = auth_service.verify_token(token)
+        return token_info.group, None
     except Exception as exc:  # pragma: no cover - depends on auth backend
         logger.warning("Token verification failed", error=str(exc))
         error_str = str(exc).lower()
@@ -180,12 +211,11 @@ def _verify_auth(arguments: Dict[str, Any], require_token: bool) -> Optional[Too
         else:
             recovery_msg += "The provided token could not be validated. Obtain a fresh authentication token and retry."
 
-        return _error(
+        return None, _error(
             code="AUTH_FAILED",
             message=f"Authentication failed: {exc}",
             recovery=recovery_msg,
         )
-    return None
 
 
 def _require_components() -> None:
@@ -290,12 +320,99 @@ async def handle_list_tools() -> List[Tool]:
             inputSchema={"type": "object", "properties": {}},
         ),
         Tool(
+            name="help",
+            description=(
+                "Comprehensive Documentation - Get complete workflow guidance, GUID lifecycle rules, and common pitfalls. "
+                "WORKFLOW: Call this anytime you need help understanding the service workflow or troubleshooting issues. "
+                "Returns: Service overview, GUID persistence rules (when session_ids and fragment_instance_guids are created/deleted), "
+                "common mistakes to avoid, example workflows, and tool sequencing guide. "
+                "CRITICAL TOPICS COVERED: How long GUIDs persist, when to save them, workflow best practices, parameter requirements. "
+                "USE THIS: When starting a new task, when confused about workflow, or when encountering repeated errors."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="get_session_status",
+            description=(
+                "Session Inspection - Get current state of a document session including readiness for rendering. "
+                "WORKFLOW: Use this to verify a session exists and check its current state before performing operations. "
+                "Returns: session_id, template_id, has_global_parameters (bool), fragment_count, is_ready_to_render (bool), timestamps. "
+                "USEFUL FOR: Verifying old session_ids still exist, checking if globals are set, seeing fragment count before rendering. "
+                "ERROR RECOVERY: If you get 'session not found' errors, call this first to verify the session_id is valid. "
+                "GROUP SECURITY: Can only access sessions from your authenticated group. Returns 'SESSION_NOT_FOUND' for sessions in other groups. "
+                "AUTHENTICATION: Requires JWT Bearer token. Generic errors prevent information leakage about sessions in other groups."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session identifier to check.",
+                    },
+                    "token": {"type": "string", "description": "Optional bearer token."},
+                },
+                "required": ["session_id"],
+            },
+        ),
+        Tool(
+            name="list_active_sessions",
+            description=(
+                "Session Discovery - List all available document sessions with summary information. "
+                "WORKFLOW: Use this to see all existing sessions, recover lost session_ids, or check session states. "
+                "Returns: Array of session summaries with session_id, template_id, fragment_count, has_global_parameters, timestamps. "
+                "USEFUL FOR: Finding a session_id you forgot, seeing all in-progress documents, understanding session state. "
+                "RECOVERY: If you lost a session_id, call this to find it again. "
+                "GROUP ISOLATION: Only returns sessions from your authenticated group. You will NOT see sessions created by other groups. "
+                "AUTHENTICATION: Requires JWT Bearer token to determine which group's sessions to return."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="validate_parameters",
+            description=(
+                "Parameter Validation - Check if parameters are valid BEFORE saving them to avoid errors. "
+                "WORKFLOW: Call this before set_global_parameters or add_fragment to catch mistakes early. "
+                "Returns: is_valid (bool), detailed errors array with parameter names, expected types, received types, examples. "
+                "USEFUL FOR: Pre-flight validation, understanding parameter requirements, debugging validation errors. "
+                "PARAMETERS: Set parameter_type='global' for template globals, 'fragment' for fragment parameters. "
+                "ERROR DETAILS: Each error includes parameter name, expected type, what you provided, and example values. "
+                "GROUP SECURITY: Validates against templates in your authenticated group. Returns 'TEMPLATE_NOT_FOUND' for templates in other groups. "
+                "AUTHENTICATION: Requires JWT Bearer token for group-based template access."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "template_id": {
+                        "type": "string",
+                        "description": "Template identifier to validate against.",
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "Parameters to validate (the actual values you want to check).",
+                    },
+                    "parameter_type": {
+                        "type": "string",
+                        "enum": ["global", "fragment"],
+                        "description": "Type of parameters: 'global' for template globals, 'fragment' for fragment parameters.",
+                        "default": "global",
+                    },
+                    "fragment_id": {
+                        "type": "string",
+                        "description": "Required when parameter_type='fragment'. Fragment identifier from list_template_fragments.",
+                    },
+                    "token": {"type": "string", "description": "Optional bearer token."},
+                },
+                "required": ["template_id", "parameters", "parameter_type"],
+            },
+        ),
+        Tool(
             name="list_templates",
             description=(
                 "Discovery - List all available document templates. "
                 "WORKFLOW: Start here to discover which templates are available. Each template defines a document structure. "
                 "Returns: Array of templates with template_id (use this in create_document_session), name, description, and group. "
-                "NEXT STEPS: Use get_template_details to inspect a specific template's requirements."
+                "NEXT STEPS: Use get_template_details to inspect a specific template's requirements. "
+                "AUTHENTICATION: No authentication required - this is a discovery tool available to all clients."
             ),
             inputSchema={"type": "object", "properties": {}},
         ),
@@ -385,7 +502,9 @@ async def handle_list_tools() -> List[Tool]:
                 "Returns: session_id (SAVE THIS - you'll need it for all subsequent operations), template_id, creation timestamps. "
                 "NEXT STEPS: (1) Call set_global_parameters to set required template parameters, (2) Call add_fragment repeatedly to build document content, (3) Call get_document to render. "
                 "ERROR HANDLING: If template_id not found, call list_templates to get valid identifiers. "
-                "IMPORTANT: Sessions persist across API calls - the session_id is your handle to the document being built."
+                "IMPORTANT: Sessions persist across API calls - the session_id is your handle to the document being built. "
+                "AUTHENTICATION: Requires JWT Bearer token. Session is bound to your group - you can only access sessions created by your group. "
+                "GROUP ISOLATION: Sessions are isolated by group. You will only see and can only operate on sessions within your authenticated group."
             ),
             inputSchema={
                 "type": "object",
@@ -410,7 +529,9 @@ async def handle_list_tools() -> List[Tool]:
                 "Returns: Updated session state with current global_parameters. "
                 "NEXT STEPS: After setting globals, use add_fragment to build the document body content. "
                 "ERROR HANDLING: If session_id not found, create a new session with create_document_session. "
-                "TIP: Use get_template_details to see what global parameters are required for your template before calling this."
+                "TIP: Use get_template_details to see what global parameters are required for your template before calling this. "
+                "GROUP SECURITY: Can only modify sessions from your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access attempts. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
             inputSchema={
                 "type": "object",
@@ -440,7 +561,9 @@ async def handle_list_tools() -> List[Tool]:
                 "Returns: fragment_instance_guid (unique ID for this specific fragment instance - save it to remove or reorder later), position confirmation. "
                 "NEXT STEPS: Continue calling add_fragment for additional content. When done, call get_document to render the final output. "
                 "ERROR HANDLING: If fragment_id not found, call list_template_fragments. If parameters invalid, call get_fragment_details to see requirements. "
-                "TIP: Use get_fragment_details first to understand what parameters each fragment type requires."
+                "TIP: Use get_fragment_details first to understand what parameters each fragment type requires. "
+                "GROUP SECURITY: Can only add fragments to sessions from your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
             inputSchema={
                 "type": "object",
@@ -474,7 +597,9 @@ async def handle_list_tools() -> List[Tool]:
                 "WORKFLOW: To remove content, use the fragment_instance_guid returned from add_fragment or found in list_session_fragments. "
                 "Returns: Confirmation of removal with updated fragment count. "
                 "NEXT STEPS: Continue editing with add_fragment or remove_fragment, then call get_document when ready. "
-                "ERROR HANDLING: If guid not found, call list_session_fragments to see current fragments and their GUIDs."
+                "ERROR HANDLING: If guid not found, call list_session_fragments to see current fragments and their GUIDs. "
+                "GROUP SECURITY: Can only remove fragments from sessions in your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
             inputSchema={
                 "type": "object",
@@ -496,7 +621,9 @@ async def handle_list_tools() -> List[Tool]:
                 "WORKFLOW: Call this to inspect the current document structure, get fragment GUIDs for removal, or verify your changes. "
                 "Returns: Ordered array of fragments with guid (for remove_fragment), fragment_id, parameters, creation timestamp, and position. "
                 "NEXT STEPS: Use the guid values with remove_fragment to delete content, or continue building with add_fragment. "
-                "TIP: This shows the current state of your document before rendering."
+                "TIP: This shows the current state of your document before rendering. "
+                "GROUP SECURITY: Can only list fragments from sessions in your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
             inputSchema={
                 "type": "object",
@@ -514,7 +641,9 @@ async def handle_list_tools() -> List[Tool]:
                 "WORKFLOW: Call when you want to discard a document session and free up resources. "
                 "Returns: Confirmation of deletion. "
                 "WARNING: This is irreversible. All fragments and parameters in the session will be permanently deleted. "
-                "ALTERNATIVE: If you just want to modify the document, use remove_fragment or set_global_parameters instead."
+                "ALTERNATIVE: If you just want to modify the document, use remove_fragment or set_global_parameters instead. "
+                "GROUP SECURITY: Can only delete sessions from your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
             inputSchema={
                 "type": "object",
@@ -536,9 +665,14 @@ async def handle_list_tools() -> List[Tool]:
                 "Returns: Rendered document content in requested format with metadata (format, session_id, render timestamp, success status). "
                 "FORMATS: 'html' (web display), 'pdf' (printable, base64-encoded), 'md' or 'markdown' (plain text with markdown). "
                 "STYLING: Optionally specify style_id from list_styles, or omit for default styling. "
-                "PROXY MODE: Set proxy=true to store the rendered document on the server and receive a proxy_guid for later retrieval instead of the full content. "
+                "PROXY MODE: Set proxy=true to store the rendered document on the server and receive a proxy_guid instead of content. "
+                "  RESPONSE: Returns proxy_guid AND download_url. The download_url is the complete HTTP endpoint to retrieve the document from the web server. "
+                "  DOWNLOAD: Simply GET the download_url with your Authorization header to download the rendered document. "
+                "  BENEFITS: Reduces network overhead for large documents (PDFs); document stored server-side for later retrieval. "
                 "ERROR HANDLING: If session not ready, verify global parameters are set and fragments added. If session_id not found, check the ID or create a new session. "
-                "TIP: You can call this multiple times with different formats to get the same document in different outputs."
+                "TIP: You can call this multiple times with different formats to get the same document in different outputs. "
+                "GROUP SECURITY: Can only render documents from sessions in your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
             inputSchema={
                 "type": "object",
@@ -682,15 +816,61 @@ async def _tool_create_session(arguments: Dict[str, Any]) -> ToolResponse:
 
 
 async def _tool_set_global_parameters(arguments: Dict[str, Any]) -> ToolResponse:
+    """Set global parameters for a document session.
+
+    SECURITY: This operation verifies that the session belongs to the caller's group
+    before allowing parameter updates. Returns generic SESSION_NOT_FOUND error for
+    non-existent or cross-group sessions to prevent information leakage.
+
+    Args:
+        arguments: Dict containing session_id, parameters, and group (injected from JWT)
+
+    Returns:
+        ToolResponse with success or SESSION_NOT_FOUND error
+    """
     payload = SetGlobalParametersInput.model_validate(arguments)
     manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(payload.session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+        )
+
     output = await manager.set_global_parameters(payload.session_id, payload.parameters)
     return _success(_model_dump(output))
 
 
 async def _tool_add_fragment(arguments: Dict[str, Any]) -> ToolResponse:
+    """Add a content fragment to a document session.
+
+    SECURITY: This operation verifies that the session belongs to the caller's group
+    before allowing fragment additions. Returns generic SESSION_NOT_FOUND error for
+    non-existent or cross-group sessions to prevent information leakage.
+
+    Args:
+        arguments: Dict containing session_id, fragment_id, parameters, position, and group (injected from JWT)
+
+    Returns:
+        ToolResponse with success or SESSION_NOT_FOUND error
+    """
     payload = AddFragmentInput.model_validate(arguments)
     manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(payload.session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+        )
+
     output = await manager.add_fragment(
         session_id=payload.session_id,
         fragment_id=payload.fragment_id,
@@ -701,8 +881,31 @@ async def _tool_add_fragment(arguments: Dict[str, Any]) -> ToolResponse:
 
 
 async def _tool_remove_fragment(arguments: Dict[str, Any]) -> ToolResponse:
+    """Remove a content fragment from a document session.
+
+    SECURITY: This operation verifies that the session belongs to the caller's group
+    before allowing fragment removal. Returns generic SESSION_NOT_FOUND error for
+    non-existent or cross-group sessions to prevent information leakage.
+
+    Args:
+        arguments: Dict containing session_id, fragment_instance_guid, and group (injected from JWT)
+
+    Returns:
+        ToolResponse with success or SESSION_NOT_FOUND error
+    """
     payload = RemoveFragmentInput.model_validate(arguments)
     manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(payload.session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+        )
+
     output = await manager.remove_fragment(
         session_id=payload.session_id,
         fragment_instance_guid=payload.fragment_instance_guid,
@@ -711,15 +914,61 @@ async def _tool_remove_fragment(arguments: Dict[str, Any]) -> ToolResponse:
 
 
 async def _tool_list_session_fragments(arguments: Dict[str, Any]) -> ToolResponse:
+    """List all content fragments in a document session.
+
+    SECURITY: This operation verifies that the session belongs to the caller's group
+    before returning fragment information. Returns generic SESSION_NOT_FOUND error for
+    non-existent or cross-group sessions to prevent information leakage.
+
+    Args:
+        arguments: Dict containing session_id and group (injected from JWT)
+
+    Returns:
+        ToolResponse with fragment list or SESSION_NOT_FOUND error
+    """
     payload = ListSessionFragmentsInput.model_validate(arguments)
     manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(payload.session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+        )
+
     output = await manager.list_session_fragments(session_id=payload.session_id)
     return _success(_model_dump(output))
 
 
 async def _tool_abort_session(arguments: Dict[str, Any]) -> ToolResponse:
+    """Abort and delete a document session.
+
+    SECURITY: This operation verifies that the session belongs to the caller's group
+    before allowing session deletion. Returns generic SESSION_NOT_FOUND error for
+    non-existent or cross-group sessions to prevent information leakage.
+
+    Args:
+        arguments: Dict containing session_id and group (injected from JWT)
+
+    Returns:
+        ToolResponse with success or SESSION_NOT_FOUND error
+    """
     payload = AbortDocumentSessionInput.model_validate(arguments)
     manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(payload.session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+        )
+
     output = await manager.abort_session(session_id=payload.session_id)
     return _success(_model_dump(output))
 
@@ -728,6 +977,30 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
     payload = GetDocumentInput.model_validate(arguments)
     manager = _ensure_manager()
     renderer = _ensure_renderer()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # Get session first to verify it exists and check group
+    session = await manager.get_session(payload.session_id)
+    if session is None:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' does not exist or has been deleted.",
+            recovery=(
+                "The session may have been aborted or never created. "
+                "STEP 1: Call create_document_session with a valid template_id to start a new session. "
+                "STEP 2: Save the returned session_id. "
+                "STEP 3: Build content with set_global_parameters and add_fragment. "
+                "STEP 4: Retry get_document with the new session_id."
+            ),
+        )
+
+    # SECURITY: Verify session belongs to caller's group
+    if session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="The session may not exist in your group. Call list_active_sessions to see sessions you have access to.",
+        )
 
     valid, message = await manager.validate_session_for_render(payload.session_id)
     if not valid:
@@ -743,20 +1016,6 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
             ),
         )
 
-    session = await manager.get_session(payload.session_id)
-    if session is None:
-        return _error(
-            code="SESSION_NOT_FOUND",
-            message=f"Session '{payload.session_id}' does not exist or has been deleted.",
-            recovery=(
-                "The session may have been aborted or never created. "
-                "STEP 1: Call create_document_session with a valid template_id to start a new session. "
-                "STEP 2: Save the returned session_id. "
-                "STEP 3: Build content with set_global_parameters and add_fragment. "
-                "STEP 4: Retry get_document with the new session_id."
-            ),
-        )
-
     try:
         # Convert 'md' alias to 'markdown' for OutputFormat enum
         format_value = payload.format
@@ -769,6 +1028,14 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
             style_id=payload.style_id,
             proxy=payload.proxy,
         )
+
+        # If proxy mode, add download URL to the response
+        if payload.proxy and output.proxy_guid:
+            # Construct the download URL for the web server
+            # Default to localhost:8010 (web server port) but can be overridden via environment
+            web_server_host = os.getenv("DOCO_WEB_SERVER_URL", "http://localhost:8010")
+            output.download_url = f"{web_server_host}/proxy/{output.proxy_guid}"
+
     except ValueError as exc:
         logger.warning("Rendering failed", error=str(exc))
         error_msg = str(exc)
@@ -790,13 +1057,266 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
     return _success(_model_dump(output))
 
 
+async def _tool_get_session_status(arguments: Dict[str, Any]) -> ToolResponse:
+    """Get current status of a document session."""
+    from app.validation.document_models import GetSessionStatusInput
+
+    payload = GetSessionStatusInput.model_validate(arguments)
+    manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # Get session and verify group access
+    session = await manager.get_session(payload.session_id)
+    if session is None:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Call list_active_sessions to see all available sessions in your group, or create_document_session to start a new session.",
+        )
+
+    # SECURITY: Verify caller's group matches session's group
+    if session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="The session may not exist in your group. Call list_active_sessions to see sessions you have access to.",
+        )
+
+    try:
+        output = await manager.get_session_status(payload.session_id)
+        return _success(_model_dump(output))
+    except ValueError as exc:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=str(exc),
+            recovery="Call list_active_sessions to see all available sessions, or create_document_session to start a new session.",
+        )
+
+
+async def _tool_list_active_sessions(arguments: Dict[str, Any]) -> ToolResponse:
+    """List all active document sessions in caller's group."""
+    from app.validation.document_models import ListActiveSessionsInput
+
+    payload = ListActiveSessionsInput.model_validate(arguments)
+    manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Only return sessions from caller's group
+    all_sessions_output = await manager.list_active_sessions()
+    filtered_sessions = [s for s in all_sessions_output.sessions if s.group == caller_group]
+
+    all_sessions_output.sessions = filtered_sessions
+    all_sessions_output.session_count = len(filtered_sessions)
+
+    return _success(_model_dump(all_sessions_output))
+
+
+async def _tool_validate_parameters(arguments: Dict[str, Any]) -> ToolResponse:
+    """Validate parameters without saving them."""
+    from app.validation.document_models import ValidateParametersInput
+
+    payload = ValidateParametersInput.model_validate(arguments)
+    manager = _ensure_manager()
+    registry = _ensure_template_registry()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify template exists in caller's group
+    template_schema = registry.get_template_schema(payload.template_id)
+    if template_schema is None or template_schema.metadata.group != caller_group:
+        return _error(
+            code="TEMPLATE_NOT_FOUND",
+            message=f"Template '{payload.template_id}' not found in your group",
+            recovery="Call list_templates to see templates available in your group.",
+        )
+
+    try:
+        output = await manager.validate_parameters(
+            template_id=payload.template_id,
+            parameters=payload.parameters,
+            parameter_type=payload.parameter_type,
+            fragment_id=payload.fragment_id,
+        )
+        return _success(_model_dump(output))
+    except ValueError as exc:
+        return _error(
+            code="VALIDATION_ERROR",
+            message=str(exc),
+            recovery="Verify the template_id exists (call list_templates) and that fragment_id is valid (call list_template_fragments).",
+        )
+
+
+async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
+    """Provide comprehensive workflow documentation and guidance."""
+    from app.validation.document_models import HelpOutput
+
+    output = HelpOutput(
+        service_name="doco-document-service",
+        version="1.21.0",
+        workflow_overview=(
+            "The doco service helps you create structured documents through a multi-step workflow:\n"
+            "1. DISCOVERY: List templates and understand their requirements\n"
+            "2. SESSION CREATION: Create a document session based on a template\n"
+            "3. CONFIGURATION: Set global parameters (title, author, date, etc.)\n"
+            "4. CONTENT BUILDING: Add fragments (headings, paragraphs, tables, etc.) in sequence\n"
+            "5. RENDERING: Generate the final document in your chosen format (HTML, PDF, Markdown)\n\n"
+            "SECURITY & GROUP ISOLATION:\n"
+            "- JWT Authentication: Most tools require a Bearer token in the Authorization header\n"
+            "- Group-Based Isolation: Sessions are bound to your authenticated group\n"
+            "- Session Visibility: You can ONLY see and access sessions created by your group\n"
+            "- Cross-Group Protection: Attempts to access other groups' sessions return 'SESSION_NOT_FOUND'\n"
+            "- Discovery Tools: list_templates, get_template_details, list_styles do NOT require authentication\n"
+            "- Generic Errors: Error messages intentionally avoid revealing if sessions exist in other groups"
+        ),
+        guid_persistence=(
+            "IMPORTANT - GUID Lifecycle Rules:\n\n"
+            "SESSION IDs:\n"
+            "- Created by: create_document_session\n"
+            "- Persist: Until you call abort_document_session or manually delete the session file\n"
+            "- Location: Stored in data/sessions/<session_id>.json\n"
+            "- CRITICAL: Save the exact session_id returned and use it in ALL subsequent calls\n\n"
+            "FRAGMENT INSTANCE GUIDs:\n"
+            "- Created by: add_fragment (returns fragment_instance_guid)\n"
+            "- Persist: As long as the parent session exists\n"
+            "- Purpose: Unique identifier to remove or reorder specific fragment instances\n"
+            "- CRITICAL: Each call to add_fragment creates a NEW guid, even for the same fragment_id\n"
+            "- Deleted: When you call remove_fragment or abort_document_session\n\n"
+            "PROXY GUIDs (Document Storage):\n"
+            "- Created by: get_document with proxy=true\n"
+            "- Persist: On server at data/proxy/<group>/<proxy_guid>.json\n"
+            "- Download: Retrieve via web server GET /proxy/{proxy_guid} endpoint\n"
+            "- Authentication: Include Authorization header (Bearer token) matching document's group\n"
+            "- Benefits: Avoid transmitting large documents over network; retrieve later on-demand\n\n"
+            "BEST PRACTICES:\n"
+            "- Always save session_id immediately after create_document_session\n"
+            "- Save fragment_instance_guid if you might need to remove that specific fragment later\n"
+            "- Don't try to reuse or guess GUIDs - they are UUIDs and must be copied exactly\n"
+            "- Use list_session_fragments to see all current fragment GUIDs in a session\n"
+            "- Use get_session_status to verify a session still exists before using it\n"
+            "- For proxy documents, save proxy_guid and include it in web download request"
+        ),
+        common_pitfalls=[
+            "NOT SAVING session_id: Always save the exact session_id from create_document_session response",
+            "WRONG session_id: Don't try to guess or remember - copy the exact UUID string",
+            "SKIPPING global parameters: Call set_global_parameters BEFORE adding fragments",
+            "WRONG parameter names: Use get_template_details and get_fragment_details to see exact parameter names",
+            "ADDING fragments before globals: Template global parameters must be set first",
+            "NOT CHECKING errors: Read error messages - they tell you exactly what's wrong and how to fix it",
+            "REUSING OLD session_id: Sessions persist until deleted, but verify with get_session_status first",
+            "WRONG fragment_id: Use list_template_fragments to see valid fragment_id values for your template",
+            "CROSS-GROUP ACCESS: 'SESSION_NOT_FOUND' error often means you're trying to access another group's session",
+            "MISSING AUTHENTICATION: Session operations require JWT Bearer token - discovery tools do not",
+            "GROUP CONFUSION: list_active_sessions only shows YOUR group's sessions, not all sessions on the server",
+            "PROXY DOWNLOAD: When using proxy=true, save the returned proxy_guid and use it with web server GET /proxy/{proxy_guid} endpoint",
+            "PROXY AUTHENTICATION: Proxy document downloads require same Authorization header as MCP calls",
+        ],
+        example_workflows=[
+            {
+                "name": "Basic Document Creation",
+                "steps": [
+                    "1. list_templates → Find 'news_email' template",
+                    "2. get_template_details(template_id='news_email') → See it needs: email_subject, heading_title, company_name",
+                    "3. create_document_session(template_id='news_email') → Get session_id='abc-123...'",
+                    "4. set_global_parameters(session_id='abc-123...', parameters={email_subject: 'Weekly News', ...})",
+                    "5. list_template_fragments(template_id='news_email') → See available: heading, news_story, paragraph",
+                    "6. add_fragment(session_id='abc-123...', fragment_id='heading', parameters={text: 'Top Story', level: 2})",
+                    "7. add_fragment(session_id='abc-123...', fragment_id='news_story', parameters={...})",
+                    "8. get_document(session_id='abc-123...', format='markdown') → Get rendered document",
+                ],
+            },
+            {
+                "name": "Parameter Validation Before Adding",
+                "steps": [
+                    "1. validate_parameters(template_id='news_email', parameter_type='global', parameters={...})",
+                    "2. Check is_valid=true before calling set_global_parameters",
+                    "3. validate_parameters(template_id='news_email', parameter_type='fragment', fragment_id='news_story', parameters={...})",
+                    "4. Check is_valid=true before calling add_fragment",
+                ],
+            },
+            {
+                "name": "Session Recovery",
+                "steps": [
+                    "1. list_active_sessions → See all existing sessions",
+                    "2. get_session_status(session_id='...') → Check if session is ready",
+                    "3. list_session_fragments(session_id='...') → See what content already exists",
+                    "4. Continue adding fragments or render if ready",
+                ],
+            },
+            {
+                "name": "Large Document Rendering with Proxy Mode",
+                "steps": [
+                    "1. Create and build session normally (create_document_session → add_fragment → etc)",
+                    "2. get_document(session_id='...', format='pdf', proxy=true) → Returns proxy_guid instead of full PDF",
+                    "3. Save the proxy_guid from response",
+                    "4. Later, construct web request: GET /proxy/{proxy_guid} with Authorization header",
+                    "5. Download document from web server endpoint with your Bearer token",
+                ],
+            },
+        ],
+        tool_sequence=[
+            {
+                "category": "DISCOVERY",
+                "tools": [
+                    "ping",
+                    "list_templates",
+                    "get_template_details",
+                    "list_template_fragments",
+                    "get_fragment_details",
+                    "list_styles",
+                ],
+                "description": "Use these to explore what's available before creating sessions",
+            },
+            {
+                "category": "SESSION MANAGEMENT",
+                "tools": [
+                    "create_document_session",
+                    "list_active_sessions",
+                    "get_session_status",
+                    "abort_document_session",
+                ],
+                "description": "Create, track, and manage document sessions",
+            },
+            {
+                "category": "VALIDATION",
+                "tools": ["validate_parameters"],
+                "description": "Check parameters before saving to catch errors early",
+            },
+            {
+                "category": "CONTENT BUILDING",
+                "tools": [
+                    "set_global_parameters",
+                    "add_fragment",
+                    "remove_fragment",
+                    "list_session_fragments",
+                ],
+                "description": "Build document content step by step - ALWAYS set globals before adding fragments",
+            },
+            {
+                "category": "RENDERING",
+                "tools": ["get_document"],
+                "description": "Generate the final document in your chosen format",
+            },
+            {
+                "category": "HELP",
+                "tools": ["help"],
+                "description": "Get comprehensive workflow documentation",
+            },
+        ],
+    )
+
+    return _success(_model_dump(output))
+
+
 HANDLERS: Dict[str, ToolHandler] = {
     "ping": _tool_ping,
+    "help": _tool_help,
     "list_templates": _tool_list_templates,
     "get_template_details": _tool_get_template_details,
     "list_template_fragments": _tool_list_template_fragments,
     "get_fragment_details": _tool_get_fragment_details,
     "list_styles": _tool_list_styles,
+    "get_session_status": _tool_get_session_status,
+    "list_active_sessions": _tool_list_active_sessions,
+    "validate_parameters": _tool_validate_parameters,
     "create_document_session": _tool_create_session,
     "set_global_parameters": _tool_set_global_parameters,
     "add_fragment": _tool_add_fragment,
@@ -821,9 +1341,21 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> ToolResponse
             recovery=f"Available tools: {', '.join(available_tools)}. Call list_tools() to see detailed descriptions and schemas. Check for typos in the tool name.",
         )
 
-    auth_error = _verify_auth(arguments, require_token=name not in TOKEN_OPTIONAL_TOOLS)
+    auth_group, auth_error = _verify_auth(arguments, require_token=name not in TOKEN_OPTIONAL_TOOLS)
     if auth_error:
         return auth_error
+
+    # SECURITY: Inject authenticated group from JWT token into arguments
+    # This ensures all tools operate within the caller's group boundary.
+    # The group from JWT token takes precedence over any 'group' field in arguments
+    # to prevent clients from claiming access to other groups.
+    if auth_group is not None:
+        arguments["group"] = auth_group
+        logger.debug("Authenticated group injected", tool=name, group=auth_group)
+    # If no auth provided and no group in arguments, default to "public"
+    elif "group" not in arguments:
+        arguments["group"] = "public"
+        logger.debug("No auth provided, defaulting to public group", tool=name)
 
     try:
         return await handler(arguments)

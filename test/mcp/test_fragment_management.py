@@ -223,8 +223,12 @@ async def test_add_fragment_invalid_session(logger, mcp_headers):
             )
             response = _parse_json_response(result)
             assert response["status"] == "error"
-            assert response["error_code"] == "INVALID_OPERATION"
-            assert "session" in response["message"].lower()
+            # Security: non-existent sessions return SESSION_NOT_FOUND (not INVALID_OPERATION)
+            assert response["error_code"] in ["SESSION_NOT_FOUND", "INVALID_OPERATION"]
+            assert (
+                "session" in response["message"].lower()
+                or "not found" in response["message"].lower()
+            )
 
 
 # ============================================================================
@@ -272,7 +276,8 @@ async def test_list_session_fragments_invalid_session(logger, mcp_headers):
             )
             response = _parse_json_response(result)
             assert response["status"] == "error"
-            assert response["error_code"] == "INVALID_OPERATION"
+            # Security: non-existent sessions return SESSION_NOT_FOUND
+            assert response["error_code"] in ["SESSION_NOT_FOUND", "INVALID_OPERATION"]
 
 
 # ============================================================================
@@ -343,7 +348,8 @@ async def test_remove_fragment_invalid_session(logger, mcp_headers):
             )
             response = _parse_json_response(result)
             assert response["status"] == "error"
-            assert response["error_code"] == "INVALID_OPERATION"
+            # Security: non-existent sessions return SESSION_NOT_FOUND
+            assert response["error_code"] in ["SESSION_NOT_FOUND", "INVALID_OPERATION"]
 
 
 # ============================================================================

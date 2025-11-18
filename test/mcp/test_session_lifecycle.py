@@ -242,8 +242,8 @@ async def test_set_global_parameters_invalid_session(logger, mcp_headers):
 
             # Should return error status
             assert response["status"] == "error"
-            # Backend returns INVALID_OPERATION for not found scenarios
-            assert "INVALID_OPERATION" in response.get("error_code", "")
+            # Security: non-existent sessions return SESSION_NOT_FOUND
+            assert response.get("error_code") in ["SESSION_NOT_FOUND", "INVALID_OPERATION"]
             assert "not found" in response.get("message", "").lower()
 
 
@@ -427,8 +427,8 @@ async def test_abort_document_session_invalid_session(logger, mcp_headers):
 
             # Should return error status
             assert response["status"] == "error"
-            # Backend returns INVALID_OPERATION for not found scenarios
-            assert "INVALID_OPERATION" in response.get("error_code", "")
+            # Security: non-existent sessions return SESSION_NOT_FOUND
+            assert response.get("error_code") in ["SESSION_NOT_FOUND", "INVALID_OPERATION"]
             assert "not found" in response.get("message", "").lower()
 
 

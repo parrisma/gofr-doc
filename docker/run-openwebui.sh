@@ -80,23 +80,54 @@ echo "Port: $WEBUI_PORT"
 docker run -d \
     --name openwebui \
     --network doco_net \
-    -p $WEBUI_PORT:8080 \
+    -p 0.0.0.0:$WEBUI_PORT:8080 \
     -e TZ="$TIMEZONE" \
+    -e WEBUI_AUTH=false \
     -v openwebui_volume:/data \
     -v "${WEBUI_SHARE_DIR}":/data/openwebui_share \
-    ghcr.io/open-webui/open-webui:latest
+    --restart unless-stopped \
+    ghcr.io/open-webui/open-webui:main
 
 if docker ps -q -f name=openwebui | grep -q .; then
     echo "Container openwebui is now running"
     echo ""
-    echo "Open WebUI is accessible at http://localhost:$WEBUI_PORT"
-    echo "On doco_net, other containers can reach it at http://openwebui:8080"
-    echo "Data stored in Docker volume: openwebui_volume"
-    echo "Shared directory: ${WEBUI_SHARE_DIR} -> /data/openwebui_share (inside container)"
+    echo "==================================================================="
+    echo "🌐 OPEN WEB UI ACCESS:"
     echo ""
-    echo "To view logs: docker logs -f openwebui"
-    echo "To stop: docker stop openwebui"
-    echo "To recreate volume: ./docker/run-openwebui.sh -r"
+    echo "From Your Browser (Host Machine):"
+    echo "  👉 http://localhost:$WEBUI_PORT"
+    echo ""
+    echo "From WSL2 Host (Windows):"
+    echo "  👉 http://\$(ip addr show eth0 | grep 'inet ' | awk '{print \$2}' | cut -d/ -f1):$WEBUI_PORT"
+    echo ""
+    echo "From Containers on doco_net:"
+    echo "  http://openwebui:8080"
+    echo ""
+    echo "-------------------------------------------------------------------"
+    echo "🔌 MCPO INTEGRATION (for Open WebUI settings):"
+    echo ""
+    echo "In Open WebUI Settings → Tools → Add OpenAPI Server:"
+    echo "  URL:      http://\$(docker ps --filter 'name=.*dev' --format '{{.Names}}' | head -1):8000"
+    echo "  API Key:  changeme"
+    echo ""
+    echo "Or use dev container hostname directly (run 'hostname' in dev container)"
+    echo "  Example:  http://a8a8d018bc69:8000"
+    echo ""
+    echo "-------------------------------------------------------------------"
+    echo "🔧 DIRECT ACCESS (from host machine):"
+    echo "  MCPO Docs:     http://localhost:8000/docs"
+    echo "  MCP Server:    http://localhost:8011/mcp"
+    echo ""
+    echo "Data & Storage:"
+    echo "  Volume:        openwebui_volume"
+    echo "  Shared Dir:    ${WEBUI_SHARE_DIR} -> /data/openwebui_share"
+    echo ""
+    echo "Management:"
+    echo "  View logs:     docker logs -f openwebui"
+    echo "  Stop:          docker stop openwebui"
+    echo "  Recreate:      ./docker/run-openwebui.sh -r -p $WEBUI_PORT"
+    echo "==================================================================="
+    echo ""
 else
     echo "ERROR: Container openwebui failed to start"
     docker logs openwebui

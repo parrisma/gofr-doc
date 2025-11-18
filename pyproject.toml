@@ -18,6 +18,7 @@ dependencies = [
     "WeasyPrint>=60.0",
     "html2text>=2020.1.16",
     "PyYAML>=6.0",
+    "mcpo>=0.0.19",
 ]
 
 [project.optional-dependencies]
@@ -43,12 +44,13 @@ target-version = ["py311"]
 line-length = 100
 target-version = "py311"
 
-[tool.uv.dependency-groups]
-dev = [
+[tool.uv]
+dev-dependencies = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "mcpo>=0.0.19",
 ]
 
 [tool.pytest.ini_options]
