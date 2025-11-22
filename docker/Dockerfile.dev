@@ -1,7 +1,27 @@
 FROM doco_base:latest
 
-# Install Git, GitHub CLI, and SSH daemon
-RUN apt-get update && apt-get install -y git gh openssh-server && rm -rf /var/lib/apt/lists/*
+# Install Git, GitHub CLI, SSH daemon, and network/debug utilities
+RUN apt-get update && apt-get install -y \
+    git \
+    gh \
+    openssh-server \
+    # Network utilities
+    iputils-ping \
+    dnsutils \
+    net-tools \
+    netcat-openbsd \
+    curl \
+    wget \
+    telnet \
+    # Process/port utilities
+    lsof \
+    htop \
+    strace \
+    tcpdump \
+    # Text processing
+    jq \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set default UID and GID (can be overridden at build time)
 ARG USER_UID=1000

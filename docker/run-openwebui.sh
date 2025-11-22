@@ -27,6 +27,9 @@ done
 
 TIMEZONE="${TIMEZONE:-UTC}"
 
+# OpenRouter API Key (set via environment variable or default to empty)
+OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
+
 # Create openwebui_share directory on host if it doesn't exist
 WEBUI_SHARE_DIR="${HOME}/openwebui_share"
 echo "Checking for openwebui_share directory at ${WEBUI_SHARE_DIR}..."
@@ -39,11 +42,11 @@ else
 fi
 
 # Create docker network if it doesn't exist
-if ! docker network inspect doco_net >/dev/null 2>&1; then
-    echo "Creating doco_net network..."
-    docker network create doco_net
+if ! docker network inspect ai-net >/dev/null 2>&1; then
+    echo "Creating ai-net network..."
+    docker network create ai-net
 else
-    echo "Network doco_net already exists"
+    echo "Network ai-net already exists"
 fi
 
 # Handle openwebui_volume creation/recreation
@@ -77,16 +80,36 @@ docker rm openwebui 2>/dev/null || true
 
 echo "Starting openwebui container..."
 echo "Port: $WEBUI_PORT"
-docker run -d \
+
+# Build docker run command with optional OpenRouter API key
+DOCKER_CMD="docker run -d \
     --name openwebui \
-    --network doco_net \
+    --network ai-net \
     -p 0.0.0.0:$WEBUI_PORT:8080 \
-    -e TZ="$TIMEZONE" \
-    -e WEBUI_AUTH=false \
+    -e TZ=\"$TIMEZONE\" \
+    -e WEBUI_AUTH=false"
+
+# Add OpenRouter configuration if API key is provided
+if [ -n "$OPENROUTER_API_KEY" ]; then
+    echo "Configuring OpenRouter API key..."
+    DOCKER_CMD="$DOCKER_CMD \
+    -e OPENAI_API_BASE_URL=https://openrouter.ai/api/v1 \
+    -e OPENAI_API_KEY=\"$OPENROUTER_API_KEY\" \
+    -e ENABLE_OPENAI_API=true"
+fi
+
+# Enable direct connections to OpenAI-compatible endpoints
+DOCKER_CMD="$DOCKER_CMD \
+    -e ENABLE_API_KEY_AUTH=true"
+
+DOCKER_CMD="$DOCKER_CMD \
     -v openwebui_volume:/data \
-    -v "${WEBUI_SHARE_DIR}":/data/openwebui_share \
+    -v \"${WEBUI_SHARE_DIR}\":/data/openwebui_share \
     --restart unless-stopped \
-    ghcr.io/open-webui/open-webui:main
+    ghcr.io/open-webui/open-webui:main"
+
+# Execute the docker run command
+eval $DOCKER_CMD
 
 if docker ps -q -f name=openwebui | grep -q .; then
     echo "Container openwebui is now running"
@@ -97,10 +120,20 @@ if docker ps -q -f name=openwebui | grep -q .; then
     echo "From Your Browser (Host Machine):"
     echo "  👉 http://localhost:$WEBUI_PORT"
     echo ""
+    if [ -n "$OPENROUTER_API_KEY" ]; then
+        echo "✅ OpenRouter API configured"
+        echo "   Base URL: https://openrouter.ai/api/v1"
+        echo "   API Key:  ${OPENROUTER_API_KEY:0:8}...${OPENROUTER_API_KEY: -4}"
+    else
+        echo "ℹ️  OpenRouter not configured"
+        echo "   To enable: export OPENROUTER_API_KEY=your_key_here"
+        echo "   Then re-run: ./docker/run-openwebui.sh"
+    fi
+    echo ""
     echo "From WSL2 Host (Windows):"
     echo "  👉 http://\$(ip addr show eth0 | grep 'inet ' | awk '{print \$2}' | cut -d/ -f1):$WEBUI_PORT"
     echo ""
-    echo "From Containers on doco_net:"
+    echo "From Containers on ai-net:"
     echo "  http://openwebui:8080"
     echo ""
     echo "-------------------------------------------------------------------"

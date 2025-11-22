@@ -399,6 +399,54 @@ class AddFragmentInput:
         return cls(**data)
 
 
+class AddImageFragmentInput:
+    """Input for add_image_fragment.
+
+    Args:
+        session_id: Session identifier to add image fragment to
+        image_url: URL of the image to download and display (validated at add time)
+        title: Optional title/caption displayed above the image
+        width: Target width in pixels (maintains aspect ratio if height not specified)
+        height: Target height in pixels (maintains aspect ratio if width not specified)
+        alt_text: Alternative text for accessibility (defaults to title or 'Image')
+        alignment: Image alignment: 'left', 'center', 'right' (default: 'center')
+        require_https: If True, only HTTPS URLs allowed (default: True for security)
+        position: Optional position ('end', 'start', or guid-based) for placement
+        group: Group context (injected from JWT token, used to verify session ownership)
+        token: Optional JWT bearer token (required for authentication)
+    """
+
+    def __init__(
+        self,
+        session_id: str,
+        image_url: str,
+        title: Optional[str] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        alt_text: Optional[str] = None,
+        alignment: str = "center",
+        require_https: bool = True,
+        position: Optional[str] = None,
+        group: str = "public",
+        token: Optional[str] = None,
+    ):
+        self.session_id = session_id
+        self.image_url = image_url
+        self.title = title
+        self.width = width
+        self.height = height
+        self.alt_text = alt_text
+        self.alignment = alignment
+        self.require_https = require_https
+        self.position = position
+        self.group = group
+        self.token = token
+
+    @classmethod
+    def model_validate(cls, data: dict):
+        return cls(**data)
+
+
 class RemoveFragmentInput:
     """Input for remove_fragment.
 

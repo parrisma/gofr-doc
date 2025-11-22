@@ -53,6 +53,7 @@ from app.templates import TemplateRegistry  # noqa: E402
 from app.validation.document_models import (  # noqa: E402
     AbortDocumentSessionInput,
     AddFragmentInput,
+    AddImageFragmentInput,
     CreateDocumentSessionInput,
     ErrorResponse,
     FragmentDetailsOutput,
@@ -591,6 +592,66 @@ async def handle_list_tools() -> List[Tool]:
             },
         ),
         Tool(
+            name="add_image_fragment",
+            description=(
+                "Content Building - Add an image from a URL to the document with immediate URL validation. "
+                "VALIDATION: URL is validated IMMEDIATELY when added (not at render time) - checks accessibility, content-type, and size. "
+                "WORKFLOW: After create_document_session, call this to add images. URL must be accessible and return valid image content-type. "
+                "Returns: fragment_instance_guid if successful, or detailed error (INVALID_IMAGE_URL, IMAGE_URL_NOT_ACCESSIBLE, INVALID_IMAGE_CONTENT_TYPE, IMAGE_TOO_LARGE, IMAGE_URL_TIMEOUT). "
+                "RENDERING: PDF/HTML embed images as base64, Markdown links to URL. "
+                "SECURITY: HTTPS required by default (set require_https=false to allow HTTP). "
+                "ALLOWED TYPES: image/png, image/jpeg, image/gif, image/webp, image/svg+xml. "
+                "SIZE LIMIT: Default 10MB (configurable). "
+                "ERROR HANDLING: All errors include recovery guidance and details. "
+                "GROUP SECURITY: Can only add images to sessions from your authenticated group. "
+                "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session identifier from create_document_session.",
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "description": "URL of the image to download and display. VALIDATED IMMEDIATELY when added. Must be accessible and return valid image content-type (image/png, image/jpeg, image/gif, image/webp, image/svg+xml).",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Optional title/caption displayed above the image.",
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "Target width in pixels. If only width specified, height scales proportionally.",
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "Target height in pixels. If only height specified, width scales proportionally.",
+                    },
+                    "alt_text": {
+                        "type": "string",
+                        "description": "Alternative text for accessibility. Defaults to title or 'Image'.",
+                    },
+                    "alignment": {
+                        "type": "string",
+                        "enum": ["left", "center", "right"],
+                        "description": "Image alignment. Default: center.",
+                    },
+                    "require_https": {
+                        "type": "boolean",
+                        "description": "If true, only HTTPS URLs allowed. If false, HTTP URLs permitted. Default: true for security.",
+                    },
+                    "position": {
+                        "type": "string",
+                        "description": "Where to insert: 'end' (default), 'start', 'before:<guid>', 'after:<guid>'.",
+                    },
+                    "token": {"type": "string", "description": "Bearer token if required."},
+                },
+                "required": ["session_id", "image_url"],
+            },
+        ),
+        Tool(
             name="remove_fragment",
             description=(
                 "Content Editing - Remove a specific fragment instance from the document. "
@@ -875,6 +936,81 @@ async def _tool_add_fragment(arguments: Dict[str, Any]) -> ToolResponse:
         session_id=payload.session_id,
         fragment_id=payload.fragment_id,
         parameters=payload.parameters,
+        position=payload.position or "end",
+    )
+    return _success(_model_dump(output))
+
+
+async def _tool_add_image_fragment(arguments: Dict[str, Any]) -> ToolResponse:
+    """Add a validated image fragment from URL to document session.
+
+    SECURITY: Validates session belongs to caller's group.
+    VALIDATION: Validates URL is accessible and returns valid image content-type
+                at add time (not render time).
+
+    Args:
+        arguments: Dict containing session_id, image_url, optional parameters
+
+    Returns:
+        ToolResponse with success (including fragment_instance_guid) or detailed error
+    """
+    from datetime import datetime
+
+    from app.validation.image_validator import ImageURLValidator
+
+    # Parse and validate input
+    payload = AddImageFragmentInput.model_validate(arguments)
+    manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(payload.session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id is correct. Call list_active_sessions to see your sessions.",
+        )
+
+    # VALIDATION: Validate image URL
+    validator = ImageURLValidator(logger=logger)
+    validation_result = await validator.validate_image_url(
+        url=payload.image_url, require_https=payload.require_https
+    )
+
+    if not validation_result.valid:
+        error_details = validation_result.details or {}
+        return _error(
+            code=validation_result.error_code or "IMAGE_VALIDATION_ERROR",
+            message=validation_result.error_message or "Image URL validation failed",
+            recovery=error_details.get("recovery", "Check the URL and try again"),
+            details=error_details,
+        )
+
+    # Build fragment parameters with validation metadata
+    fragment_parameters = {
+        "image_url": payload.image_url,
+        "validated_at": datetime.utcnow().isoformat() + "Z",
+        "content_type": validation_result.content_type,
+        "content_length": validation_result.content_length,
+    }
+
+    if payload.title:
+        fragment_parameters["title"] = payload.title
+    if payload.width:
+        fragment_parameters["width"] = payload.width
+    if payload.height:
+        fragment_parameters["height"] = payload.height
+
+    fragment_parameters["alt_text"] = payload.alt_text or payload.title or "Image"
+    fragment_parameters["alignment"] = payload.alignment or "center"
+    fragment_parameters["require_https"] = payload.require_https
+
+    # Add fragment to session using standard fragment_id
+    output = await manager.add_fragment(
+        session_id=payload.session_id,
+        fragment_id="image_from_url",  # Standard fragment ID
+        parameters=fragment_parameters,
         position=payload.position or "end",
     )
     return _success(_model_dump(output))
@@ -1320,6 +1456,7 @@ HANDLERS: Dict[str, ToolHandler] = {
     "create_document_session": _tool_create_session,
     "set_global_parameters": _tool_set_global_parameters,
     "add_fragment": _tool_add_fragment,
+    "add_image_fragment": _tool_add_image_fragment,
     "remove_fragment": _tool_remove_fragment,
     "list_session_fragments": _tool_list_session_fragments,
     "abort_document_session": _tool_abort_session,

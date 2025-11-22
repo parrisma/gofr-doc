@@ -41,12 +41,12 @@ else
 fi
 
 # Create docker network if it doesn't exist
-echo "Checking for doco_net network..."
-if ! docker network inspect doco_net >/dev/null 2>&1; then
-    echo "Creating doco_net network..."
-    docker network create doco_net
+echo "Checking for ai-net network..."
+if ! docker network inspect ai-net >/dev/null 2>&1; then
+    echo "Creating ai-net network..."
+    docker network create ai-net
 else
-    echo "Network doco_net already exists"
+    echo "Network ai-net already exists"
 fi
 
 # Handle doco_volume creation/recreation
@@ -84,7 +84,7 @@ echo "Starting n8n container..."
 echo "Port: $N8N_PORT"
 docker run -d \
   --name n8n \
-    --network doco_net \
+    --network ai-net \
   -p $N8N_PORT:5678 \
   -e GENERIC_TIMEZONE="$TIMEZONE" \
   -e TZ="$TIMEZONE" \
@@ -104,7 +104,7 @@ if docker ps -q -f name=n8n | grep -q .; then
     echo "Access from Host Machine:"
     echo "  n8n Web UI:    http://localhost:$N8N_PORT"
     echo ""
-    echo "Access from doco_net (other containers):"
+    echo "Access from ai-net (other containers):"
     echo "  n8n API:       http://n8n:5678"
     echo ""
     echo "Data & Storage:"

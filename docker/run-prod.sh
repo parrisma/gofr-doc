@@ -9,12 +9,12 @@ WEB_PORT=${1:-8010}
 MCP_PORT=${2:-8011}
 
 # Create docker network if it doesn't exist
-echo "Checking for doco_net network..."
-if ! docker network inspect doco_net >/dev/null 2>&1; then
-    echo "Creating doco_net network..."
-    docker network create doco_net
+echo "Checking for ai-net network..."
+if ! docker network inspect ai-net >/dev/null 2>&1; then
+    echo "Creating ai-net network..."
+    docker network create ai-net
 else
-    echo "Network doco_net already exists"
+    echo "Network ai-net already exists"
 fi
 
 # Create docker volume for persistent data if it doesn't exist
@@ -41,7 +41,7 @@ echo "Web port: $WEB_PORT, MCP port: $MCP_PORT"
 
 docker run -d \
 --name doco_prod \
---network doco_net \
+--network ai-net \
 -v doco_data:/home/doco/data \
 -p $WEB_PORT:8010 \
 -p $MCP_PORT:8011 \
@@ -63,7 +63,7 @@ if docker ps -q -f name=doco_prod | grep -q .; then
     echo "  Web Server:    http://localhost:$WEB_PORT"
     echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
     echo ""
-    echo "Access from doco_net (other containers):"
+    echo "Access from ai-net (other containers):"
     echo "  Web Server:    http://doco_prod:8010"
     echo "  MCP Server:    http://doco_prod:8011/mcp"
     echo ""

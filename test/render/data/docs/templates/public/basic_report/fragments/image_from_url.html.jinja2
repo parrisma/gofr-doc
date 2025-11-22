@@ -1,0 +1,11 @@
+{% if title %}
+<div class="image-title">{{ title }}</div>
+{% endif %}
+
+<div class="image-container" style="text-align: {{ alignment|default('center') }};">
+  <img src="{{ image_url }}" 
+       alt="{{ alt_text|default('Image') }}"
+       {% if width %}width="{{ width }}"{% endif %}
+       {% if height %}height="{{ height }}"{% endif %}
+       style="max-width: 100%; height: auto;" />
+</div>

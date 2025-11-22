@@ -290,3 +290,43 @@ def test_server_manager():
 
     # Cleanup: stop all servers
     manager.stop_all()
+
+
+# ============================================================================
+# MOCK IMAGE SERVER FOR TESTING
+# ============================================================================
+
+
+@pytest.fixture(scope="function")
+def image_server():
+    """
+    Provide a lightweight HTTP server for serving test images.
+
+    The server serves files from test/mock/data directory on port 8765.
+    Use image_server.get_url(filename) to get the full URL for a test image.
+
+    Usage:
+        def test_image_download(image_server):
+            url = image_server.get_url("graph.png")
+            # url is "http://localhost:8765/graph.png"
+            # Make requests to this URL
+
+    Returns:
+        ImageServer: Server instance with start(), stop(), and get_url() methods
+    """
+    import sys
+    from pathlib import Path
+
+    # Add test directory to path for imports
+    test_dir = Path(__file__).parent
+    if str(test_dir) not in sys.path:
+        sys.path.insert(0, str(test_dir))
+
+    from mock.image_server import ImageServer
+
+    server = ImageServer(port=8765)
+    server.start()
+
+    yield server
+
+    server.stop()
