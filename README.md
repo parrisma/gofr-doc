@@ -5,7 +5,8 @@ doco delivers a stateful, discoverable document generation API exposed to agenti
 ## Features
 
 - **Template-driven document generation**: Type-safe parameters, flexible Jinja2 rendering, modular fragment assembly
-- **Multi-format output**: HTML (canonical), PDF (WeasyPrint), Markdown (html2text)
+- **Rich table fragments**: 14 parameters including number formatting (currency, percent), alignment, sorting, colors, column widths
+- **Multi-format output**: HTML (canonical), PDF (WeasyPrint), Markdown (html2text with alignment markers)
 - **Dual interface**: REST API on port 8010 and MCP Streamable HTTP endpoint on port 8011
 - **Stateful sessions**: Persistent across restarts; supports iterative fragment assembly and re-rendering
 - **Reusable styles**: Decoupled CSS bundles applied uniformly across output formats
@@ -27,7 +28,7 @@ cd doco
 uv sync
 
 # Or install core packages manually
-uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text pyyaml
+uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text pyyaml babel
 ```
 
 ### Running Without Authentication (Development)
@@ -147,6 +148,48 @@ Use any MCP-compatible client to call document generation tools:
 5. Cross-group access attempts are denied with generic errors
 
 See [docs/DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md) for detailed workflow examples.
+
+## Table Fragment
+
+The table fragment provides rich, formatted tables with 14 configurable parameters:
+
+**Core Features**:
+- Number formatting (currency, percent, decimal, integer, accounting)
+- Column alignment (left, center, right)
+- Sorting (single or multi-column, ascending/descending)
+- Visual styling (borders, zebra striping, compact mode)
+- Colors and highlighting (header, rows, columns with theme colors or hex codes)
+- Column width control (percentages or pixels)
+
+**Quick Example**:
+```python
+{
+    "fragment_id": "quarterly_results",
+    "parameters": {
+        "rows": [
+            ["Quarter", "Revenue", "Growth"],
+            ["Q1 2024", "1250000", "0.15"],
+            ["Q2 2024", "1380000", "0.104"]
+        ],
+        "has_header": True,
+        "title": "Financial Performance",
+        "column_alignments": ["left", "right", "right"],
+        "number_format": {
+            "1": "currency:USD",
+            "2": "percent"
+        },
+        "header_color": "primary",
+        "zebra_stripe": True,
+        "sort_by": {"column": "Revenue", "order": "desc"}
+    }
+}
+```
+
+**Output Formats**:
+- HTML/PDF: Full feature support (colors, borders, styling)
+- Markdown: Table structure with alignment markers (colors omitted)
+
+See [docs/TABLE_FRAGMENT_GUIDE.md](docs/TABLE_FRAGMENT_GUIDE.md) for complete documentation with examples.
 
 ## Configuration
 

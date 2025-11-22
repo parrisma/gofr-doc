@@ -82,3 +82,67 @@ fragments:
         type: boolean
         description: Whether HTTPS is required (injected automatically)
         required: false
+  - fragment_id: table
+    name: Table
+    description: Display tabular data with optional header row and title
+    parameters:
+      - name: rows
+        type: array
+        description: Array of rows, where each row is an array of cell values
+        required: true
+      - name: has_header
+        type: boolean
+        description: If true (default), first row is treated as header with bold styling
+        required: false
+      - name: title
+        type: string
+        description: Optional table caption/title displayed above the table
+        required: false
+      - name: width
+        type: string
+        description: "Table width: 'auto' (content-based), 'full' (100%), or percentage like '80%'"
+        required: false
+      - name: column_alignments
+        type: array
+        description: Array of alignment values for each column ('left', 'center', 'right')
+        required: false
+      - name: border_style
+        type: string
+        description: "Border style: 'full' (all borders), 'horizontal' (top/bottom), 'minimal' (bottom only), 'none'"
+        required: false
+      - name: zebra_stripe
+        type: boolean
+        description: If true, alternating rows have background color (default false)
+        required: false
+      - name: compact
+        type: boolean
+        description: If true, uses reduced padding for a more compact table (default false)
+        required: false
+      - name: number_format
+        type: object
+        description: "Dictionary mapping column indices (0-based) to format specs: 'currency:USD', 'percent', 'decimal:2', 'integer', 'accounting'"
+        required: false
+      - name: header_color
+        type: string
+        description: "Background color for header row: theme color ('primary', 'success', 'warning', 'danger', 'info', 'light', 'dark', 'muted') or hex code (e.g., '#4A90E2')"
+        required: false
+      - name: stripe_color
+        type: string
+        description: "Background color for alternating rows when zebra_stripe=true: theme color or hex code"
+        required: false
+      - name: highlight_rows
+        type: object
+        description: "Dictionary mapping row indices (0-based) to highlight colors (theme color or hex)"
+        required: false
+      - name: highlight_columns
+        type: object
+        description: "Dictionary mapping column indices (0-based) to highlight colors (theme color or hex)"
+        required: false
+      - name: sort_by
+        type: object
+        description: "Column to sort by: string (column name if has_header=true), integer (column index), or dict with 'column' and 'order' keys. For multi-column sort, provide array of sort specs."
+        required: false
+      - name: column_widths
+        type: object
+        description: "Dictionary mapping column indices (0-based) to percentage widths (e.g., {0: '30%', 1: '40%'}). Total must be ≤100%. Unspecified columns auto-distribute remaining width."
+        required: false

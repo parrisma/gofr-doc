@@ -87,7 +87,7 @@ class RenderingEngine:
         elif output_format == OutputFormat.PDF:
             content = await self._html_to_pdf(html_content, style_id)
         elif output_format == OutputFormat.MD:
-            content = await self._html_to_markdown(html_content)
+            content = await self._html_to_markdown(html_content, session)
         else:
             raise ValueError(f"Unsupported output format: {output_format}")
 
@@ -202,12 +202,16 @@ class RenderingEngine:
             self.logger.error(f"PDF conversion failed: {e}")
             raise ValueError(f"Failed to convert HTML to PDF: {e}")
 
-    async def _html_to_markdown(self, html_content: str) -> str:
+    async def _html_to_markdown(
+        self, html_content: str, session: Optional[DocumentSession] = None
+    ) -> str:
         """
         Convert HTML to Markdown using html2text.
+        Enhances markdown tables with proper alignment markers based on fragment metadata.
 
         Args:
             html_content: HTML content
+            session: Document session (optional, for table alignment enhancement)
 
         Returns:
             Markdown string
@@ -219,8 +223,13 @@ class RenderingEngine:
             h.ignore_images = False
             h.ignore_emphasis = False
             h.body_width = 0  # Don't wrap lines
+            h.pad_tables = True  # Better formatted tables
 
             markdown_content = h.handle(html_content)
+
+            # Enhance table alignment if session provided
+            if session:
+                markdown_content = self._enhance_markdown_tables(markdown_content, session)
 
             self.logger.info("Converted HTML to Markdown")
             return markdown_content
@@ -228,6 +237,76 @@ class RenderingEngine:
         except Exception as e:
             self.logger.error(f"Markdown conversion failed: {e}")
             raise ValueError(f"Failed to convert HTML to Markdown: {e}")
+
+    def _enhance_markdown_tables(self, markdown: str, session: DocumentSession) -> str:
+        """
+        Post-process markdown to add alignment markers to tables.
+
+        Markdown doesn't support colors/highlighting, so we only enhance alignment.
+        Table fragments with column_alignments will get proper :---, :---:, ---: markers.
+
+        Args:
+            markdown: Markdown content with tables
+            session: Document session with fragment metadata
+
+        Returns:
+            Enhanced markdown with alignment markers
+        """
+        import re
+
+        # Extract table fragments with alignments
+        # FragmentInstance doesn't have fragment_type, so we detect tables by column_alignments
+        table_alignments = []
+        for fragment in session.fragments:
+            params = fragment.parameters or {}
+            alignments = params.get("column_alignments")
+            if alignments and isinstance(alignments, list):
+                table_alignments.append(alignments)
+
+        if not table_alignments:
+            return markdown  # No tables with alignment info
+
+        # Split markdown into lines
+        lines = markdown.split("\n")
+        enhanced_lines = []
+        table_idx = 0
+
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+
+            # Detect markdown table separator line (e.g., ---|---|---)
+            if re.match(r"^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)+\|?\s*$", line):
+                # This is a table separator
+                if table_idx < len(table_alignments):
+                    # Count columns from separator
+                    col_count = line.count("|") - 1 if "|" in line else line.count("-")
+
+                    # Get alignment for this table
+                    alignments = table_alignments[table_idx]
+
+                    # Build new separator with alignment markers
+                    markers = []
+                    for col_idx in range(col_count):
+                        align = alignments[col_idx] if col_idx < len(alignments) else "left"
+                        if align == "center":
+                            markers.append(":---:")
+                        elif align == "right":
+                            markers.append("---:")
+                        else:  # left or default
+                            markers.append(":---")
+
+                    # Replace separator line
+                    enhanced_lines.append("| " + " | ".join(markers) + " |")
+                    table_idx += 1
+                else:
+                    enhanced_lines.append(line)
+            else:
+                enhanced_lines.append(line)
+
+            i += 1
+
+        return "\n".join(enhanced_lines)
 
     async def _store_proxy_document(
         self, content: str, group: str, output_format: OutputFormat

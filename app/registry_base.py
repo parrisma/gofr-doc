@@ -1,4 +1,5 @@
 """Base registry for template and fragment management."""
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Optional, List
@@ -10,9 +11,13 @@ from app.logger import Logger
 class BaseRegistry(ABC):
     """Abstract base for registries managing schema + Jinja2 templates."""
 
-    def __init__(self, registry_dir: str, logger: Logger, 
-                 group: Optional[str] = None, 
-                 groups: Optional[List[str]] = None):
+    def __init__(
+        self,
+        registry_dir: str,
+        logger: Logger,
+        group: Optional[str] = None,
+        groups: Optional[List[str]] = None,
+    ):
         """
         Initialize the registry.
 
@@ -24,10 +29,10 @@ class BaseRegistry(ABC):
         """
         self.registry_dir = Path(registry_dir)
         self.logger = logger
-        
+
         # Determine which groups to load
         self.groups = self._resolve_groups(group, groups)
-        
+
         self._jinja_env: Optional[Environment] = None
         self._setup_jinja_env()
         self._load_items()
@@ -39,7 +44,7 @@ class BaseRegistry(ABC):
     def _resolve_groups(self, group: Optional[str], groups: Optional[List[str]]) -> List[str]:
         """
         Determine which groups to load.
-        
+
         Priority:
         1. If groups parameter provided, use it
         2. If group parameter provided, use single group
@@ -54,22 +59,22 @@ class BaseRegistry(ABC):
     def _discover_groups(self) -> List[str]:
         """
         Find all group directories in registry.
-        
+
         Groups are directories at root level that don't start with underscore.
         """
         if not self.registry_dir.exists():
             self.logger.warning(f"Registry directory does not exist: {self.registry_dir}")
             return ["public"]
-        
+
         groups = []
         try:
             for item in self.registry_dir.iterdir():
-                if item.is_dir() and not item.name.startswith('_'):
+                if item.is_dir() and not item.name.startswith("_"):
                     groups.append(item.name)
         except Exception as e:
             self.logger.error(f"Failed to discover groups in {self.registry_dir}: {e}")
             return ["public"]
-        
+
         return sorted(groups) if groups else ["public"]
 
     def _setup_jinja_env(self) -> None:
@@ -81,6 +86,29 @@ class BaseRegistry(ABC):
             lstrip_blocks=True,
         )
 
+        # Register custom filters
+        self._register_custom_filters()
+
+    def _register_custom_filters(self) -> None:
+        """Register custom Jinja2 filters."""
+        if self._jinja_env is None:
+            return
+
+        # Register number formatting filter
+        from app.formatting.number_formatter import format_number
+
+        self._jinja_env.filters["format_number"] = format_number
+
+        # Register color conversion filter
+        from app.validation.color_validator import get_css_color
+
+        self._jinja_env.filters["get_css_color"] = get_css_color
+
+        # Register table sorting filter
+        from app.formatting.table_sorter import sort_table_rows
+
+        self._jinja_env.filters["sort_table"] = sort_table_rows
+
     def list_groups(self) -> List[str]:
         """Return list of loaded groups."""
         return self.groups
@@ -88,7 +116,7 @@ class BaseRegistry(ABC):
     def get_items_by_group(self) -> Dict[str, List]:
         """
         Get all items organized by group.
-        
+
         Subclasses should override to populate with their items.
         """
         return {group: [] for group in self.groups}
@@ -107,30 +135,31 @@ class BaseRegistry(ABC):
             self.logger.error(f"Failed to parse YAML {file_path}: {e}")
             return None
 
-    def _validate_group_match(self, expected_group: str, actual_group: str, 
-                            item_id: str, item_type: str, file_path: str) -> None:
+    def _validate_group_match(
+        self, expected_group: str, actual_group: str, item_id: str, item_type: str, file_path: str
+    ) -> None:
         """
         Validate that item's declared group matches its directory location.
-        
+
         Args:
             expected_group: Group from directory structure
             actual_group: Group declared in metadata
             item_id: ID of the item
             item_type: Type of item (template, fragment, style)
             file_path: Path to the item file
-            
+
         Raises:
             GroupMismatchError if mismatch detected
         """
         from app.exceptions import GroupMismatchError
-        
+
         if expected_group != actual_group:
             raise GroupMismatchError(
                 item_id=item_id,
                 item_type=item_type,
                 directory_group=expected_group,
                 metadata_group=actual_group,
-                path=file_path
+                path=file_path,
             )
 
     def _get_jinja_template(self, template_path: str):

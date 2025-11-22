@@ -355,3 +355,143 @@ async def test_remove_fragment_invalid_session(logger, mcp_headers):
 # ============================================================================
 # Tests: Fragment Management Workflow
 # ============================================================================
+
+
+@pytest.mark.asyncio
+@skip_if_mcp_unavailable
+async def test_add_table_fragment_with_column_widths(logger, mcp_headers):
+    """Test adding a table fragment with column_widths parameter (Phase 6)."""
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # Create session with basic_report template (has table fragment)
+            session_id = await _create_session_for_template(session, "basic_report")
+            logger.info(f"Created session: {session_id}")
+
+            # Add table fragment with column_widths
+            add_result = await session.call_tool(
+                "add_fragment",
+                arguments={
+                    "session_id": session_id,
+                    "fragment_id": "table",
+                    "parameters": {
+                        "rows": [
+                            ["Product", "Price", "Stock"],
+                            ["Widget", "$9.99", "150"],
+                            ["Gadget", "$19.99", "75"],
+                        ],
+                        "has_header": True,
+                        "column_widths": {0: "40%", 1: "30%", 2: "30%"},
+                    },
+                },
+            )
+            add_response = _parse_json_response(add_result)
+            logger.info(f"Add fragment response: {add_response.get('status')}")
+
+            assert add_response["status"] == "success"
+            assert "fragment_instance_guid" in add_response["data"]
+
+            # Verify fragment was added with column_widths
+            list_result = await session.call_tool(
+                "list_session_fragments", arguments={"session_id": session_id}
+            )
+            list_response = _parse_json_response(list_result)
+            assert list_response["status"] == "success"
+            fragments = list_response["data"]["fragments"]
+            assert len(fragments) == 1
+            
+            fragment = fragments[0]
+            assert fragment["fragment_id"] == "table"
+            assert "column_widths" in fragment["parameters"]
+            assert fragment["parameters"]["column_widths"] == {"0": "40%", "1": "30%", "2": "30%"}
+
+
+@pytest.mark.asyncio
+@skip_if_mcp_unavailable
+async def test_add_table_fragment_with_invalid_column_widths(logger, mcp_headers):
+    """Test adding table with invalid column_widths (exceeds 100%)."""
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            session_id = await _create_session_for_template(session, "basic_report")
+            logger.info(f"Created session: {session_id}")
+
+            # Try to add table with column_widths totaling > 100%
+            add_result = await session.call_tool(
+                "add_fragment",
+                arguments={
+                    "session_id": session_id,
+                    "fragment_id": "table",
+                    "parameters": {
+                        "rows": [["A", "B"], ["1", "2"]],
+                        "has_header": False,
+                        "column_widths": {0: "60%", 1: "50%"},  # Total: 110%
+                    },
+                },
+            )
+            add_response = _parse_json_response(add_result)
+            logger.info(f"Response: {add_response}")
+
+            # Should fail validation
+            assert add_response["status"] == "error"
+            assert "100%" in add_response.get("message", "").lower() or "exceed" in add_response.get("message", "").lower()
+
+
+@pytest.mark.asyncio
+@skip_if_mcp_unavailable
+async def test_add_table_fragment_with_all_phase6_features(logger, mcp_headers):
+    """Test table fragment with all Phase 1-6 parameters combined."""
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            session_id = await _create_session_for_template(session, "basic_report")
+
+            # Add comprehensive table with all features
+            add_result = await session.call_tool(
+                "add_fragment",
+                arguments={
+                    "session_id": session_id,
+                    "fragment_id": "table",
+                    "parameters": {
+                        "rows": [
+                            ["Product", "Price", "Quantity", "Total"],
+                            ["Widget", "9.99", "10", "99.90"],
+                            ["Gadget", "19.99", "5", "99.95"],
+                            ["Gizmo", "14.99", "8", "119.92"],
+                        ],
+                        "has_header": True,
+                        "title": "Q4 Sales Report",
+                        "width": "full",
+                        "column_alignments": ["left", "right", "right", "right"],
+                        "border_style": "full",
+                        "zebra_stripe": True,
+                        "compact": False,
+                        "number_format": {1: "currency:USD", 3: "currency:USD"},
+                        "header_color": "primary",
+                        "stripe_color": "light",
+                        "highlight_columns": {3: "success"},
+                        "sort_by": {"column": 3, "order": "desc"},
+                        "column_widths": {0: "40%", 1: "20%", 2: "20%", 3: "20%"},
+                    },
+                },
+            )
+            add_response = _parse_json_response(add_result)
+
+            assert add_response["status"] == "success"
+            assert "fragment_instance_guid" in add_response["data"]
+
+            # Verify all parameters were saved
+            list_result = await session.call_tool(
+                "list_session_fragments", arguments={"session_id": session_id}
+            )
+            list_response = _parse_json_response(list_result)
+            fragment = list_response["data"]["fragments"][0]
+            params = fragment["parameters"]
+
+            assert params["title"] == "Q4 Sales Report"
+            assert params["column_widths"] == {"0": "40%", "1": "20%", "2": "20%", "3": "20%"}
+            assert params["sort_by"] == {"column": 3, "order": "desc"}
+            assert params["header_color"] == "primary"

@@ -377,6 +377,16 @@ async def handle_list_tools() -> List[Tool]:
                 "USEFUL FOR: Pre-flight validation, understanding parameter requirements, debugging validation errors. "
                 "PARAMETERS: Set parameter_type='global' for template globals, 'fragment' for fragment parameters. "
                 "ERROR DETAILS: Each error includes parameter name, expected type, what you provided, and example values. "
+                "\n"
+                "TABLE FRAGMENT VALIDATION: When validating table parameters, common errors to check:\n"
+                "• rows must be non-empty array of arrays with consistent column counts\n"
+                "• column_widths total must not exceed 100% (e.g., {0: '40%', 1: '60%'} is valid, {0: '60%', 1: '50%'} fails)\n"
+                "• column indices in number_format, highlight_columns, column_widths must be valid (0-based, less than column count)\n"
+                "• row indices in highlight_rows must be valid (0-based, less than row count)\n"
+                "• colors must be theme names ('primary', 'success', etc.) or valid hex codes ('#4A90E2')\n"
+                "• sort_by column references must exist (column name if has_header=true, or valid column index)\n"
+                "Use this tool to catch these before calling add_fragment!\n"
+                "\n"
                 "GROUP SECURITY: Validates against templates in your authenticated group. Returns 'TEMPLATE_NOT_FOUND' for templates in other groups. "
                 "AUTHENTICATION: Requires JWT Bearer token for group-based template access."
             ),
@@ -448,7 +458,11 @@ async def handle_list_tools() -> List[Tool]:
                 "WORKFLOW: After selecting a template, call this to see what content fragments you can add to the document body. "
                 "Returns: Array of fragments with fragment_id (use in add_fragment), name, description, and parameter_count. "
                 "NEXT STEPS: Use get_fragment_details to see what parameters each fragment requires before calling add_fragment. "
-                "ERROR HANDLING: If template_id not found, call list_templates first."
+                "ERROR HANDLING: If template_id not found, call list_templates first. "
+                "\n"
+                "NOTE: The 'table' fragment (if available in the template) is highly capable with 14 parameters supporting:\n"
+                "financial formatting (currency/percent/decimal), theme colors, row/column highlighting, sorting, and precise column width control. "
+                "Always call get_fragment_details for 'table' to see its full capabilities before use."
             ),
             inputSchema={
                 "type": "object",
@@ -469,7 +483,16 @@ async def handle_list_tools() -> List[Tool]:
                 "WORKFLOW: Call this before add_fragment to discover required/optional parameters and their types. "
                 "Returns: Fragment metadata, parameter definitions with types, defaults, examples, and validation rules. "
                 "NEXT STEPS: Collect the required parameter values, then call add_fragment with the parameters object. "
-                "ERROR HANDLING: If fragment_id not found, call list_template_fragments to see available fragments."
+                "ERROR HANDLING: If fragment_id not found, call list_template_fragments to see available fragments. "
+                "\n"
+                "IMPORTANT FOR TABLE FRAGMENTS: The 'table' fragment has 14 powerful parameters including:\n"
+                "• Data structure (rows, has_header, title, width)\n"
+                "• Layout control (column_alignments, column_widths with percentage-based sizing)\n"
+                "• Visual styling (border_style, zebra_stripe, compact mode)\n"
+                "• Number formatting (currency with any ISO code, percent, decimal precision, accounting notation)\n"
+                "• Color theming (header_color, stripe_color, highlight_rows, highlight_columns - supports 8 theme colors + hex)\n"
+                "• Data sorting (sort_by with single/multi-column support, numeric/string detection)\n"
+                "Call this tool with fragment_id='table' to see detailed specifications for each parameter."
             ),
             inputSchema={
                 "type": "object",
@@ -563,6 +586,26 @@ async def handle_list_tools() -> List[Tool]:
                 "NEXT STEPS: Continue calling add_fragment for additional content. When done, call get_document to render the final output. "
                 "ERROR HANDLING: If fragment_id not found, call list_template_fragments. If parameters invalid, call get_fragment_details to see requirements. "
                 "TIP: Use get_fragment_details first to understand what parameters each fragment type requires. "
+                "\n\n"
+                "TABLE FRAGMENT GUIDE: The 'table' fragment supports 14 parameters for rich tabular data:\n"
+                "• REQUIRED: rows (array of arrays) - e.g., [['Name', 'Age'], ['Alice', '30']]\n"
+                "• STRUCTURE: has_header (bool), title (string), width ('auto'|'full'|'80%')\n"
+                "• LAYOUT: column_alignments (array: ['left', 'center', 'right']), column_widths (dict: {0: '40%', 1: '60%'} - must total ≤100%)\n"
+                "• STYLING: border_style ('full'|'horizontal'|'minimal'|'none'), zebra_stripe (bool), compact (bool)\n"
+                "• FORMATTING: number_format (dict: {1: 'currency:USD', 2: 'percent'}) - supports currency:CODE, percent, decimal:N, integer, accounting\n"
+                "• COLORS: header_color, stripe_color (theme: 'primary'|'success'|'warning'|'danger'|'info'|'light'|'dark'|'muted' OR hex: '#4A90E2')\n"
+                "• HIGHLIGHTS: highlight_rows (dict: {0: 'success', 2: 'warning'}), highlight_columns (dict: {1: 'info'})\n"
+                "• SORTING: sort_by (string column name | int column index | {column: 1, order: 'asc'|'desc'} | array for multi-column)\n"
+                "\n"
+                "EXAMPLE TABLE with all features:\n"
+                "{'rows': [['Product','Q1','Q2','Q3'], ['Widget','1500','1800','2100'], ['Gadget','900','1200','1400']],\n"
+                " 'has_header': True, 'title': 'Sales Report', 'width': 'full',\n"
+                " 'column_alignments': ['left','right','right','right'], 'column_widths': {0: '40%', 1: '20%', 2: '20%', 3: '20%'},\n"
+                " 'border_style': 'full', 'zebra_stripe': True, 'compact': False,\n"
+                " 'number_format': {1: 'currency:USD', 2: 'currency:USD', 3: 'currency:USD'},\n"
+                " 'header_color': 'primary', 'stripe_color': 'light', 'highlight_columns': {3: 'success'},\n"
+                " 'sort_by': {'column': 3, 'order': 'desc'}}\n"
+                "\n"
                 "GROUP SECURITY: Can only add fragments to sessions from your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
                 "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
@@ -579,7 +622,14 @@ async def handle_list_tools() -> List[Tool]:
                     },
                     "parameters": {
                         "type": "object",
-                        "description": "Fragment-specific parameters. Use get_fragment_details to see required fields. Example for 'heading': {'text': 'Chapter 1', 'level': 1}",
+                        "description": (
+                            "Fragment-specific parameters. Use get_fragment_details to see required fields. "
+                            "Examples: "
+                            "heading: {'text': 'Chapter 1', 'level': 1}, "
+                            "paragraph: {'text': 'Content here', 'heading': 'Optional Section'}, "
+                            "table: {'rows': [['A','B'],['1','2']], 'has_header': True, 'column_widths': {0: '60%', 1: '40%'}} - see tool description for full table capabilities. "
+                            "NOTE: For images, use add_image_fragment tool instead of add_fragment - it provides immediate URL validation and format-specific rendering."
+                        ),
                         "additionalProperties": True,
                     },
                     "position": {
@@ -595,14 +645,53 @@ async def handle_list_tools() -> List[Tool]:
             name="add_image_fragment",
             description=(
                 "Content Building - Add an image from a URL to the document with immediate URL validation. "
-                "VALIDATION: URL is validated IMMEDIATELY when added (not at render time) - checks accessibility, content-type, and size. "
-                "WORKFLOW: After create_document_session, call this to add images. URL must be accessible and return valid image content-type. "
-                "Returns: fragment_instance_guid if successful, or detailed error (INVALID_IMAGE_URL, IMAGE_URL_NOT_ACCESSIBLE, INVALID_IMAGE_CONTENT_TYPE, IMAGE_TOO_LARGE, IMAGE_URL_TIMEOUT). "
-                "RENDERING: PDF/HTML embed images as base64, Markdown links to URL. "
-                "SECURITY: HTTPS required by default (set require_https=false to allow HTTP). "
-                "ALLOWED TYPES: image/png, image/jpeg, image/gif, image/webp, image/svg+xml. "
-                "SIZE LIMIT: Default 10MB (configurable). "
-                "ERROR HANDLING: All errors include recovery guidance and details. "
+                "\n\n"
+                "⚠️ CRITICAL: URL VALIDATION HAPPENS IMMEDIATELY (not at render time)\n"
+                "When you call this tool, the service immediately validates:\n"
+                "1. URL format and accessibility (HTTP HEAD request)\n"
+                "2. Content-Type header matches allowed image types\n"
+                "3. Image size within limits (default 10MB max)\n"
+                "4. HTTPS protocol (unless require_https=false)\n"
+                "\n"
+                "WORKFLOW: After create_document_session, call this to add images. URL must be publicly accessible.\n"
+                "\n"
+                "PARAMETERS:\n"
+                "• REQUIRED: image_url (string) - Must be accessible URL returning valid image content-type\n"
+                "• OPTIONAL: title (string) - Caption displayed above image\n"
+                "• OPTIONAL: width (integer, pixels) - If only width set, height scales proportionally\n"
+                "• OPTIONAL: height (integer, pixels) - If only height set, width scales proportionally\n"
+                "• OPTIONAL: alt_text (string) - Accessibility text (defaults to title or 'Image')\n"
+                "• OPTIONAL: alignment ('left'|'center'|'right') - Default: 'center'\n"
+                "• OPTIONAL: require_https (bool) - Default: true (enforces HTTPS for security)\n"
+                "• OPTIONAL: position (string) - Where to insert: 'end' (default), 'start', 'before:<guid>', 'after:<guid>'\n"
+                "\n"
+                "ALLOWED IMAGE TYPES:\n"
+                "✓ image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml\n"
+                "✗ PDFs, HTML, text files, etc. will be rejected\n"
+                "\n"
+                "RENDERING BEHAVIOR:\n"
+                "• PDF/HTML: Image downloaded and embedded as base64 (no external dependencies)\n"
+                "• Markdown: Image linked via URL (![alt](url) syntax)\n"
+                "\n"
+                "COMMON ERROR CODES & FIXES:\n"
+                "• INVALID_IMAGE_URL: Non-HTTPS URL with require_https=true → Use HTTPS or set require_https=false\n"
+                "• IMAGE_URL_NOT_ACCESSIBLE: HTTP 404/403/500 → Verify URL in browser, check if public\n"
+                "• INVALID_IMAGE_CONTENT_TYPE: URL returns non-image type → Ensure URL points to actual image file\n"
+                "• IMAGE_TOO_LARGE: File > 10MB → Compress image or use smaller version\n"
+                "• IMAGE_URL_TIMEOUT: Slow/unreachable server → Check network, try different CDN\n"
+                "\n"
+                "EXAMPLE - Basic image:\n"
+                "{'image_url': 'https://example.com/logo.png', 'title': 'Company Logo', 'alignment': 'center'}\n"
+                "\n"
+                "EXAMPLE - Sized image with alt text:\n"
+                "{'image_url': 'https://cdn.example.com/chart.png', 'width': 800, 'alt_text': 'Q4 Sales Chart', 'alignment': 'center'}\n"
+                "\n"
+                "EXAMPLE - Allow HTTP (dev/testing only):\n"
+                "{'image_url': 'http://localhost:8000/test.jpg', 'require_https': False, 'title': 'Test Image'}\n"
+                "\n"
+                "TIP: Test URLs in browser first to verify accessibility and content-type!\n"
+                "\n"
+                "Returns: fragment_instance_guid if successful, or detailed error with recovery guidance.\n"
                 "GROUP SECURITY: Can only add images to sessions from your authenticated group. "
                 "AUTHENTICATION: Requires JWT Bearer token for session ownership verification."
             ),
@@ -615,32 +704,66 @@ async def handle_list_tools() -> List[Tool]:
                     },
                     "image_url": {
                         "type": "string",
-                        "description": "URL of the image to download and display. VALIDATED IMMEDIATELY when added. Must be accessible and return valid image content-type (image/png, image/jpeg, image/gif, image/webp, image/svg+xml).",
+                        "description": (
+                            "URL of the image to download and display. VALIDATED IMMEDIATELY via HTTP HEAD request. "
+                            "Requirements: (1) Publicly accessible, (2) Returns 200 OK, (3) Content-Type is image/*, (4) Size ≤10MB. "
+                            "Allowed types: image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml. "
+                            "Example: 'https://cdn.example.com/images/logo.png'. "
+                            "TIP: Test URL in browser first to verify it loads and shows image content-type."
+                        ),
                     },
                     "title": {
                         "type": "string",
-                        "description": "Optional title/caption displayed above the image.",
+                        "description": (
+                            "Optional title/caption displayed above the image. "
+                            "Rendered as bold text or caption depending on output format. "
+                            "Example: 'Figure 1: Sales Trends 2024'"
+                        ),
                     },
                     "width": {
                         "type": "integer",
-                        "description": "Target width in pixels. If only width specified, height scales proportionally.",
+                        "description": (
+                            "Target width in pixels (positive integer). "
+                            "If only width specified, height scales proportionally to maintain aspect ratio. "
+                            "If both width and height specified, image may be stretched/squashed. "
+                            "Example: 800 for 800px wide. Leave unset to use original image size."
+                        ),
                     },
                     "height": {
                         "type": "integer",
-                        "description": "Target height in pixels. If only height specified, width scales proportionally.",
+                        "description": (
+                            "Target height in pixels (positive integer). "
+                            "If only height specified, width scales proportionally to maintain aspect ratio. "
+                            "If both width and height specified, image may be stretched/squashed. "
+                            "Example: 600 for 600px tall. Leave unset to use original image size."
+                        ),
                     },
                     "alt_text": {
                         "type": "string",
-                        "description": "Alternative text for accessibility. Defaults to title or 'Image'.",
+                        "description": (
+                            "Alternative text for accessibility (screen readers, image load failures). "
+                            "Should describe the image content for users who can't see it. "
+                            "If not provided, defaults to title parameter or 'Image'. "
+                            "Example: 'Bar chart showing quarterly revenue growth from Q1 to Q4 2024'"
+                        ),
                     },
                     "alignment": {
                         "type": "string",
                         "enum": ["left", "center", "right"],
-                        "description": "Image alignment. Default: center.",
+                        "description": (
+                            "Image horizontal alignment within the document. "
+                            "'left': Align to left margin, 'center': Center in page (default), 'right': Align to right margin. "
+                            "Default: 'center' if not specified."
+                        ),
                     },
                     "require_https": {
                         "type": "boolean",
-                        "description": "If true, only HTTPS URLs allowed. If false, HTTP URLs permitted. Default: true for security.",
+                        "description": (
+                            "Security setting for URL protocol validation. "
+                            "If true (default): Only HTTPS URLs accepted - rejects http:// URLs. "
+                            "If false: Allows both HTTPS and HTTP URLs (use for development/testing only). "
+                            "Default: true. IMPORTANT: Set to false only for local testing (http://localhost)."
+                        ),
                     },
                     "position": {
                         "type": "string",
@@ -1344,6 +1467,19 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
             "GROUP CONFUSION: list_active_sessions only shows YOUR group's sessions, not all sessions on the server",
             "PROXY DOWNLOAD: When using proxy=true, save the returned proxy_guid and use it with web server GET /proxy/{proxy_guid} endpoint",
             "PROXY AUTHENTICATION: Proxy document downloads require same Authorization header as MCP calls",
+            "TABLE COLUMN_WIDTHS: Total percentage must not exceed 100% (e.g., {0: '60%', 1: '50%'} = 110% will fail)",
+            "TABLE INDICES: All column/row indices are 0-based - first column is 0, not 1",
+            "TABLE FORMATTING: Use get_fragment_details to see exact format specs - 'currency:USD' not 'USD', 'decimal:2' not 'decimal2'",
+            "TABLE COLORS: Theme colors are lowercase ('primary', 'success') not capitalized; hex must include # symbol",
+            "TABLE SORT_BY: When has_header=true, you can use column name string; without header, must use column index (integer)",
+            "TABLE VALIDATION: Call validate_parameters with fragment_id='table' to catch errors before add_fragment - saves debugging time",
+            "IMAGE URL NOT TESTED: Always test image URLs in browser BEFORE calling add_image_fragment - validation happens immediately",
+            "IMAGE BEHIND LOGIN: URLs requiring authentication (cookies/headers) will fail - use publicly accessible URLs only",
+            "IMAGE WRONG CONTENT-TYPE: Ensure URL returns Content-Type: image/* header - HTML pages with <img> tags will be rejected",
+            "IMAGE HTTP VS HTTPS: Default requires HTTPS - set require_https=false only for local development (http://localhost)",
+            "IMAGE SIZE LIMITS: Default 10MB max - compress large images before hosting or use CDN with optimization",
+            "IMAGE DIMENSIONS: Setting both width AND height may distort aspect ratio - set one dimension to auto-scale proportionally",
+            "IMAGE VALIDATION ERRORS: Read error_code field for specific issue - each error includes recovery guidance in details",
         ],
         example_workflows=[
             {
@@ -1385,6 +1521,51 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
                     "3. Save the proxy_guid from response",
                     "4. Later, construct web request: GET /proxy/{proxy_guid} with Authorization header",
                     "5. Download document from web server endpoint with your Bearer token",
+                ],
+            },
+            {
+                "name": "Financial Table with All Features",
+                "steps": [
+                    "1. create_document_session(template_id='basic_report') → Get session_id",
+                    "2. set_global_parameters(session_id='...', parameters={title: 'Q4 Report', author: 'Finance Team'})",
+                    "3. get_fragment_details(template_id='basic_report', fragment_id='table') → Review 14 available parameters",
+                    "4. validate_parameters(template_id='basic_report', parameter_type='fragment', fragment_id='table', parameters={...}) → Pre-check table data",
+                    "5. add_fragment(session_id='...', fragment_id='table', parameters={\n"
+                    "     'rows': [['Product','Q1','Q2','Q3'], ['Widget','1500','1800','2100'], ['Gadget','900','1200','1400']],\n"
+                    "     'has_header': True, 'title': 'Quarterly Sales', 'width': 'full',\n"
+                    "     'column_alignments': ['left','right','right','right'],\n"
+                    "     'column_widths': {0: '40%', 1: '20%', 2: '20%', 3: '20%'},\n"
+                    "     'border_style': 'full', 'zebra_stripe': True,\n"
+                    "     'number_format': {1: 'currency:USD', 2: 'currency:USD', 3: 'currency:USD'},\n"
+                    "     'header_color': 'primary', 'stripe_color': 'light',\n"
+                    "     'highlight_columns': {3: 'success'},\n"
+                    "     'sort_by': {'column': 3, 'order': 'desc'}\n"
+                    "   }) → Adds formatted, sortable table with colors and precise widths",
+                    "6. get_document(session_id='...', format='html') → Render with all table features applied",
+                ],
+            },
+            {
+                "name": "Adding Images with Validation",
+                "steps": [
+                    "1. create_document_session(template_id='basic_report') → Get session_id",
+                    "2. set_global_parameters(session_id='...', parameters={title: 'Product Catalog'})",
+                    "3. Test image URL in browser first → Verify it loads and shows Content-Type: image/*",
+                    "4. add_image_fragment(session_id='...', image_url='https://cdn.example.com/product.png', title='Product Photo', width=600, alignment='center') → URL validated immediately",
+                    "5. If validation fails, check error_code and details → Fix URL or image format",
+                    "6. add_fragment(session_id='...', fragment_id='paragraph', parameters={text: 'Description here'})",
+                    "7. get_document(session_id='...', format='pdf') → Image embedded as base64 in PDF",
+                ],
+            },
+            {
+                "name": "Handling Image Validation Errors",
+                "steps": [
+                    "1. add_image_fragment returns error → Read error_code and details fields",
+                    "2. INVALID_IMAGE_URL (non-HTTPS) → Either use HTTPS URL or set require_https=false",
+                    "3. IMAGE_URL_NOT_ACCESSIBLE (404/403) → Verify URL in browser, check if public, not behind login",
+                    "4. INVALID_IMAGE_CONTENT_TYPE → Ensure URL returns image/png, image/jpeg, etc., not text/html or application/pdf",
+                    "5. IMAGE_TOO_LARGE (>10MB) → Compress image using online tools or image editing software",
+                    "6. IMAGE_URL_TIMEOUT → Try different CDN, check if server is slow/down",
+                    "7. Once fixed, retry add_image_fragment with corrected URL",
                 ],
             },
         ],
