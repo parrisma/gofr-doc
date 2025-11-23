@@ -7,15 +7,14 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict
-from dataclasses import dataclass
 from pathlib import Path
 import json
+from pydantic import BaseModel
 from app.config import get_default_token_store_path
 from app.logger import Logger, session_logger
 
 
-@dataclass
-class TokenInfo:
+class TokenInfo(BaseModel):
     """Information extracted from a JWT token"""
 
     token: str
@@ -38,10 +37,7 @@ class AuthService:
         self.logger: Logger = session_logger
 
         # Get or create secret key
-        secret = (
-            secret_key
-            or os.environ.get("DOCO_JWT_SECRET")
-        )
+        secret = secret_key or os.environ.get("DOCO_JWT_SECRET")
         if not secret:
             self.logger.warning(
                 "No JWT secret provided, generating random secret (not suitable for production)"

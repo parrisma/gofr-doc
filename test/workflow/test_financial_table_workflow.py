@@ -43,7 +43,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 WEB_PORT = os.environ.get("DOCO_WEB_PORT", "8010")
 
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+# Use 127.0.0.1 for better Docker container compatibility
+MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
 
 
 def _extract_text(result):
@@ -79,18 +80,20 @@ class TestFinancialTableWorkflow:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
                 assert session_id is not None
 
-                # 2. Add simple financial table
+                # 2. Add table with all Phase 1-6 features
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "quarterly_revenue",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": [
                                 ["Quarter", "Revenue", "Growth"],
@@ -115,12 +118,12 @@ class TestFinancialTableWorkflow:
 
                 # 3. Render to HTML
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                html_content = response.get("content")
+                html_content = response.get("data", {}).get("content")
 
                 # Verify HTML contains table elements
                 assert "Quarterly Revenue 2024" in html_content
@@ -138,16 +141,18 @@ class TestFinancialTableWorkflow:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
-                # 2. Add table with all features
+                # 2. Generate table with mixed data typesr markdown
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "full_featured_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": [
                                 ["Product", "Sales", "Profit Margin", "Rating"],
@@ -182,16 +187,21 @@ class TestFinancialTableWorkflow:
                     },
                 )
                 response = _safe_json_parse(_extract_text(result))
+                if response.get("status") != "success":
+                    print(f"ERROR adding fragment: {response.get('message', 'unknown')}")
+                    print(f"Full response: {response}")
                 assert response.get("status") == "success"
 
                 # 3. Render to HTML
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 response = _safe_json_parse(_extract_text(result))
+                if response.get("status") != "success":
+                    print(f"ERROR rendering: {response.get('message', 'unknown')}")
                 assert response.get("status") == "success"
-                html_content = response.get("content")
+                html_content = response.get("data", {}).get("content")
 
                 # Verify features present
                 assert "Product Performance Analysis" in html_content
@@ -213,16 +223,18 @@ class TestFinancialTableWorkflow:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
                 # 2. Add table
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "markdown_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": [
                                 ["Item", "Price", "Quantity", "Total"],
@@ -239,12 +251,12 @@ class TestFinancialTableWorkflow:
 
                 # 3. Render to Markdown
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "markdown"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "md"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                markdown_content = response.get("content")
+                markdown_content = response.get("data", {}).get("content")
 
                 # Verify markdown table structure
                 assert "|" in markdown_content
@@ -265,16 +277,18 @@ class TestFinancialTableWorkflow:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
-                # 2. Add first table (revenue)
+                # 2. Add multiple tables to same document
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "revenue_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": [
                                 ["Region", "Revenue"],
@@ -293,9 +307,9 @@ class TestFinancialTableWorkflow:
                 # 3. Add second table (expenses)
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "expense_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": [
                                 ["Category", "Amount"],
@@ -313,12 +327,12 @@ class TestFinancialTableWorkflow:
 
                 # 4. Render to HTML
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                html_content = response.get("content")
+                html_content = response.get("data", {}).get("content")
 
                 # Verify both tables present
                 assert "Revenue by Region" in html_content
@@ -335,16 +349,18 @@ class TestFinancialTableWorkflow:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
                 # 2. Add table
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "test_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": [
                                 ["Name", "Value"],
@@ -361,37 +377,37 @@ class TestFinancialTableWorkflow:
 
                 # 3. Test HTML format
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                assert response.get("format") == "html"
-                html_content = response.get("content")
+                assert response.get("data", {}).get("format") == "html"
+                html_content = response.get("data", {}).get("content")
                 assert "<table" in html_content
                 assert "Test Data" in html_content
 
                 # 4. Test PDF format
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "pdf"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "pdf"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                assert response.get("format") == "pdf"
-                pdf_content = response.get("content")
+                assert response.get("data", {}).get("format") == "pdf"
+                pdf_content = response.get("data", {}).get("content")
                 assert pdf_content  # Base64 encoded PDF
                 assert len(pdf_content) > 100  # PDF should have substantial size
 
                 # 5. Test Markdown format
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "markdown"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "md"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
-                assert response.get("format") == "markdown"
-                markdown_content = response.get("content")
+                assert response.get("data", {}).get("format") == "markdown"
+                markdown_content = response.get("data", {}).get("content")
                 assert "|" in markdown_content  # Markdown table separator
                 assert "Test Data" in markdown_content
                 assert "Test A" in markdown_content
@@ -409,11 +425,13 @@ class TestTablePerformance:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
-                # 2. Generate 100 rows
+                # 2. Generate wide table (20 columns)ble (100 rows)
                 rows = [["ID", "Name", "Value", "Status"]]
                 for i in range(1, 101):
                     rows.append(
@@ -429,9 +447,9 @@ class TestTablePerformance:
                 start_time = time.time()
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "large_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": rows,
                             "has_header": True,
@@ -450,8 +468,8 @@ class TestTablePerformance:
                 # 4. Render to HTML
                 start_time = time.time()
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 render_time = time.time() - start_time
                 response = _safe_json_parse(_extract_text(result))
@@ -460,7 +478,7 @@ class TestTablePerformance:
                 # Rendering should complete in reasonable time (< 10 seconds)
                 assert render_time < 10.0
 
-                html_content = response.get("content")
+                html_content = response.get("data", {}).get("content")
                 assert "Item 1" in html_content
                 assert "Item 100" in html_content
 
@@ -473,9 +491,11 @@ class TestTablePerformance:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
                 # 2. Generate 20-column table
                 header = [f"Col{i}" for i in range(1, 21)]
@@ -487,9 +507,9 @@ class TestTablePerformance:
                 # 3. Add wide table
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "wide_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": rows,
                             "has_header": True,
@@ -502,13 +522,13 @@ class TestTablePerformance:
 
                 # 4. Render to HTML
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
 
-                html_content = response.get("content")
+                html_content = response.get("data", {}).get("content")
                 assert "Col1" in html_content
                 assert "Col20" in html_content
 
@@ -521,9 +541,11 @@ class TestTablePerformance:
                 await session.initialize()
 
                 # 1. Create session
-                result = await session.call_tool("start_session", {"template_id": "basic_report"})
+                result = await session.call_tool(
+                    "create_document_session", arguments={"template_id": "basic_report"}
+                )
                 response = _safe_json_parse(_extract_text(result))
-                session_id = response.get("session_id")
+                session_id = response.get("data", {}).get("session_id")
 
                 # 2. Generate unsorted data
                 rows = [["Name", "Score"]]
@@ -537,9 +559,9 @@ class TestTablePerformance:
                 start_time = time.time()
                 result = await session.call_tool(
                     "add_fragment",
-                    {
+                    arguments={
                         "session_id": session_id,
-                        "fragment_id": "sorted_table",
+                        "fragment_id": "table",
                         "parameters": {
                             "rows": rows,
                             "has_header": True,
@@ -556,8 +578,8 @@ class TestTablePerformance:
 
                 # 4. Verify sorted order in rendered output
                 result = await session.call_tool(
-                    "render_document",
-                    {"session_id": session_id, "output_format": "html"},
+                    "get_document",
+                    arguments={"session_id": session_id, "format": "html"},
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"

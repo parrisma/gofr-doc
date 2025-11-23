@@ -213,7 +213,7 @@ class TestDocumentSessionValidation:
             session_id="sess-789",
             template_id="article",
             group="public",
-            fragments=fragments,
+            fragments=fragments,  # type: ignore[arg-type] - test uses simplified dict format
             created_at="2025-11-16T10:00:00",
             updated_at="2025-11-16T10:00:00",
         )
@@ -232,7 +232,7 @@ class TestDocumentSessionValidation:
             session_id="sess-conv",
             template_id="page",
             group="public",
-            fragments=fragments,
+            fragments=fragments,  # type: ignore[arg-type] - test uses simplified dict format
             created_at="2025-11-16T10:00:00",
             updated_at="2025-11-16T10:00:00",
         )

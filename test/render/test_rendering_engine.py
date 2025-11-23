@@ -162,7 +162,7 @@ class TestRenderDocumentToHTML:
             template_id="basic_report",
             group="public",
             global_parameters={"title": "Test"},
-            fragments=[{"fragment_id": "paragraph", "parameters": {"text": "Hello World"}}],
+            fragments=[{"fragment_id": "paragraph", "parameters": {"text": "Hello World"}}],  # type: ignore[arg-type] - test uses simplified dict
             created_at="2025-11-16T00:00:00",
             updated_at="2025-11-16T00:00:00",
         )

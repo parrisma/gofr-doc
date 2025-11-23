@@ -324,7 +324,7 @@ class TestNumberFormatting:
     @pytest.fixture
     def table_template(self):
         """Load the table template with format_number filter."""
-        from jinja2 import Template, Environment
+        from jinja2 import Environment
         from app.formatting.number_formatter import format_number
 
         template_path = Path(
@@ -343,7 +343,7 @@ class TestNumberFormatting:
         html = table_template.render(
             rows=[["Product", "Price"], ["Widget", 1234.56]],
             has_header=True,
-            number_format={1: "currency:USD"},
+            number_format={"1": "currency:USD"},
         )
 
         assert "$1,234.56" in html
@@ -353,7 +353,7 @@ class TestNumberFormatting:
         html = table_template.render(
             rows=[["Item", "Discount"], ["Product A", 0.15]],
             has_header=True,
-            number_format={1: "percent"},
+            number_format={"1": "percent"},
         )
 
         assert "15" in html
@@ -364,7 +364,7 @@ class TestNumberFormatting:
         html = table_template.render(
             rows=[["Item", "Value"], ["Product", 1234.5678]],
             has_header=True,
-            number_format={1: "decimal:2"},
+            number_format={"1": "decimal:2"},
         )
 
         assert "1,234.57" in html or "1,234.56" in html
@@ -374,7 +374,7 @@ class TestNumberFormatting:
         html = table_template.render(
             rows=[["Item", "Quantity"], ["Product", 1234.56]],
             has_header=True,
-            number_format={1: "integer"},
+            number_format={"1": "integer"},
         )
 
         assert "1,235" in html
@@ -384,7 +384,7 @@ class TestNumberFormatting:
         html = table_template.render(
             rows=[["Item", "Balance"], ["Product A", 100], ["Product B", -50]],
             has_header=True,
-            number_format={1: "accounting"},
+            number_format={"1": "accounting"},
         )
 
         assert "100.00" in html
@@ -398,7 +398,7 @@ class TestNumberFormatting:
                 ["Widget", 1234.56, 0.10, 5],
             ],
             has_header=True,
-            number_format={1: "currency:USD", 2: "percent", 3: "integer"},
+            number_format={"1": "currency:USD", "2": "percent", "3": "integer"},
         )
 
         assert "$1,234.56" in html
@@ -421,7 +421,7 @@ class TestNumberFormatting:
         html = table_template.render(
             rows=[["Item", "Value"], ["Product", "N/A"]],
             has_header=True,
-            number_format={1: "currency:USD"},
+            number_format={"1": "currency:USD"},
         )
 
         # Non-numeric text should pass through
@@ -500,7 +500,7 @@ class TestColorRendering:
         html = table_template.render(
             rows=[["Name"], ["Alice"], ["Bob"], ["Charlie"]],
             has_header=False,
-            highlight_rows={1: "orange"},
+            highlight_rows={"1": "orange"},
         )
 
         assert "var(--doco-orange" in html
@@ -510,7 +510,7 @@ class TestColorRendering:
         html = table_template.render(
             rows=[["Name"], ["Alice"], ["Bob"], ["Charlie"]],
             has_header=False,
-            highlight_rows={0: "blue", 2: "red"},
+            highlight_rows={"0": "blue", "2": "red"},
         )
 
         assert "var(--doco-blue" in html
@@ -521,7 +521,7 @@ class TestColorRendering:
         html = table_template.render(
             rows=[["Name"], ["Alice"], ["Bob"]],
             has_header=False,
-            highlight_rows={1: "#FFFF00"},
+            highlight_rows={"1": "#FFFF00"},
         )
 
         assert "#FFFF00" in html
@@ -531,7 +531,7 @@ class TestColorRendering:
         html = table_template.render(
             rows=[["Name", "Age", "City"], ["Alice", "30", "NYC"]],
             has_header=False,
-            highlight_columns={1: "purple"},
+            highlight_columns={"1": "purple"},
         )
 
         assert "var(--doco-purple" in html
@@ -541,7 +541,7 @@ class TestColorRendering:
         html = table_template.render(
             rows=[["A", "B", "C"], ["1", "2", "3"]],
             has_header=False,
-            highlight_columns={0: "green", 2: "pink"},
+            highlight_columns={"0": "green", "2": "pink"},
         )
 
         assert "var(--doco-green" in html
@@ -561,8 +561,8 @@ class TestColorRendering:
             header_color="blue",
             zebra_stripe=True,
             stripe_color="gray",
-            highlight_rows={2: "orange"},  # Highlights Gadget row (index 2)
-            highlight_columns={1: "green"},  # Highlights Price column
+            highlight_rows={"2": "orange"},  # Highlights Gadget row (index 2)
+            highlight_columns={"1": "green"},  # Highlights Price column
         )
 
         # Verify all colors present
@@ -578,7 +578,7 @@ class TestColorRendering:
             has_header=False,
             zebra_stripe=True,
             stripe_color="gray",
-            highlight_rows={1: "orange"},  # Row 1 would be striped
+            highlight_rows={"1": "orange"},  # Row 1 would be striped
         )
 
         # Row 1 should have orange, not gray
@@ -710,7 +710,7 @@ class TestSorting:
             ],
             has_header=True,
             sort_by="Price",
-            number_format={1: "currency:USD"},
+            number_format={"1": "currency:USD"},
         )
 
         # Prices should be sorted: 25, 50.25, 100.50
@@ -815,7 +815,7 @@ class TestColumnWidthsRendering:
         html = table_template.render(
             rows=[["Name", "Age", "City"], ["Alice", "30", "NYC"]],
             has_header=True,
-            column_widths={0: "40%", 1: "20%", 2: "40%"},
+            column_widths={"0": "40%", "1": "20%", "2": "40%"},
         )
 
         assert "<colgroup>" in html
@@ -827,7 +827,7 @@ class TestColumnWidthsRendering:
         html = table_template.render(
             rows=[["A", "B", "C"], ["1", "2", "3"]],
             has_header=False,
-            column_widths={0: "30%", 2: "30%"},
+            column_widths={"0": "30%", "2": "30%"},
         )
 
         assert "<colgroup>" in html
@@ -921,7 +921,7 @@ class TestMarkdownTableRendering:
             group="public",
             created_at="2025-01-01T00:00:00",
             updated_at="2025-01-01T00:00:00",
-            fragments=[
+            fragments=[  # type: ignore[arg-type] - test uses simplified dict format
                 {
                     "fragment_id": "table1",
                     "parameters": {
@@ -959,7 +959,7 @@ class TestMarkdownTableRendering:
             group="public",
             created_at="2025-01-01T00:00:00",
             updated_at="2025-01-01T00:00:00",
-            fragments=[
+            fragments=[  # type: ignore[arg-type] - test uses simplified dict format
                 {
                     "fragment_id": "table1",
                     "parameters": {
@@ -1001,7 +1001,7 @@ class TestMarkdownTableRendering:
             group="public",
             created_at="2025-01-01T00:00:00",
             updated_at="2025-01-01T00:00:00",
-            fragments=[
+            fragments=[  # type: ignore[arg-type] - test uses simplified dict format
                 {
                     "fragment_id": "table1",
                     "parameters": {
@@ -1066,7 +1066,7 @@ class TestMarkdownTableRendering:
             group="public",
             created_at="2025-01-01T00:00:00",
             updated_at="2025-01-01T00:00:00",
-            fragments=[
+            fragments=[  # type: ignore[arg-type] - test uses simplified dict format
                 {
                     "fragment_id": "table1",
                     "parameters": {
@@ -1111,7 +1111,7 @@ class TestMarkdownTableRendering:
             group="public",
             created_at="2025-01-01T00:00:00",
             updated_at="2025-01-01T00:00:00",
-            fragments=[
+            fragments=[  # type: ignore[arg-type] - test uses simplified dict format
                 {
                     "fragment_id": "table1",
                     "parameters": {

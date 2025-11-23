@@ -33,9 +33,9 @@ def skip_if_mcp_unavailable(func):
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        try:
-            import socket
+        import socket
 
+        try:
             socket.create_connection(("localhost", int(MCP_PORT)), timeout=1)
         except (socket.error, ConnectionRefusedError):
             pytest.skip(f"MCP server not available on localhost:{MCP_PORT}")

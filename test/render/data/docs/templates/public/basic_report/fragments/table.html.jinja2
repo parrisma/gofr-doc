@@ -47,7 +47,7 @@
   <colgroup>
     {% set num_columns = rows[0]|length if rows|length > 0 else 0 %}
     {% for col_index in range(num_columns) %}
-    <col{% if col_index in column_widths %} style="width: {{ column_widths[col_index] }};"{% endif %}>
+    <col{% if (col_index|string) in column_widths %} style="width: {{ column_widths[col_index|string] }};"{% endif %}>
     {% endfor %}
   </colgroup>
   {% endif %}
@@ -75,15 +75,15 @@
     {% set row_index = loop.index0 %}
     {% set actual_row_index = row_index + start_index %}
     {% set is_even = row_index % 2 == 0 %}
-    {% set row_highlight_color = highlight_rows.get(actual_row_index)|get_css_color if highlight_rows and actual_row_index in highlight_rows else none %}
+    {% set row_highlight_color = highlight_rows.get(actual_row_index|string)|get_css_color if highlight_rows and (actual_row_index|string) in highlight_rows else none %}
     {% set zebra_bg = stripe_color|get_css_color if stripe_color else 'var(--doco-zebra-bg, #f9f9f9)' %}
     <tr class="data-row{% if zebra_stripe and not is_even %} zebra-stripe{% endif %}"{% if row_highlight_color %} style="background-color: {{ row_highlight_color }};"{% elif zebra_stripe and not is_even %} style="background-color: {{ zebra_bg }};"{% endif %}>
       {% for cell in row %}
       {% set col_index = loop.index0 %}
       {% set alignment = column_alignments[col_index] if column_alignments and col_index < column_alignments|length else 'left' %}
-      {% set format_spec = number_format.get(col_index) if number_format else none %}
+      {% set format_spec = number_format.get(col_index|string) if number_format else none %}
       {% set formatted_cell = cell|format_number(format_spec) if format_spec else cell %}
-      {% set col_highlight_color = highlight_columns.get(col_index)|get_css_color if highlight_columns and col_index in highlight_columns else none %}
+      {% set col_highlight_color = highlight_columns.get(col_index|string)|get_css_color if highlight_columns and (col_index|string) in highlight_columns else none %}
       {% set cell_bg = col_highlight_color if col_highlight_color and not row_highlight_color else none %}
       <td style="{% if border_style == 'full' %}border: {{ border }};{% elif border_style == 'horizontal' %}border-bottom: {{ border_bottom }};{% endif %} padding: {{ cell_padding }}; text-align: {{ alignment }};{% if cell_bg %} background-color: {{ cell_bg }};{% endif %}">
         {{ formatted_cell }}

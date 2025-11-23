@@ -1,8 +1,9 @@
 """Style registry system for managing document styles (CSS)."""
+
 import yaml
 from typing import Dict, List, Optional
 
-from app.registry_base import BaseRegistry
+from app.registries.base import BaseRegistry
 from app.styles.style_metadata import StyleMetadata
 from app.styles.style_list_item import StyleListItem
 from app.logger import Logger
@@ -12,9 +13,13 @@ from app.exceptions import GroupMismatchError
 class StyleRegistry(BaseRegistry):
     """Manages loading and discovery of document styles."""
 
-    def __init__(self, styles_dir: str, logger: Logger,
-                 group: Optional[str] = None,
-                 groups: Optional[List[str]] = None):
+    def __init__(
+        self,
+        styles_dir: str,
+        logger: Logger,
+        group: Optional[str] = None,
+        groups: Optional[List[str]] = None,
+    ):
         """
         Initialize the style registry.
 
@@ -41,7 +46,7 @@ class StyleRegistry(BaseRegistry):
     def _load_group_items(self, group: str) -> None:
         """Load styles from a specific group directory."""
         group_dir = self.registry_dir / group
-        
+
         if not group_dir.exists():
             self.logger.warning(f"Group directory not found: {group_dir}")
             return
@@ -55,9 +60,7 @@ class StyleRegistry(BaseRegistry):
             css_file = style_dir / "style.css"
 
             if not metadata_file.exists() or not css_file.exists():
-                self.logger.warning(
-                    f"Skipping {style_dir.name}: missing style.yaml or style.css"
-                )
+                self.logger.warning(f"Skipping {style_dir.name}: missing style.yaml or style.css")
                 continue
 
             try:
@@ -67,14 +70,14 @@ class StyleRegistry(BaseRegistry):
 
                 style_metadata = StyleMetadata(**metadata_data)
                 style_id = style_metadata.style_id
-                
+
                 # Validate group/directory match
                 self._validate_group_match(
                     expected_group=group,
                     actual_group=style_metadata.group,
                     item_id=style_id,
                     item_type="style",
-                    file_path=str(metadata_file)
+                    file_path=str(metadata_file),
                 )
 
                 # Load CSS content
@@ -96,14 +99,12 @@ class StyleRegistry(BaseRegistry):
             except GroupMismatchError as e:
                 self.logger.error(f"Group mismatch in {style_dir.name}: {e}")
             except Exception as e:
-                self.logger.error(
-                    f"Failed to load style from {style_dir.name}: {e}"
-                )
+                self.logger.error(f"Failed to load style from {style_dir.name}: {e}")
 
     def list_styles(self, group: Optional[str] = None) -> List[StyleListItem]:
         """
         Get a list of available styles.
-        
+
         Args:
             group: Filter by specific group (None = all loaded groups)
         """

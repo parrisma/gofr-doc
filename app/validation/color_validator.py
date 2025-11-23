@@ -4,16 +4,20 @@ Validates theme color names and custom hex colors.
 """
 
 import re
-from typing import Optional
+from typing import Optional, Dict, Any
+
+from app.exceptions import ValidationError
 
 
-class ColorValidationError(Exception):
+class ColorValidationError(ValidationError):
     """Raised when color validation fails."""
 
-    pass
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(code="INVALID_COLOR", message=message, details=details)
 
 
 # Valid theme color names (map to CSS variables)
+# Includes both basic colors and Bootstrap-style semantic colors
 THEME_COLORS = {
     "blue",
     "orange",
@@ -23,6 +27,15 @@ THEME_COLORS = {
     "brown",
     "pink",
     "gray",
+    # Bootstrap-style semantic colors
+    "primary",
+    "success",
+    "warning",
+    "danger",
+    "info",
+    "light",
+    "dark",
+    "muted",
 }
 
 

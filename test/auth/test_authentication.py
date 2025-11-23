@@ -16,7 +16,6 @@ from app.logger import Logger, session_logger
 # Test configuration
 TEST_GROUP = "secure"
 TEST_EXPIRY_SECONDS = 90
-from app.storage import get_storage
 
 # Note: auth_service fixture overridden below for auth tests requiring isolation
 

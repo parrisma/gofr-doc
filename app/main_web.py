@@ -1,10 +1,10 @@
 import uvicorn
 import argparse
 import os
-from app.web_server import DocoWebServer
+from app.web_server.web_server import DocoWebServer
 from app.auth import AuthService
 from app.logger import Logger, session_logger
-import app.startup_validation
+import app.startup.validation
 from app.startup.auth_config import resolve_auth_config
 import sys
 
@@ -13,7 +13,7 @@ logger: Logger = session_logger
 if __name__ == "__main__":
     # Validate data directory structure at startup
     try:
-        app.startup_validation.validate_data_directory_structure(logger)
+        app.startup.validation.validate_data_directory_structure(logger)
     except RuntimeError as e:
         logger.error("FATAL: Data directory validation failed", error=str(e))
         sys.exit(1)

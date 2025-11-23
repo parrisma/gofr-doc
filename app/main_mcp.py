@@ -4,7 +4,7 @@ import sys
 import asyncio
 from app.auth import AuthService
 from app.logger import Logger, session_logger
-import app.startup_validation
+import app.startup.validation
 from app.startup.auth_config import resolve_auth_config
 
 logger: Logger = session_logger
@@ -12,7 +12,7 @@ logger: Logger = session_logger
 if __name__ == "__main__":
     # Validate data directory structure at startup
     try:
-        app.startup_validation.validate_data_directory_structure(logger)
+        app.startup.validation.validate_data_directory_structure(logger)
     except RuntimeError as e:
         logger.error("FATAL: Data directory validation failed", error=str(e))
         sys.exit(1)
@@ -84,12 +84,12 @@ if __name__ == "__main__":
         startup_logger.info("Authentication disabled", jwt_enabled=False)
 
     # Import and configure mcp_server with auth service
-    import app.mcp_server as mcp_server_module
+    import app.mcp_server.mcp_server as mcp_server_module
 
     mcp_server_module.auth_service = auth_service
     mcp_server_module.templates_dir_override = args.templates_dir
     mcp_server_module.styles_dir_override = args.styles_dir
-    from app.mcp_server import main
+    from app.mcp_server.mcp_server import main
 
     try:
         startup_logger.info(

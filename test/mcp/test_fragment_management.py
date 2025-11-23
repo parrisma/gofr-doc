@@ -382,7 +382,7 @@ async def test_add_table_fragment_with_column_widths(logger, mcp_headers):
                             ["Gadget", "$19.99", "75"],
                         ],
                         "has_header": True,
-                        "column_widths": {0: "40%", 1: "30%", 2: "30%"},
+                        "column_widths": {'0': "40%", '1': "30%", '2': "30%"},
                     },
                 },
             )
@@ -427,7 +427,7 @@ async def test_add_table_fragment_with_invalid_column_widths(logger, mcp_headers
                     "parameters": {
                         "rows": [["A", "B"], ["1", "2"]],
                         "has_header": False,
-                        "column_widths": {0: "60%", 1: "50%"},  # Total: 110%
+                        "column_widths": {'0': "60%", '1': "50%"},  # Total: 110%
                     },
                 },
             )
@@ -469,12 +469,12 @@ async def test_add_table_fragment_with_all_phase6_features(logger, mcp_headers):
                         "border_style": "full",
                         "zebra_stripe": True,
                         "compact": False,
-                        "number_format": {1: "currency:USD", 3: "currency:USD"},
+                        "number_format": {'1': "currency:USD", '3': "currency:USD"},
                         "header_color": "primary",
                         "stripe_color": "light",
-                        "highlight_columns": {3: "success"},
+                        "highlight_columns": {'3': "success"},
                         "sort_by": {"column": 3, "order": "desc"},
-                        "column_widths": {0: "40%", 1: "20%", 2: "20%", 3: "20%"},
+                        "column_widths": {'0': "40%", '1': "20%", '2': "20%", '3': "20%"},
                     },
                 },
             )

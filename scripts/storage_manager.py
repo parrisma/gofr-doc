@@ -488,7 +488,7 @@ Environment Variables:
     )
 
     # Sessions stats
-    sessions_stats_cmd = sessions_subparsers.add_parser(
+    sessions_subparsers.add_parser(  # noqa: F841 - parser registered but reference not needed
         "stats",
         help="Show sessions statistics",
     )

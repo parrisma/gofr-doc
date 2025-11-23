@@ -175,3 +175,43 @@ class BaseRegistry(ABC):
         if self._jinja_env is None:
             raise RuntimeError("Jinja environment not initialized")
         return self._jinja_env.get_template(template_path)
+
+    def _validate_parameters_against_schema(
+        self, parameters: Dict, parameter_schemas: List, context: str
+    ) -> tuple[bool, List[str]]:
+        """
+        Validate parameters against a list of parameter schemas.
+
+        This common validation logic checks for:
+        - Missing required parameters
+        - Unexpected parameters not in schema
+
+        Args:
+            parameters: Dictionary of parameter values to validate
+            parameter_schemas: List of ParameterSchema objects defining expected parameters
+            context: Contextual description for error messages (e.g., "template 'basic_report'" or "fragment 'paragraph'")
+
+        Returns:
+            Tuple of (is_valid, list_of_errors)
+        """
+        errors = []
+        provided_params = set(parameters.keys())
+
+        # Check required parameters
+        for param_schema in parameter_schemas:
+            if param_schema.required and param_schema.name not in parameters:
+                errors.append(
+                    f"Missing required parameter '{param_schema.name}' "
+                    f"for {context} ({param_schema.description})"
+                )
+
+        # Check for unexpected parameters
+        expected_params = {p.name for p in parameter_schemas}
+        unexpected = provided_params - expected_params
+        if unexpected:
+            errors.append(
+                f"Unexpected parameters for {context}: {', '.join(unexpected)}. "
+                f"Expected: {', '.join(expected_params)}"
+            )
+
+        return len(errors) == 0, errors

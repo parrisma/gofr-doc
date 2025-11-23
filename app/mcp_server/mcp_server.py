@@ -45,6 +45,8 @@ sys.path.insert(0, str(SysPath(__file__).parent.parent))
 
 from app.auth import AuthService  # noqa: E402
 from app.config import get_default_sessions_dir  # noqa: E402
+from app.errors import map_error_for_mcp  # noqa: E402
+from app.exceptions import DocoError  # noqa: E402
 from app.logger import Logger, session_logger  # noqa: E402
 from app.rendering import RenderingEngine  # noqa: E402
 from app.sessions import SessionManager, SessionStore  # noqa: E402
@@ -1680,7 +1682,13 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> ToolResponse
     except PydanticValidationError as exc:
         logger.warning("Payload validation error", tool=name, errors=len(exc.errors()))
         return _handle_validation_error(exc)
+    except DocoError as exc:
+        # Use the error mapper to convert structured domain exceptions
+        logger.warning("Domain error", tool=name, code=exc.code, error=str(exc))
+        error_response = map_error_for_mcp(exc)
+        return [_json_text({"status": "error", **error_response})]
     except ValueError as exc:
+        # Legacy support for any remaining ValueError exceptions
         logger.warning("Business rule violation", tool=name, error=str(exc))
         return _error(
             code="INVALID_OPERATION",

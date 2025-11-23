@@ -80,11 +80,11 @@ async def test_session_persists_to_disk(session_manager, session_store):
     session_id = result.session_id
 
     # Verify session file exists
-    session_files = await session_store.list_sessions()
+    session_files = session_store.list_sessions()
     assert session_id in session_files, "Session file not created on disk"
 
     # Load directly from storage
-    loaded = await session_store.load_session(session_id)
+    loaded = session_store.load_session(session_id)
     assert loaded is not None, "Session not found after save"
     assert loaded.session_id == session_id
     assert loaded.template_id == "basic_report"
@@ -310,7 +310,7 @@ async def test_rapid_session_creation(session_manager):
     assert len(set(session_ids)) == 20, "Duplicate session IDs generated"
 
     # Verify all sessions persisted
-    sessions = await session_manager.session_store.list_sessions()
+    sessions = session_manager.session_store.list_sessions()
     for sid in session_ids:
         assert sid in sessions
 
@@ -331,7 +331,7 @@ async def test_orphaned_session_detection(session_manager):
     assert session is not None
 
     # Delete session file directly (simulate corruption)
-    await session_manager.session_store.delete_session(session_id)
+    session_manager.session_store.delete_session(session_id)
 
     # Attempting to load should return None gracefully
     loaded = await session_manager.get_session(session_id)
@@ -345,14 +345,14 @@ async def test_session_deletion_cleans_up_storage(session_manager, session_store
     session_id = result.session_id
 
     # Verify session persisted
-    sessions = await session_store.list_sessions()
+    sessions = session_store.list_sessions()
     assert session_id in sessions
 
     # Abort session
     await session_manager.abort_session(session_id)
 
     # Verify session file deleted
-    sessions = await session_store.list_sessions()
+    sessions = session_store.list_sessions()
     assert session_id not in sessions
 
 
@@ -375,7 +375,7 @@ async def test_concurrent_deletion_safety(session_manager):
     await asyncio.gather(*tasks)
 
     # Verify all deleted
-    sessions = await session_manager.session_store.list_sessions()
+    sessions = session_manager.session_store.list_sessions()
     for sid in session_ids:
         assert sid not in sessions
 

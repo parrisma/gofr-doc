@@ -130,9 +130,11 @@ async def test_create_document_session_invalid_template(logger, mcp_headers):
 
             # Should return error status
             assert response["status"] == "error"
-            # Backend returns INVALID_OPERATION for not found scenarios
-            assert "INVALID_OPERATION" in response.get("error_code", "")
+            # Backend returns TEMPLATE_NOT_FOUND for missing template
+            assert "TEMPLATE_NOT_FOUND" in response.get("error_code", "")
             assert "not found" in response.get("message", "").lower()
+            # Verify structured error details include template_id
+            assert response.get("details", {}).get("template_id") == "nonexistent_template"
 
 
 @pytest.mark.asyncio

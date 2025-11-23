@@ -315,18 +315,21 @@ class TestNumberFormat:
         """Test currency format specification."""
         data = TableData(rows=[["A", "B"], ["1", "2"]], number_format={1: "currency:EUR"})
 
+        assert data.number_format is not None
         assert data.number_format[1] == "currency:EUR"
 
     def test_number_format_decimal(self):
         """Test decimal format specification."""
         data = TableData(rows=[["A", "B"], ["1", "2"]], number_format={1: "decimal:2"})
 
+        assert data.number_format is not None
         assert data.number_format[1] == "decimal:2"
 
     def test_number_format_accounting(self):
         """Test accounting format specification."""
         data = TableData(rows=[["A", "B"], ["1", "2"]], number_format={1: "accounting"})
 
+        assert data.number_format is not None
         assert data.number_format[1] == "accounting"
 
     def test_invalid_column_index_negative(self):
@@ -364,6 +367,7 @@ class TestNumberFormat:
             number_format={1: "currency:USD", 2: "percent", 3: "integer"},
         )
 
+        assert data.number_format is not None
         assert data.number_format[1] == "currency:USD"
         assert data.number_format[2] == "percent"
         assert data.number_format[3] == "integer"
@@ -372,6 +376,7 @@ class TestNumberFormat:
         """Test formatting column 0."""
         data = TableData(rows=[["100", "200"], ["300", "400"]], number_format={0: "currency:USD"})
 
+        assert data.number_format is not None
         assert data.number_format[0] == "currency:USD"
 
 
@@ -449,6 +454,7 @@ class TestHighlightRows:
             highlight_rows={1: "blue", 2: "red"},
         )
 
+        assert data.highlight_rows is not None
         assert data.highlight_rows[1] == "blue"
         assert data.highlight_rows[2] == "red"
 
@@ -456,6 +462,7 @@ class TestHighlightRows:
         """Test row highlight with hex color."""
         data = TableData(rows=[["A"], ["1"], ["2"]], highlight_rows={1: "#FF0000"})
 
+        assert data.highlight_rows is not None
         assert data.highlight_rows[1] == "#FF0000"
 
     def test_none_highlight_rows(self):
@@ -502,6 +509,7 @@ class TestHighlightColumns:
             highlight_columns={0: "blue", 2: "green"},
         )
 
+        assert data.highlight_columns is not None
         assert data.highlight_columns[0] == "blue"
         assert data.highlight_columns[2] == "green"
 
@@ -509,6 +517,7 @@ class TestHighlightColumns:
         """Test column highlight with hex color."""
         data = TableData(rows=[["A", "B"], ["1", "2"]], highlight_columns={1: "#00FF00"})
 
+        assert data.highlight_columns is not None
         assert data.highlight_columns[1] == "#00FF00"
 
     def test_none_highlight_columns(self):
@@ -544,9 +553,7 @@ class TestSortBy:
 
     def test_sort_by_column_name(self):
         """Test valid sort by column name."""
-        data = TableData(
-            rows=[["Name", "Age"], ["Alice", "30"], ["Bob", "25"]], sort_by="Name"
-        )
+        data = TableData(rows=[["Name", "Age"], ["Alice", "30"], ["Bob", "25"]], sort_by="Name")
 
         assert data.sort_by == "Name"
 
@@ -563,6 +570,7 @@ class TestSortBy:
             sort_by={"column": "Age", "order": "desc"},
         )
 
+        assert data.sort_by is not None
         assert data.sort_by["column"] == "Age"
         assert data.sort_by["order"] == "desc"
 
@@ -578,9 +586,7 @@ class TestSortBy:
     def test_sort_by_column_name_without_header(self):
         """Test error when sorting by column name without header."""
         with pytest.raises(TableValidationError) as exc:
-            TableData(
-                rows=[["Alice", "30"], ["Bob", "25"]], has_header=False, sort_by="Name"
-            )
+            TableData(rows=[["Alice", "30"], ["Bob", "25"]], has_header=False, sort_by="Name")
 
         assert exc.value.error_code == "INVALID_SORT"
         assert "requires has_header=True" in exc.value.message
@@ -588,9 +594,7 @@ class TestSortBy:
     def test_sort_by_invalid_column_name(self):
         """Test error for non-existent column name."""
         with pytest.raises(TableValidationError) as exc:
-            TableData(
-                rows=[["Name", "Age"], ["Alice", "30"]], sort_by="Salary"
-            )
+            TableData(rows=[["Name", "Age"], ["Alice", "30"]], sort_by="Salary")
 
         assert exc.value.error_code == "INVALID_SORT"
         assert "not found in header row" in exc.value.message
@@ -598,9 +602,7 @@ class TestSortBy:
     def test_sort_by_invalid_column_index(self):
         """Test error for out of range column index."""
         with pytest.raises(TableValidationError) as exc:
-            TableData(
-                rows=[["Alice", "30"], ["Bob", "25"]], has_header=False, sort_by=5
-            )
+            TableData(rows=[["Alice", "30"], ["Bob", "25"]], has_header=False, sort_by=5)
 
         assert exc.value.error_code == "INVALID_SORT"
         assert "exceeds number of columns" in exc.value.message
@@ -608,9 +610,7 @@ class TestSortBy:
     def test_sort_by_negative_index(self):
         """Test error for negative column index."""
         with pytest.raises(TableValidationError) as exc:
-            TableData(
-                rows=[["Alice", "30"], ["Bob", "25"]], has_header=False, sort_by=-1
-            )
+            TableData(rows=[["Alice", "30"], ["Bob", "25"]], has_header=False, sort_by=-1)
 
         assert exc.value.error_code == "INVALID_SORT"
         assert "must be non-negative" in exc.value.message
@@ -653,6 +653,7 @@ class TestColumnWidths:
             column_widths={0: "30%", 1: "40%", 2: "30%"},
         )
 
+        assert data.column_widths is not None
         assert data.column_widths[0] == "30%"
         assert data.column_widths[1] == "40%"
         assert data.column_widths[2] == "30%"
@@ -665,6 +666,7 @@ class TestColumnWidths:
             column_widths={0: "40%", 2: "30%"},
         )
 
+        assert data.column_widths is not None
         assert data.column_widths[0] == "40%"
         assert data.column_widths[2] == "30%"
         # Column 1 should auto-distribute (30% remaining)

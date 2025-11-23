@@ -6,10 +6,8 @@ Command-line utility to create, list, and revoke JWT tokens for doco authenticat
 
 import argparse
 import sys
-import os
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))

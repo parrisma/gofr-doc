@@ -5,7 +5,6 @@ from app.templates.registry import TemplateRegistry
 from app.fragments.registry import FragmentRegistry
 from app.styles.registry import StyleRegistry
 from app.logger import ConsoleLogger
-from app.exceptions import GroupMismatchError
 
 
 @pytest.fixture

@@ -5,7 +5,6 @@ Tests the FastAPI endpoints for graph rendering.
 """
 
 import asyncio
-import base64
 import sys
 from pathlib import Path
 
@@ -14,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from httpx import AsyncClient, ASGITransport
 from app.logger import Logger, session_logger
-from app.web_server import DocoWebServer
+from app.web_server.web_server import DocoWebServer
 from app.auth.service import AuthService
 
 
@@ -26,8 +25,7 @@ async def test_web_server():
     # Create server instance with auth
     server = DocoWebServer(
         auth_service=None,
-        jwt_secret="test-secret-key",
-        token_store_path="/tmp/manual_test_tokens.json",
+        require_auth=False,
     )
     app = server.app
 

@@ -1,7 +1,7 @@
 """Persistence layer for document sessions."""
+
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from typing import Optional
@@ -12,7 +12,12 @@ from app.validation.document_models import DocumentSession
 
 
 class SessionStore:
-    """File-based storage for document sessions."""
+    """File-based storage for document sessions.
+
+    Note: This is intentionally synchronous. File I/O operations are blocking
+    anyway, and wrapping them in asyncio.to_thread() adds overhead without
+    providing real concurrency benefits.
+    """
 
     def __init__(self, base_dir: Optional[str] = None, logger: Optional[Logger] = None) -> None:
         self.base_dir = Path(base_dir or get_default_sessions_dir())
@@ -20,37 +25,11 @@ class SessionStore:
         self.logger = logger
 
     # ------------------------------------------------------------------
-    # Public API
+    # Public API (synchronous)
     # ------------------------------------------------------------------
 
-    async def save_session(self, session: DocumentSession) -> None:
+    def save_session(self, session: DocumentSession) -> None:
         """Persist a document session to disk."""
-
-        await asyncio.to_thread(self._save_session_sync, session)
-
-    async def load_session(self, session_id: str) -> Optional[DocumentSession]:
-        """Load a session from disk."""
-
-        return await asyncio.to_thread(self._load_session_sync, session_id)
-
-    async def delete_session(self, session_id: str) -> None:
-        """Remove a session file if it exists."""
-
-        await asyncio.to_thread(self._delete_session_sync, session_id)
-
-    async def list_sessions(self) -> list[str]:
-        """List all persisted session IDs."""
-
-        return await asyncio.to_thread(self._list_sessions_sync)
-
-    # ------------------------------------------------------------------
-    # Internal helpers (synchronous)
-    # ------------------------------------------------------------------
-
-    def _session_path(self, session_id: str) -> Path:
-        return self.base_dir / f"{session_id}.json"
-
-    def _save_session_sync(self, session: DocumentSession) -> None:
         data = {
             "session_id": session.session_id,
             "template_id": session.template_id,
@@ -74,7 +53,8 @@ class SessionStore:
         if self.logger:
             self.logger.debug("Session persisted", session_id=session.session_id, path=str(path))
 
-    def _load_session_sync(self, session_id: str) -> Optional[DocumentSession]:
+    def load_session(self, session_id: str) -> Optional[DocumentSession]:
+        """Load a session from disk."""
         path = self._session_path(session_id)
         if not path.exists():
             return None
@@ -92,15 +72,26 @@ class SessionStore:
                 )
             raise
 
-    def _delete_session_sync(self, session_id: str) -> None:
+    def delete_session(self, session_id: str) -> None:
+        """Remove a session file if it exists."""
         path = self._session_path(session_id)
         if path.exists():
             path.unlink(missing_ok=True)
             if self.logger:
                 self.logger.info("Session deleted", session_id=session_id, path=str(path))
 
-    def _list_sessions_sync(self) -> list[str]:
+    def list_sessions(self) -> list[str]:
+        """List all persisted session IDs."""
         return [path.stem for path in self.base_dir.glob("*.json") if path.is_file()]
 
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _session_path(self, session_id: str) -> Path:
+        return self.base_dir / f"{session_id}.json"
+
+
+# Removed old _*_sync methods - they're now the public API
 
 __all__ = ["SessionStore"]

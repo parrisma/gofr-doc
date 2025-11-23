@@ -4,6 +4,10 @@ import uuid
 from datetime import datetime
 from typing import Dict, Optional
 
+from app.exceptions import (
+    SessionNotFoundError,
+    SessionValidationError,
+)
 from app.logger import Logger
 from app.sessions.storage import SessionStore
 from app.templates.registry import TemplateRegistry
@@ -57,10 +61,14 @@ class SessionManager:
             CreateSessionOutput with session_id
 
         Raises:
-            ValueError: If template doesn't exist
+            SessionValidationError: If template doesn't exist
         """
         if not self.template_registry.template_exists(template_id):
-            raise ValueError(f"Template '{template_id}' not found")
+            raise SessionValidationError(
+                code="TEMPLATE_NOT_FOUND",
+                message=f"Template '{template_id}' not found",
+                details={"template_id": template_id},
+            )
 
         session_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
@@ -69,14 +77,14 @@ class SessionManager:
             session_id=session_id,
             template_id=template_id,
             group=group,
-            global_parameters=None,
+            global_parameters={},
             fragments=[],
             created_at=now,
             updated_at=now,
         )
 
         # Persist session
-        await self.session_store.save_session(session)
+        self.session_store.save_session(session)
 
         self.logger.info(f"Created session {session_id} with template {template_id}")
 
@@ -92,7 +100,7 @@ class SessionManager:
         Returns:
             DocumentSession or None if not found
         """
-        return await self.session_store.load_session(session_id)
+        return self.session_store.load_session(session_id)
 
     async def set_global_parameters(
         self, session_id: str, parameters: Dict
@@ -108,24 +116,29 @@ class SessionManager:
             SetGlobalParametersOutput
 
         Raises:
-            ValueError: If session not found or validation fails
+            SessionNotFoundError: If session not found
+            SessionValidationError: If validation fails
         """
         session = await self.get_session(session_id)
         if session is None:
-            raise ValueError(f"Session '{session_id}' not found")
+            raise SessionNotFoundError(session_id)
 
         # Validate parameters
         is_valid, errors = self.template_registry.validate_global_parameters(
             session.template_id, parameters
         )
         if not is_valid:
-            raise ValueError(f"Invalid global parameters: {'; '.join(errors)}")
+            raise SessionValidationError(
+                code="INVALID_GLOBAL_PARAMETERS",
+                message=f"Invalid global parameters: {'; '.join(errors)}",
+                details={"errors": errors, "session_id": session_id},
+            )
 
         # Update session
         session.global_parameters = parameters
         session.updated_at = datetime.utcnow().isoformat()
 
-        await self.session_store.save_session(session)
+        self.session_store.save_session(session)
 
         self.logger.info(f"Set global parameters for session {session_id}")
 
@@ -150,18 +163,23 @@ class SessionManager:
             AddFragmentOutput with fragment_instance_guid
 
         Raises:
-            ValueError: If session not found, validation fails, or position is invalid
+            SessionNotFoundError: If session not found
+            SessionValidationError: If validation fails or position is invalid
         """
         session = await self.get_session(session_id)
         if session is None:
-            raise ValueError(f"Session '{session_id}' not found")
+            raise SessionNotFoundError(session_id)
 
         # Validate fragment parameters
         is_valid, errors = self.template_registry.validate_fragment_parameters(
             session.template_id, fragment_id, parameters
         )
         if not is_valid:
-            raise ValueError(f"Invalid fragment parameters: {'; '.join(errors)}")
+            raise SessionValidationError(
+                code="INVALID_FRAGMENT_PARAMETERS",
+                message=f"Invalid fragment parameters: {'; '.join(errors)}",
+                details={"fragment_id": fragment_id, "errors": errors},
+            )
 
         # Create fragment instance
         fragment_instance_guid = str(uuid.uuid4())
@@ -179,7 +197,7 @@ class SessionManager:
         session.fragments.insert(insert_index, fragment_instance)
         session.updated_at = datetime.utcnow().isoformat()
 
-        await self.session_store.save_session(session)
+        self.session_store.save_session(session)
 
         self.logger.info(
             f"Added fragment {fragment_id} (instance {fragment_instance_guid}) "
@@ -206,7 +224,7 @@ class SessionManager:
             Insert index
 
         Raises:
-            ValueError: If position is invalid or reference GUID not found
+            SessionValidationError: If position is invalid or reference GUID not found
         """
         if position == "start":
             return 0
@@ -217,17 +235,26 @@ class SessionManager:
             for idx, frag in enumerate(session.fragments):
                 if frag.fragment_instance_guid == guid:
                     return idx
-            raise ValueError(f"Fragment instance '{guid}' not found in session")
+            raise SessionValidationError(
+                code="FRAGMENT_NOT_FOUND",
+                message=f"Fragment instance '{guid}' not found in session",
+                details={"fragment_instance_guid": guid, "position": position},
+            )
         elif position.startswith("after:"):
             guid = position[6:]
             for idx, frag in enumerate(session.fragments):
                 if frag.fragment_instance_guid == guid:
                     return idx + 1
-            raise ValueError(f"Fragment instance '{guid}' not found in session")
+            raise SessionValidationError(
+                code="FRAGMENT_NOT_FOUND",
+                message=f"Fragment instance '{guid}' not found in session",
+                details={"fragment_instance_guid": guid, "position": position},
+            )
         else:
-            raise ValueError(
-                f"Invalid position '{position}'. "
-                f"Expected 'start', 'end', 'before:<guid>', or 'after:<guid>'"
+            raise SessionValidationError(
+                code="INVALID_POSITION",
+                message=f"Invalid position '{position}'. Expected 'start', 'end', 'before:<guid>', or 'after:<guid>'",
+                details={"position": position},
             )
 
     async def remove_fragment(
@@ -244,11 +271,12 @@ class SessionManager:
             RemoveFragmentOutput
 
         Raises:
-            ValueError: If session or fragment not found
+            SessionNotFoundError: If session not found
+            SessionValidationError: If fragment not found
         """
         session = await self.get_session(session_id)
         if session is None:
-            raise ValueError(f"Session '{session_id}' not found")
+            raise SessionNotFoundError(session_id)
 
         # Find and remove fragment
         original_length = len(session.fragments)
@@ -257,11 +285,18 @@ class SessionManager:
         ]
 
         if len(session.fragments) == original_length:
-            raise ValueError(f"Fragment instance '{fragment_instance_guid}' not found in session")
+            raise SessionValidationError(
+                code="FRAGMENT_NOT_FOUND",
+                message=f"Fragment instance '{fragment_instance_guid}' not found in session",
+                details={
+                    "fragment_instance_guid": fragment_instance_guid,
+                    "session_id": session_id,
+                },
+            )
 
         session.updated_at = datetime.utcnow().isoformat()
 
-        await self.session_store.save_session(session)
+        self.session_store.save_session(session)
 
         self.logger.info(
             f"Removed fragment instance {fragment_instance_guid} from session {session_id}"
@@ -284,11 +319,11 @@ class SessionManager:
             ListSessionFragmentsOutput
 
         Raises:
-            ValueError: If session not found
+            SessionNotFoundError: If session not found
         """
         session = await self.get_session(session_id)
         if session is None:
-            raise ValueError(f"Session '{session_id}' not found")
+            raise SessionNotFoundError(session_id)
 
         fragment_infos = []
         for idx, fragment_instance in enumerate(session.fragments):
@@ -300,7 +335,7 @@ class SessionManager:
 
             fragment_infos.append(
                 SessionFragmentInfo(
-                    fragment_instance_guid=fragment_instance.fragment_instance_guid,
+                    fragment_instance_guid=fragment_instance.fragment_instance_guid or "",
                     fragment_id=fragment_instance.fragment_id,
                     fragment_name=fragment_name,
                     position=idx,
@@ -331,7 +366,7 @@ class SessionManager:
         if session is None:
             raise ValueError(f"Session '{session_id}' not found")
 
-        await self.session_store.delete_session(session_id)
+        self.session_store.delete_session(session_id)
 
         self.logger.info(f"Aborted session {session_id}")
 
@@ -412,7 +447,7 @@ class SessionManager:
         """
         from app.validation.document_models import ListActiveSessionsOutput, SessionSummary
 
-        session_ids = await self.session_store.list_sessions()
+        session_ids = self.session_store.list_sessions()
         summaries = []
 
         for session_id in session_ids:
@@ -466,7 +501,8 @@ class SessionManager:
         Raises:
             ValueError: If template or fragment not found
         """
-        from app.validation.document_models import ValidateParametersOutput, ValidationError
+        from app.validation.document_models import ValidateParametersOutput
+        from app.validation.error import ValidationError
 
         if not self.template_registry.template_exists(template_id):
             raise ValueError(f"Template '{template_id}' not found")
@@ -481,6 +517,8 @@ class SessionManager:
             if not is_valid:
                 # Get parameter schemas for enhanced error details
                 template_schema = self.template_registry.get_template_schema(template_id)
+                if template_schema is None:
+                    raise ValueError(f"Template schema for '{template_id}' not found")
                 param_schemas = {p.name: p for p in template_schema.global_parameters}
 
                 for error_msg in error_messages:
@@ -490,15 +528,17 @@ class SessionManager:
 
                     errors.append(
                         ValidationError(
-                            parameter=param_name,
-                            error=error_msg,
-                            expected_type=param_schema.type if param_schema else None,
-                            received_type=(
-                                type(parameters.get(param_name)).__name__
-                                if param_name in parameters
-                                else None
+                            field=param_name,
+                            message=error_msg,
+                            received_value=(
+                                parameters.get(param_name) if param_name in parameters else None
                             ),
-                            example=param_schema.example if param_schema else None,
+                            expected=param_schema.type if param_schema else "valid parameter value",
+                            suggestions=(
+                                [param_schema.example]
+                                if param_schema and param_schema.example
+                                else []
+                            ),
                         )
                     )
 
@@ -536,15 +576,17 @@ class SessionManager:
 
                     errors.append(
                         ValidationError(
-                            parameter=param_name,
-                            error=error_msg,
-                            expected_type=param_schema.type if param_schema else None,
-                            received_type=(
-                                type(parameters.get(param_name)).__name__
-                                if param_name in parameters
-                                else None
+                            field=param_name,
+                            message=error_msg,
+                            received_value=(
+                                parameters.get(param_name) if param_name in parameters else None
                             ),
-                            example=param_schema.example if param_schema else None,
+                            expected=param_schema.type if param_schema else "valid parameter value",
+                            suggestions=(
+                                [param_schema.example]
+                                if param_schema and param_schema.example
+                                else []
+                            ),
                         )
                     )
 

@@ -1,9 +1,7 @@
 """Template registry system for managing document templates."""
 from typing import Dict, List, Optional
-from pathlib import Path
-from jinja2 import TemplateNotFound
 
-from app.registry_base import BaseRegistry
+from app.registries.base import BaseRegistry
 from app.validation.document_models import (
     TemplateSchema,
     TemplateMetadata,
@@ -13,7 +11,7 @@ from app.validation.document_models import (
     TemplateDetailsOutput,
 )
 from app.logger import Logger
-from app.exceptions import TemplateNotFoundError, FragmentNotFoundError, GroupMismatchError
+from app.exceptions import TemplateNotFoundError, GroupMismatchError
 
 
 class TemplateRegistry(BaseRegistry):
@@ -242,27 +240,11 @@ class TemplateRegistry(BaseRegistry):
         if not schema:
             return False, [f"Template '{template_id}' not found"]
 
-        errors = []
-        provided_params = set(parameters.keys())
-        
-        # Check required parameters
-        for param_schema in schema.global_parameters:
-            if param_schema.required and param_schema.name not in parameters:
-                errors.append(
-                    f"Missing required parameter '{param_schema.name}' "
-                    f"({param_schema.description})"
-                )
-
-        # Check for unexpected parameters
-        expected_params = {p.name for p in schema.global_parameters}
-        unexpected = provided_params - expected_params
-        if unexpected:
-            errors.append(
-                f"Unexpected parameters: {', '.join(unexpected)}. "
-                f"Expected: {', '.join(expected_params)}"
-            )
-
-        return len(errors) == 0, errors
+        return self._validate_parameters_against_schema(
+            parameters=parameters,
+            parameter_schemas=schema.global_parameters,
+            context=f"template '{template_id}'"
+        )
 
     def validate_fragment_parameters(
         self, template_id: str, fragment_id: str, parameters: Dict
@@ -279,24 +261,20 @@ class TemplateRegistry(BaseRegistry):
                 f"Fragment '{fragment_id}' not found in template '{template_id}'"
             ]
 
-        errors = []
-        provided_params = set(parameters.keys())
+        # Use common validation logic
+        is_valid, errors = self._validate_parameters_against_schema(
+            parameters=parameters,
+            parameter_schemas=fragment_schema.parameters,
+            context=f"fragment '{fragment_id}' in template '{template_id}'"
+        )
 
-        # Check required parameters
-        for param_schema in fragment_schema.parameters:
-            if param_schema.required and param_schema.name not in parameters:
-                errors.append(
-                    f"Missing required parameter '{param_schema.name}' "
-                    f"({param_schema.description})"
-                )
+        # Fragment-specific validation
+        if fragment_id == "table":
+            from app.validation.table_validator import validate_table_data, TableValidationError
+            try:
+                validate_table_data(parameters)
+            except TableValidationError as e:
+                errors.append(str(e))
+                is_valid = False
 
-        # Check for unexpected parameters
-        expected_params = {p.name for p in fragment_schema.parameters}
-        unexpected = provided_params - expected_params
-        if unexpected:
-            errors.append(
-                f"Unexpected parameters: {', '.join(unexpected)}. "
-                f"Expected: {', '.join(expected_params)}"
-            )
-
-        return len(errors) == 0, errors
+        return is_valid, errors

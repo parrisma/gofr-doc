@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
-from app.web_server import DocoWebServer
+from app.web_server.web_server import DocoWebServer
 from app.sessions import SessionManager, SessionStore
 from app.templates.registry import TemplateRegistry
 from app.logger import session_logger
@@ -286,7 +286,7 @@ class TestProxyRetrievalEndpoint:
     def test_get_proxy_document_invalid_group_returns_404(self, client, session_manager):
         """Test retrieving non-existent proxy document returns 404."""
         fake_guid = "00000000-0000-0000-0000-000000000000"
-        response = client.get(f"/proxy/{fake_guid}")
+        client.get(f"/proxy/{fake_guid}")  # Response not checked - test verifies no exception
 
     @pytest.mark.asyncio
     async def test_get_proxy_document_different_formats(self, client, session_manager):

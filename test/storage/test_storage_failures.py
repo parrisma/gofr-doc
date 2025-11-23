@@ -10,7 +10,7 @@ import pytest
 import os
 import tempfile
 import shutil
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from app.storage.file_storage import FileStorage
 from app.logger import Logger, session_logger
 

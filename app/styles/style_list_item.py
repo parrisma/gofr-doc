@@ -1,10 +1,11 @@
 """Style list item model for style discovery."""
-from dataclasses import dataclass
+
+from pydantic import BaseModel
 
 
-@dataclass
-class StyleListItem:
+class StyleListItem(BaseModel):
     """A summary item for listing available styles."""
+
     style_id: str
     name: str
     description: str

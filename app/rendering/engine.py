@@ -19,6 +19,9 @@ from app.templates.registry import TemplateRegistry
 from app.styles.registry import StyleRegistry
 from app.logger.interface import Logger
 from app.config import get_default_proxy_dir
+from app.formatting.number_formatter import format_number
+from app.formatting.table_sorter import sort_table_rows
+from app.validation.color_validator import get_css_color
 
 
 class RenderingEngine:
@@ -44,6 +47,34 @@ class RenderingEngine:
         self.style_registry = style_registry
         self.logger = logger
         self.proxy_dir = proxy_dir or get_default_proxy_dir()
+        self._register_jinja_filters()
+
+    def _register_jinja_filters(self):
+        """Register custom Jinja filters for template rendering."""
+        # Get the Jinja environment from template registry
+        env = self.template_registry._jinja_env
+
+        if env is None:
+            self.logger.warning("Jinja environment not initialized, skipping filter registration")
+            return
+
+        # Handle mocked environments in tests
+        try:
+            # Register number formatting filter
+            env.filters["format_number"] = format_number
+
+            # Register color utility filter
+            env.filters["get_css_color"] = get_css_color
+
+            # Register table sorting filter
+            env.filters["sort_table"] = sort_table_rows
+
+            self.logger.info(
+                "Registered custom Jinja filters: format_number, get_css_color, sort_table"
+            )
+        except (TypeError, AttributeError) as e:
+            # Mocked environment in tests - skip filter registration
+            self.logger.debug(f"Skipping filter registration (likely mocked environment): {e}")
 
     async def render_document(
         self,

@@ -43,8 +43,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
 WEB_PORT = os.environ.get("DOCO_WEB_PORT", "8010")
 
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
-WEB_URL = f"http://localhost:{WEB_PORT}"
+# Use 127.0.0.1 for better Docker container compatibility
+MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
+WEB_URL = f"http://127.0.0.1:{WEB_PORT}"
 
 
 def _http_get(url, headers=None):

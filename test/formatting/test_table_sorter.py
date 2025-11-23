@@ -21,7 +21,7 @@ class TestSingleColumnSort:
         """Test sorting by column index in descending order."""
         rows = [["Alice", "30"], ["Charlie", "25"], ["Bob", "35"]]
 
-        sorted_rows = sort_table_rows(rows, {"column": 0, "order": "desc"}, has_header=False)
+        sorted_rows = sort_table_rows(rows, {"column": 0, "order": "desc"}, has_header=False)  # type: ignore[arg-type] - column can be int
 
         assert sorted_rows[0][0] == "Charlie"
         assert sorted_rows[1][0] == "Bob"
@@ -284,7 +284,7 @@ class TestValidation:
         rows = [["Alice", "30"], ["Bob", "25"]]
 
         with pytest.raises(ValueError, match="Invalid sort specification"):
-            sort_table_rows(rows, 3.14, has_header=False)
+            sort_table_rows(rows, 3.14, has_header=False)  # type: ignore[arg-type] - testing invalid type
 
     def test_missing_column_key_in_dict(self):
         """Test error when dict is missing 'column' key."""

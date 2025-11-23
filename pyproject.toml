@@ -20,6 +20,7 @@ dependencies = [
     "PyYAML>=6.0",
     "mcpo>=0.0.19",
     "babel>=2.17.0",
+    "pyright>=1.1.407",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,7 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "pyright>=1.1.0",
 ]
 
 [build-system]
@@ -51,6 +53,7 @@ dev-dependencies = [
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "pyright>=1.1.0",
     "mcpo>=0.0.19",
 ]
 

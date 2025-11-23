@@ -30,7 +30,9 @@ class MCPOConfig:
             auth_token: Optional JWT bearer token for authentication
             disabled_tools: Optional list of tool names to disable
         """
-        server_config = {
+        from typing import Any
+
+        server_config: Dict[str, Any] = {
             "type": "streamable-http",
             "url": url,
         }

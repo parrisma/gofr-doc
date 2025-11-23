@@ -7,17 +7,18 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, field_validator, model_validator
 
+from app.exceptions import ValidationError
 from app.formatting.number_formatter import validate_format_spec
 from app.validation.color_validator import validate_color
 
 
-class TableValidationError(Exception):
-    """Base exception for table validation errors."""
+class TableValidationError(ValidationError):
+    """Table validation errors with structured error information."""
 
-    def __init__(self, error_code: str, message: str):
+    def __init__(self, error_code: str, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(code=error_code, message=message, details=details)
+        # Maintain backward compatibility with error_code attribute
         self.error_code = error_code
-        self.message = message
-        super().__init__(f"{error_code}: {message}")
 
 
 class TableData(BaseModel):
@@ -224,6 +225,16 @@ class TableData(BaseModel):
 
         # Validate each format specification
         for col_index, format_spec in v.items():
+            # Convert string keys to integers (from JSON serialization)
+            if isinstance(col_index, str):
+                try:
+                    col_index = int(col_index)
+                except ValueError:
+                    raise TableValidationError(
+                        "INVALID_NUMBER_FORMAT",
+                        f"Column index must be a non-negative integer. Got: {col_index}",
+                    )
+
             # Validate column index is non-negative
             if not isinstance(col_index, int) or col_index < 0:
                 raise TableValidationError(
@@ -278,6 +289,16 @@ class TableData(BaseModel):
             return v
 
         for row_index, color in v.items():
+            # Convert string keys to integers (from JSON serialization)
+            if isinstance(row_index, str):
+                try:
+                    row_index = int(row_index)
+                except ValueError:
+                    raise TableValidationError(
+                        "INVALID_HIGHLIGHT",
+                        f"Row index must be a non-negative integer. Got: {row_index}",
+                    )
+
             # Validate row index is non-negative
             if not isinstance(row_index, int) or row_index < 0:
                 raise TableValidationError(
@@ -302,6 +323,16 @@ class TableData(BaseModel):
             return v
 
         for col_index, color in v.items():
+            # Convert string keys to integers (from JSON serialization)
+            if isinstance(col_index, str):
+                try:
+                    col_index = int(col_index)
+                except ValueError:
+                    raise TableValidationError(
+                        "INVALID_HIGHLIGHT",
+                        f"Column index must be a non-negative integer. Got: {col_index}",
+                    )
+
             # Validate column index is non-negative
             if not isinstance(col_index, int) or col_index < 0:
                 raise TableValidationError(
@@ -385,6 +416,16 @@ class TableData(BaseModel):
 
         total_percentage = 0
         for col_index, width_str in v.items():
+            # Convert string keys to integers (JSON serialization converts int keys to strings)
+            if isinstance(col_index, str):
+                try:
+                    col_index = int(col_index)
+                except ValueError:
+                    raise TableValidationError(
+                        "INVALID_COLUMN_WIDTH",
+                        f"Column index must be a non-negative integer. Got: {col_index}",
+                    )
+
             # Validate column index
             if not isinstance(col_index, int) or col_index < 0:
                 raise TableValidationError(

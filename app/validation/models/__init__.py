@@ -1,69 +1,65 @@
-"""Document generation validation models - backward compatibility module.
+"""Document generation validation models - reorganized for better maintainability.
 
-This module re-exports all models from the new modular structure for backward compatibility.
-All models have been reorganized into logical groupings under app/validation/models/:
+This package contains all Pydantic models used for document generation,
+organized by logical grouping:
 - schema.py: Template, fragment, and style schemas
 - session.py: Document session and fragment instance models
 - inputs.py: Input models for MCP tools
 - outputs.py: Output models for MCP tools
 - common.py: Common models and enums
 
-Import from this module works exactly as before:
-    from app.validation.document_models import CreateSessionInput, DocumentSession
-
-Or use the new modular imports:
-    from app.validation.models.inputs import CreateSessionInput
-    from app.validation.models.session import DocumentSession
+All models are re-exported here for backward compatibility.
 """
 
-# Re-export all models for backward compatibility
-from .models import (
+from .common import ErrorResponse, OutputFormat
+from .inputs import (
     AbortDocumentSessionInput,
-    AbortSessionOutput,
     AddFragmentInput,
-    AddFragmentOutput,
     AddImageFragmentInput,
     CreateDocumentSessionInput,
-    CreateSessionOutput,
-    DocumentSession,
-    ErrorResponse,
-    FragmentDetailsOutput,
-    FragmentInstance,
-    FragmentListItem,
-    FragmentSchema,
     GetDocumentInput,
-    GetDocumentOutput,
     GetFragmentDetailsInput,
     GetProxyDocumentInput,
-    GetProxyDocumentOutput,
     GetSessionStatusInput,
     GetTemplateDetailsInput,
-    HelpOutput,
     ListActiveSessionsInput,
-    ListActiveSessionsOutput,
     ListSessionFragmentsInput,
-    ListSessionFragmentsOutput,
     ListTemplateFragmentsInput,
-    OutputFormat,
-    ParameterSchema,
-    PingOutput,
     RemoveFragmentInput,
+    SetGlobalParametersInput,
+    ValidateParametersInput,
+)
+from .outputs import (
+    AbortSessionOutput,
+    AddFragmentOutput,
+    CreateSessionOutput,
+    FragmentDetailsOutput,
+    FragmentListItem,
+    GetDocumentOutput,
+    GetProxyDocumentOutput,
+    HelpOutput,
+    ListActiveSessionsOutput,
+    ListSessionFragmentsOutput,
+    PingOutput,
     RemoveFragmentOutput,
     SessionFragmentInfo,
     SessionStatusOutput,
     SessionSummary,
-    SetGlobalParametersInput,
     SetGlobalParametersOutput,
     StyleListItem,
-    StyleSchema,
     TemplateDetailsOutput,
     TemplateListItem,
-    TemplateMetadata,
-    TemplateSchema,
-    ValidateParametersInput,
     ValidateParametersOutput,
     ValidationErrorDetail,
 )
+from .schema import (
+    FragmentSchema,
+    ParameterSchema,
+    StyleSchema,
+    TemplateMetadata,
+    TemplateSchema,
+)
+from .session import DocumentSession, FragmentInstance
 
 __all__ = [
     # Common

@@ -98,6 +98,7 @@ if __name__ == "__main__":
         mcpo_port=args.mcpo_port,
     )
 
+    wrapper = None
     try:
         # Start MCPO wrapper
         wrapper = start_mcpo_wrapper(

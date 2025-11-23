@@ -309,7 +309,7 @@ class TestIntegrationWithEntryPoints:
         files_to_check = [
             "app/main_mcp.py",
             "app/main_web.py",
-            "app/web_server.py",
+            "app/web_server/web_server.py",
             "scripts/token_manager.py",
         ]
 
@@ -324,7 +324,7 @@ class TestIntegrationWithEntryPoints:
 
     def test_web_server_uses_injected_auth_service(self):
         """Verify web_server.py uses injected AuthService instead of manual JWT decoding."""
-        with open("app/web_server.py") as f:
+        with open("app/web_server/web_server.py") as f:
             content = f.read()
 
         # Should accept auth_service parameter

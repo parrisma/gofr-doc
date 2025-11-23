@@ -8,16 +8,19 @@ Provides number formatting for financial data including:
 - Accounting format (negatives in parentheses)
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from decimal import Decimal, InvalidOperation
 
 from babel.numbers import format_currency, format_decimal, format_percent
 
+from app.exceptions import ValidationError
 
-class NumberFormatError(Exception):
+
+class NumberFormatError(ValidationError):
     """Raised when number formatting fails."""
 
-    pass
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(code="NUMBER_FORMAT_ERROR", message=message, details=details)
 
 
 def format_number(value: Any, format_spec: Optional[str] = None, locale: str = "en_US") -> str:

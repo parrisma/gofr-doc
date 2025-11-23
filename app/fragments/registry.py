@@ -1,7 +1,8 @@
 """Fragment registry system for managing reusable content fragments."""
+
 from typing import Dict, List, Optional
 
-from app.registry_base import BaseRegistry
+from app.registries.base import BaseRegistry
 from app.validation.document_models import FragmentSchema, ParameterSchema
 from app.logger import Logger
 from app.exceptions import FragmentNotFoundError, GroupMismatchError
@@ -10,9 +11,13 @@ from app.exceptions import FragmentNotFoundError, GroupMismatchError
 class FragmentRegistry(BaseRegistry):
     """Manages loading, validation, and discovery of reusable fragments."""
 
-    def __init__(self, fragments_dir: str, logger: Logger,
-                 group: Optional[str] = None,
-                 groups: Optional[List[str]] = None):
+    def __init__(
+        self,
+        fragments_dir: str,
+        logger: Logger,
+        group: Optional[str] = None,
+        groups: Optional[List[str]] = None,
+    ):
         """
         Initialize the fragment registry.
 
@@ -37,7 +42,7 @@ class FragmentRegistry(BaseRegistry):
     def _load_group_items(self, group: str) -> None:
         """Load fragments from a specific group directory."""
         group_dir = self.registry_dir / group
-        
+
         if not group_dir.exists():
             self.logger.warning(f"Group directory not found: {group_dir}")
             return
@@ -49,9 +54,7 @@ class FragmentRegistry(BaseRegistry):
 
             schema_file = fragment_dir / "fragment.yaml"
             if not schema_file.exists():
-                self.logger.debug(
-                    f"Skipping {fragment_dir.name}: no fragment.yaml found"
-                )
+                self.logger.debug(f"Skipping {fragment_dir.name}: no fragment.yaml found")
                 continue
 
             try:
@@ -62,14 +65,14 @@ class FragmentRegistry(BaseRegistry):
                 # Convert nested dicts to dataclass instances
                 fragment_schema = self._build_fragment_schema(schema_data)
                 fragment_id = fragment_schema.fragment_id
-                
+
                 # Validate group/directory match
                 self._validate_group_match(
                     expected_group=group,
                     actual_group=fragment_schema.group,
                     item_id=fragment_id,
                     item_type="fragment",
-                    file_path=str(schema_file)
+                    file_path=str(schema_file),
                 )
 
                 self._fragments[fragment_id] = fragment_schema
@@ -80,30 +83,28 @@ class FragmentRegistry(BaseRegistry):
             except GroupMismatchError as e:
                 self.logger.error(f"Group mismatch in {fragment_dir.name}: {e}")
             except Exception as e:
-                self.logger.error(
-                    f"Failed to load fragment from {fragment_dir.name}: {e}"
-                )
+                self.logger.error(f"Failed to load fragment from {fragment_dir.name}: {e}")
 
     def _build_fragment_schema(self, data: dict) -> FragmentSchema:
         """Build a FragmentSchema from loaded YAML data."""
-        
+
         # Build parameters
         params = []
         for param_data in data.get("parameters", []):
             params.append(ParameterSchema(**param_data))
-        
+
         return FragmentSchema(
             fragment_id=data.get("fragment_id", ""),
             group=data.get("group", "public"),
             name=data.get("name", ""),
             description=data.get("description", ""),
-            parameters=params
+            parameters=params,
         )
 
     def list_fragments(self, group: Optional[str] = None) -> List[dict]:
         """
         Get a list of available fragments.
-        
+
         Args:
             group: Filter by specific group (None = all loaded groups)
         """
@@ -167,16 +168,14 @@ class FragmentRegistry(BaseRegistry):
                 fragment_id=fragment_id,
                 template_id="unknown",
                 group=schema.group if schema else "unknown",
-                available_fragments=available
+                available_fragments=available,
             )
-        
+
         # Fragment files are in: fragments/{group}/{fragment_id}/fragment.html.jinja2
         group = schema.group
         return self._get_jinja_template(f"{group}/{fragment_id}/fragment.html.jinja2")
 
-    def validate_parameters(
-        self, fragment_id: str, parameters: Dict
-    ) -> tuple[bool, List[str]]:
+    def validate_parameters(self, fragment_id: str, parameters: Dict) -> tuple[bool, List[str]]:
         """
         Validate fragment parameters against schema.
 
@@ -187,24 +186,8 @@ class FragmentRegistry(BaseRegistry):
         if not fragment_schema:
             return False, [f"Fragment '{fragment_id}' not found"]
 
-        errors = []
-        provided_params = set(parameters.keys())
-
-        # Check required parameters
-        for param_schema in fragment_schema.parameters:
-            if param_schema.required and param_schema.name not in parameters:
-                errors.append(
-                    f"Missing required parameter '{param_schema.name}' "
-                    f"({param_schema.description})"
-                )
-
-        # Check for unexpected parameters
-        expected_params = {p.name for p in fragment_schema.parameters}
-        unexpected = provided_params - expected_params
-        if unexpected:
-            errors.append(
-                f"Unexpected parameters: {', '.join(unexpected)}. "
-                f"Expected: {', '.join(expected_params)}"
-            )
-
-        return len(errors) == 0, errors
+        return self._validate_parameters_against_schema(
+            parameters=parameters,
+            parameter_schemas=fragment_schema.parameters,
+            context=f"fragment '{fragment_id}'",
+        )

@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
-from app.web_server import DocoWebServer
+from app.web_server.web_server import DocoWebServer
 from app.sessions import SessionManager, SessionStore
 from app.templates.registry import TemplateRegistry
 from app.auth import AuthService
