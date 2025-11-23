@@ -31,6 +31,29 @@ uv sync
 uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text pyyaml babel
 ```
 
+## 📚 Documentation
+
+### Quick Start
+
+| Guide | Description |
+|-------|-------------|
+| **[Development Guide](docs/DEVELOPMENT.md)** | Complete developer onboarding, setup, and testing |
+| **[Document Generation](docs/DOCUMENT_GENERATION.md)** | Core workflow: sessions → fragments → rendering |
+| **[Project Specification](docs/PROJECT_SPEC.md)** | Architecture, design decisions, and technical details |
+| **[Configuration](app/config_docs.py)** | Environment variables (`python app/config_docs.py`) |
+
+### Core Documentation
+
+| Guide | Description |
+|-------|-------------|
+| **[Authentication & Security](docs/AUTHENTICATION.md)** | JWT tokens, groups, multi-tenancy, security best practices |
+| **[Features Guide](docs/FEATURES.md)** | Tables, images, groups, proxy mode - comprehensive reference |
+| **[Integration Guide](docs/INTEGRATIONS.md)** | n8n setup, HTTP API, MCP protocol, troubleshooting |
+| **[Docker Deployment](docs/DOCKER.md)** | Container setup, docker-compose, production deployment |
+| **[Data Persistence](docs/DATA_PERSISTENCE.md)** | Session storage, recovery, file management |
+
+> 💡 **Pro Tip**: Start with [DEVELOPMENT.md](docs/DEVELOPMENT.md) for complete setup, then explore [FEATURES.md](docs/FEATURES.md) for all capabilities.
+
 ### Running Without Authentication (Development)
 
 ```bash
@@ -189,7 +212,7 @@ The table fragment provides rich, formatted tables with 14 configurable paramete
 - HTML/PDF: Full feature support (colors, borders, styling)
 - Markdown: Table structure with alignment markers (colors omitted)
 
-See [docs/TABLE_FRAGMENT_GUIDE.md](docs/TABLE_FRAGMENT_GUIDE.md) for complete documentation with examples.
+See [Features Guide](docs/FEATURES.md#tables) for complete documentation with examples.
 
 ## Configuration
 
@@ -262,14 +285,13 @@ doco/
 └── README.md                # This file
 ```
 
-## Documentation
-
-📚 **[Documentation Index](docs/INDEX.md)** — master list of all guides and references.
+## Additional Resources
 
 - **Core guides**: [DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md), [DATA_PERSISTENCE.md](docs/DATA_PERSISTENCE.md)
 - **Authentication**: [AUTHENTICATION.md](docs/AUTHENTICATION.md)
+- **Features**: [FEATURES.md](docs/FEATURES.md)
 - **Infrastructure**: [DOCKER.md](docs/DOCKER.md)
-- **n8n integration**: [README_N8N_MCP.md](docs/README_N8N_MCP.md), [N8N_MCP_SETUP.md](docs/N8N_MCP_SETUP.md), [N8N_TROUBLESHOOTING.md](docs/N8N_TROUBLESHOOTING.md)
+- **Integration**: [INTEGRATIONS.md](docs/INTEGRATIONS.md)
 
 ## Architecture Overview
 

@@ -1,4 +1,9 @@
-# Docker Setup for doco
+# Docker Setup
+
+> **Related Documentation:**
+> - [← Back to README](../README.md#-documentation) | [Development Guide](DEVELOPMENT.md) | [Configuration](../app/config_docs.py)
+> - **Deployment**: [Authentication](AUTHENTICATION.md) | [Data Persistence](DATA_PERSISTENCE.md)
+> - **Integration**: [Integration Guide](INTEGRATIONS.md)
 
 This directory contains Docker configurations for the doco document generation MCP service.
 
