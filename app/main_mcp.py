@@ -30,8 +30,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.environ.get("DOCO_MCP_PORT", "8011")),
-        help="Port number to listen on (default: 8011, or DOCO_MCP_PORT env var)",
+        default=int(os.environ.get("DOCO_MCP_PORT", "8010")),
+        help="Port number to listen on (default: 8010, or DOCO_MCP_PORT env var)",
     )
     parser.add_argument(
         "--jwt-secret",
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         "--web-url",
         type=str,
         default=None,
-        help="Web server base URL for proxy mode (default: http://localhost:8010, or DOCO_WEB_URL env var)",
+        help="Web server base URL for proxy mode (default: http://localhost:8012, or DOCO_WEB_URL env var)",
     )
     parser.add_argument(
         "--proxy-url-mode",

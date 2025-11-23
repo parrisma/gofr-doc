@@ -5,8 +5,8 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Configuration for no-auth mode
-MCP_PORT=8011
-MCPO_PORT=8000
+MCP_PORT=8010
+MCPO_PORT=8011
 MCP_HOST="localhost"
 LOG_FILE="/tmp/mcpo_server.log"
 

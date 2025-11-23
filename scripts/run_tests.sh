@@ -12,8 +12,8 @@ set -euo pipefail  # Exit on error, undefined vars, pipe failures
 # Test configuration constants
 export DOCO_JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
 export DOCO_TOKEN_STORE="/tmp/doco_test_tokens.json"
-export DOCO_MCP_PORT="8011"
-export DOCO_WEB_PORT="8010"
+export DOCO_MCP_PORT="8010"
+export DOCO_WEB_PORT="8012"
 
 # Test data directories (relative to project root)
 TEST_DATA_ROOT="test/render/data/docs"

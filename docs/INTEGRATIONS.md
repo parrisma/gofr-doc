@@ -16,7 +16,7 @@ Doco integrates with n8n for automated document generation workflows. Two integr
 
 ### Prerequisites
 
-- ✅ Doco server running (MCP on `localhost:8011`, Web on `localhost:8010`)
+- ✅ Doco server running (MCP on `localhost:8010`, Web on `localhost:8012`)
 - ✅ n8n instance running
 - ✅ Bearer token for authentication (if auth enabled)
 
@@ -34,7 +34,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJncm91cCI6Im44biIsImlhdCI6MTc2Mjg4MTI1MSw
 
 ## HTTP REST API (Recommended)
 
-The Web API (port 8010) provides standard REST endpoints that work reliably with n8n.
+The Web API (port 8012) provides standard REST endpoints that work reliably with n8n.
 
 ### Complete Workflow Example
 
@@ -63,7 +63,7 @@ Response:
 #### Step 2: Set Global Parameters
 
 ```json
-POST http://localhost:8010/sessions/{session_id}/parameters
+POST http://localhost:8012/sessions/{session_id}/parameters
 
 Headers:
   Content-Type: application/json
@@ -87,7 +87,7 @@ Response:
 
 **Text Fragment:**
 ```json
-POST http://localhost:8010/sessions/{session_id}/fragments
+POST http://localhost:8012/sessions/{session_id}/fragments
 
 Headers:
   Content-Type: application/json
@@ -104,7 +104,7 @@ Body:
 
 **Table Fragment:**
 ```json
-POST http://localhost:8010/sessions/{session_id}/fragments
+POST http://localhost:8012/sessions/{session_id}/fragments
 
 Body:
 {
@@ -128,7 +128,7 @@ Body:
 
 **Image Fragment:**
 ```json
-POST http://localhost:8010/sessions/{session_id}/fragments/images
+POST http://localhost:8012/sessions/{session_id}/fragments/images
 
 Body:
 {
@@ -142,7 +142,7 @@ Body:
 #### Step 4: Render Document
 
 ```json
-POST http://localhost:8010/sessions/{session_id}/render
+POST http://localhost:8012/sessions/{session_id}/render
 
 Headers:
   Content-Type: application/json
@@ -188,7 +188,7 @@ Response:
 1. **Add HTTP Request Node** to workflow
 2. **Configure**:
    - Method: POST
-   - URL: `http://localhost:8010/sessions`
+   - URL: `http://localhost:8012/sessions`
    - Authentication: Generic Credential Type → Header Auth
      - Name: `Authorization`
      - Value: `Bearer <your-token>`
@@ -260,11 +260,11 @@ Use n8n expressions to pass data from previous nodes:
 
 ## MCP Protocol
 
-The MCP server (port 8011) uses Model Context Protocol for AI assistant integrations.
+The MCP server (port 8010) uses Model Context Protocol for AI assistant integrations.
 
 ### Setup
 
-**Server URL**: `http://localhost:8011/mcp/`
+**Server URL**: `http://localhost:8010/mcp/`
 
 **Protocol**: HTTP Streamable (SSE)
 
@@ -300,7 +300,7 @@ from mcp.client.streamable_http import streamablehttp_client
 async def generate_document():
     token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     
-    async with streamablehttp_client('http://localhost:8011/mcp/') as (r, w, _):
+    async with streamablehttp_client('http://localhost:8010/mcp/') as (r, w, _):
         async with ClientSession(r, w) as session:
             await session.initialize()
             
@@ -379,7 +379,7 @@ n8n includes an MCP Client node for direct protocol integration.
 
 1. **Add MCP Client Node** to workflow
 2. **Configure Server**:
-   - URL: `http://localhost:8011/mcp/`
+   - URL: `http://localhost:8010/mcp/`
    - Protocol: HTTP Streamable
 
 3. **Call Tools**:
@@ -420,8 +420,8 @@ n8n's MCP Client may not send this header by default, causing errors:
 #### Test 1: Server is Running
 
 ```bash
+curl http://localhost:8012/health
 curl http://localhost:8010/health
-curl http://localhost:8011/health
 ```
 
 Expected: Should connect (even if 404 response)
@@ -429,7 +429,7 @@ Expected: Should connect (even if 404 response)
 #### Test 2: Web API Responds
 
 ```bash
-curl -X GET http://localhost:8010/templates \
+curl -X GET http://localhost:8012/templates \
   -H "Authorization: Bearer <your-token>"
 ```
 
@@ -438,7 +438,7 @@ Expected: JSON list of templates
 #### Test 3: MCP Endpoint Responds
 
 ```bash
-curl -X POST http://localhost:8011/mcp/ \
+curl -X POST http://localhost:8010/mcp/ \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
@@ -500,7 +500,7 @@ If n8n is in Docker and can't reach doco:
 python -m app.main_web --host 0.0.0.0
 
 # From n8n container, use host.docker.internal
-curl http://host.docker.internal:8010/templates
+curl http://host.docker.internal:8012/templates
 ```
 
 #### Option 2: Docker Compose Network
@@ -519,7 +519,7 @@ networks:
   n8n_network:
 ```
 
-Then use: `http://doco_web:8010` from n8n.
+Then use: `http://doco_web:8012` from n8n.
 
 ### Diagnostic Commands
 
@@ -527,12 +527,12 @@ Then use: `http://doco_web:8010` from n8n.
 ```bash
 # From n8n container
 ping doco_web
-curl http://doco_web:8010/health
+curl http://doco_web:8012/health
 ```
 
 #### List Active Sessions
 ```bash
-curl http://localhost:8010/sessions \
+curl http://localhost:8012/sessions \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -558,7 +558,7 @@ docker logs doco_mcp -f
 ### For n8n Workflows
 
 1. **Use HTTP Request Node** - More reliable than MCP Client
-2. **Port 8010** (Web API) - Better n8n compatibility
+2. **Port 8012** (Web API) - Better n8n compatibility
 3. **Store Tokens Securely** - Use n8n credentials manager
 4. **Handle Errors** - Check response status, implement retries
 5. **Use Proxy Mode** - For large PDFs to reduce payload size
@@ -687,7 +687,7 @@ docker logs doco_mcp -f
 
 ## Summary
 
-**Recommended for n8n**: Use HTTP REST API (port 8010) with HTTP Request nodes.
+**Recommended for n8n**: Use HTTP REST API (port 8012) with HTTP Request nodes.
 
 **Key Points**:
 - ✅ HTTP API is more reliable in n8n

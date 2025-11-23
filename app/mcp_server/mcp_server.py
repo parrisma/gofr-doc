@@ -1300,7 +1300,7 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
                 # Construct the download URL for the web server
                 # Priority: CLI flag > environment variable > default
                 web_server_host = web_url_override or os.getenv(
-                    "DOCO_WEB_URL", "http://localhost:8010"
+                    "DOCO_WEB_URL", "http://localhost:8012"
                 )
                 output.download_url = f"{web_server_host}/proxy/{output.proxy_guid}"
             elif proxy_url_mode == "guid":
@@ -1781,7 +1781,7 @@ starlette_app = CORSMiddleware(
 )
 
 
-async def main(host: str = "0.0.0.0", port: int = 8011) -> None:
+async def main(host: str = "0.0.0.0", port: int = 8010) -> None:
     import uvicorn
 
     logger.info("Starting document MCP server", host=host, port=port)

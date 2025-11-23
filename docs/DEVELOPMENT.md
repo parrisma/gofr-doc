@@ -417,8 +417,8 @@ pyright app test scripts
 **Test Servers Not Starting**
 ```bash
 # Check if ports are available
-lsof -i :8010  # Web server
-lsof -i :8011  # MCP server
+lsof -i :8012  # Web server
+lsof -i :8010  # MCP server
 
 # Kill existing processes
 kill -9 <PID>
@@ -480,8 +480,8 @@ export DOCO_MCPO_MODE=public
 - **Project Specification**: `docs/PROJECT_SPEC.md`
 - **Configuration Reference**: Run `python app/config_docs.py`
 - **API Documentation**: Start servers and visit:
-  - MCP: `http://localhost:8011/mcp`
-  - Web: `http://localhost:8010/docs`
+  - MCP: `http://localhost:8010/mcp`
+  - Web: `http://localhost:8012/docs`
 - **n8n Integration**: `docs/INTEGRATIONS.md`
 
 ## Getting Help

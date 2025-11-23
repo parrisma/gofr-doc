@@ -1,6 +1,6 @@
 #!/bin/bash
 # Start all DOCO servers in order with verification
-# Servers: MCP (8011) -> MCPO (8000) -> Web (8010) -> n8n (5678) -> OpenWebUI (9090)
+# Servers: MCP (8010) -> MCPO (8011) -> Web (8012) -> n8n (5678) -> OpenWebUI (9090)
 
 set -e  # Exit on error
 
@@ -15,9 +15,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-MCP_PORT=8011
-MCPO_PORT=8000
-WEB_PORT=8010
+MCP_PORT=8010
+MCPO_PORT=8011
+WEB_PORT=8012
 N8N_PORT=5678
 OPENWEBUI_PORT=9090
 
@@ -103,7 +103,7 @@ echo "  Starting DOCO Server Stack"
 echo "================================================================"
 echo ""
 
-# 1. MCP Server (8011)
+# 1. MCP Server (8010)
 log "Step 1/5: Starting MCP Server on port $MCP_PORT"
 bash scripts/run_mcp.sh >> "$LOG_FILE" 2>&1 &
 if check_server "MCP Server" "http://localhost:$MCP_PORT/" 30; then
@@ -113,7 +113,7 @@ else
     exit 1
 fi
 
-# 2. MCPO (8000) - depends on MCP
+# 2. MCPO (8011) - depends on MCP
 log "Step 2/5: Starting MCPO on port $MCPO_PORT"
 bash scripts/run_mcpo.sh >> "$LOG_FILE" 2>&1 &
 if check_server "MCPO" "http://localhost:$MCPO_PORT/openapi.json" 30; then
@@ -123,7 +123,7 @@ else
     exit 1
 fi
 
-# 3. Web Server (8010)
+# 3. Web Server (8012)
 log "Step 3/5: Starting Web Server on port $WEB_PORT"
 bash scripts/run_web.sh >> "$LOG_FILE" 2>&1 &
 if check_server "Web Server" "http://localhost:$WEB_PORT/ping" 30; then

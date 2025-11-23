@@ -29,8 +29,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.environ.get("DOCO_WEB_PORT", "8010")),
-        help="Port number to listen on (default: 8010, or DOCO_WEB_PORT env var)",
+        default=int(os.environ.get("DOCO_WEB_PORT", "8012")),
+        help="Port number to listen on (default: 8012, or DOCO_WEB_PORT env var)",
     )
     parser.add_argument(
         "--jwt-secret",

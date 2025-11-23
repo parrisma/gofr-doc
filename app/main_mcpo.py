@@ -40,14 +40,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mcp-port",
         type=int,
-        default=int(os.environ.get("DOCO_MCP_PORT", "8011")),
-        help="Port where MCP server is listening (default: 8011)",
+        default=int(os.environ.get("DOCO_MCP_PORT", "8010")),
+        help="Port where MCP server is listening (default: 8010)",
     )
     parser.add_argument(
         "--mcpo-port",
         type=int,
-        default=int(os.environ.get("DOCO_MCPO_PORT", "8000")),
-        help="Port for MCPO proxy to listen on (default: 8000)",
+        default=int(os.environ.get("DOCO_MCPO_PORT", "8011")),
+        help="Port for MCPO proxy to listen on (default: 8011)",
     )
     parser.add_argument(
         "--api-key",

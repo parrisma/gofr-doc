@@ -8,7 +8,7 @@ cd "$PROJECT_ROOT"
 TEMPLATES_DIR="test/render/data/docs/templates"
 FRAGMENTS_DIR="test/render/data/docs/fragments"
 STYLES_DIR="test/render/data/docs/styles"
-PORT=8010
+PORT=8012
 LOG_FILE="/tmp/web_server.log"
 
 # Kill any existing web server on this port

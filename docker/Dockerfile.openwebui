@@ -1,5 +1,17 @@
 FROM ghcr.io/open-webui/open-webui:latest
 
+# Install network utilities
+USER root
+RUN apt-get update && apt-get install -y \
+    iputils-ping \
+    curl \
+    wget \
+    netcat-openbsd \
+    dnsutils \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+USER 1000
+
 # Expose default Open WebUI port
 EXPOSE 8080
 

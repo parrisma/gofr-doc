@@ -6,13 +6,13 @@ MCPO (MCP-to-OpenAPI) wrapper for exposing doco MCP server as OpenAPI endpoints 
 
 ```bash
 # Start MCP server in public mode
-python app/main_mcp.py --port=8011 --no-auth
+python app/main_mcp.py --port=8010 --no-auth
 
 # Start MCPO wrapper (in another terminal)
-./scripts/mcpo_wrapper.sh --mode public --mcp-port 8011 --mcpo-port 8000
+./scripts/mcpo_wrapper.sh --mode public --mcp-port 8010 --mcpo-port 8011
 
 # Access OpenAPI docs
-open http://localhost:8000/docs
+open http://localhost:8011/docs
 ```
 
 ## Quick Start - Authenticated Mode
@@ -20,7 +20,7 @@ open http://localhost:8000/docs
 ```bash
 # Start MCP server with authentication
 export DOCO_JWT_SECRET="your-secret-key"
-python app/main_mcp.py --port=8011
+python app/main_mcp.py --port=8010
 
 # Generate a JWT token (or use existing one)
 export DOCO_JWT_TOKEN="your-jwt-token"
@@ -29,7 +29,7 @@ export DOCO_JWT_TOKEN="your-jwt-token"
 ./scripts/mcpo_wrapper.sh --mode auth --jwt-token "$DOCO_JWT_TOKEN"
 
 # Access OpenAPI docs
-open http://localhost:8000/docs
+open http://localhost:8011/docs
 ```
 
 ## Usage Options
@@ -44,7 +44,7 @@ open http://localhost:8000/docs
 ./scripts/mcpo_wrapper.sh --mode auth --jwt-token "your-token"
 
 # Custom ports
-./scripts/mcpo_wrapper.sh --mcp-port 8011 --mcpo-port 8000
+./scripts/mcpo_wrapper.sh --mcp-port 8010 --mcpo-port 8011
 ```
 
 ### 2. Python Entry Point
@@ -61,15 +61,15 @@ python app/main_mcpo.py --auth --auth-token "your-token"
 
 ```bash
 # Public mode
-uv tool run mcpo --port 8000 --api-key "changeme" \
+uv tool run mcpo --port 8011 --api-key "changeme" \
   --server-type "streamable-http" \
-  -- http://localhost:8011/mcp
+  -- http://localhost:8010/mcp
 
 # Authenticated mode
-uv tool run mcpo --port 8000 --api-key "changeme" \
+uv tool run mcpo --port 8011 --api-key "changeme" \
   --server-type "streamable-http" \
   --header '{"Authorization": "Bearer YOUR_TOKEN"}' \
-  -- http://localhost:8011/mcp
+  -- http://localhost:8010/mcp
 ```
 
 ## Environment Variables
@@ -77,8 +77,8 @@ uv tool run mcpo --port 8000 --api-key "changeme" \
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DOCO_MCPO_MODE` | Auth mode: `auth` or `public` | `public` |
-| `DOCO_MCP_PORT` | MCP server port | `8011` |
-| `DOCO_MCPO_PORT` | MCPO proxy port | `8000` |
+| `DOCO_MCP_PORT` | MCP server port | `8010` |
+| `DOCO_MCPO_PORT` | MCPO proxy port | `8011` |
 | `DOCO_MCPO_API_KEY` | API key for Open WebUI → MCPO | `changeme` |
 | `DOCO_JWT_TOKEN` | JWT token for MCPO → MCP | (none) |
 | `DOCO_MCP_HOST` | MCP server host | `localhost` |
@@ -88,7 +88,7 @@ uv tool run mcpo --port 8000 --api-key "changeme" \
 Once MCPO is running, configure Open WebUI to use the OpenAPI endpoint:
 
 1. Open WebUI Settings → Tools → Add OpenAPI Server
-2. Enter URL: `http://localhost:8000`
+2. Enter URL: `http://localhost:8011`
 3. Enter API Key: Value of `DOCO_MCPO_API_KEY` (default: `changeme`)
 4. Click "Add Server"
 
@@ -100,7 +100,7 @@ The doco tools will now be available in Open WebUI!
 Open WebUI → MCPO Proxy → doco MCP Server
    (HTTP)     (OpenAPI)      (Streamable HTTP)
               
-   Port 3000  Port 8000      Port 8011
+   Port 3000  Port 8011      Port 8010
 ```
 
 ### Authentication Flow
@@ -139,7 +139,7 @@ Create `config/mcpo_config.json` for advanced configuration:
   "mcpServers": {
     "doco": {
       "type": "streamable-http",
-      "url": "http://localhost:8011/mcp",
+      "url": "http://localhost:8010/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_TOKEN_HERE"
       }
@@ -150,7 +150,7 @@ Create `config/mcpo_config.json` for advanced configuration:
 
 Run with config file:
 ```bash
-uv tool run mcpo --config config/mcpo_config.json --port 8000
+uv tool run mcpo --config config/mcpo_config.json --port 8011
 ```
 
 ## Troubleshooting
@@ -164,8 +164,8 @@ uv tool run mcpo --version
 ```
 
 ### Connection refused
-- Check MCP server is running: `lsof -i :8011`
-- Verify MCP endpoint: `curl http://localhost:8011/mcp`
+- Check MCP server is running: `lsof -i :8010`
+- Verify MCP endpoint: `curl http://localhost:8010/mcp`
 
 ### Authentication errors
 - Verify JWT token is valid and not expired

@@ -15,11 +15,11 @@ and their environment variable mappings.
 #
 # Application Ports
 # -----------------
-# DOCO_MCP_PORT: MCP server port (default: 8011)
-# DOCO_WEB_PORT: Web server port (default: 8010)
-# DOCO_MCPO_PORT: MCPO wrapper port (default: 8000)
+# DOCO_MCP_PORT: MCP server port (default: 8010)
+# DOCO_WEB_PORT: Web server port (default: 8012)
+# DOCO_MCPO_PORT: MCPO wrapper port (default: 8011)
 #
-# DOCO_WEB_SERVER_URL: Base URL for web server (default: http://localhost:8010)
+# DOCO_WEB_SERVER_URL: Base URL for web server (default: http://localhost:8012)
 #   Used for: proxy document download URLs
 #
 # Authentication & Security
@@ -45,9 +45,9 @@ and their environment variable mappings.
 # CONFIGURATION DEFAULTS
 # =============================================================================
 
-DEFAULT_MCP_PORT = 8011
-DEFAULT_WEB_PORT = 8010
-DEFAULT_MCPO_PORT = 8000
+DEFAULT_MCP_PORT = 8010
+DEFAULT_WEB_PORT = 8012
+DEFAULT_MCPO_PORT = 8011
 DEFAULT_WEB_SERVER_URL = f"http://localhost:{DEFAULT_WEB_PORT}"
 DEFAULT_MCPO_MODE = "public"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -215,8 +215,8 @@ QUICK START
 ═══════════
 
 1. Minimal Setup (Development)
-   export DOCO_MCP_PORT=8011
-   export DOCO_WEB_PORT=8010
+   export DOCO_MCP_PORT=8010
+   export DOCO_WEB_PORT=8012
    python app/main_mcp.py
 
 2. Authenticated Setup (Production)

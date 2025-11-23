@@ -28,9 +28,9 @@ ENV PATH="/home/doco/.venv/bin:$PATH"
 RUN uv pip install -e .
 
 # Expose ports
-# 8010: HTTP REST API
-# 8011: MCP SSE Server
-EXPOSE 8010 8011
+# 8010: MCP SSE Server
+# 8012: HTTP REST API
+EXPOSE 8010 8012
 
 # Default command to run the MCP server
 CMD ["python", "-m", "app.main_mcp"]

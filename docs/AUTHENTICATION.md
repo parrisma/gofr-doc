@@ -32,7 +32,7 @@ Standard HTTP header approach - most secure and compatible.
 
 ```bash
 # Using curl
-curl -X POST http://localhost:8011/mcp/tools/call \
+curl -X POST http://localhost:8010/mcp/tools/call \
   -H "Authorization: Bearer eyJhbGc..." \
   -H "Content-Type: application/json" \
   -d '{"name": "create_document_session", "arguments": {...}}'
@@ -259,7 +259,7 @@ bash scripts/run_tests.sh --with-servers
 export TEST_TOKEN=$(python scripts/token_manager.py create --group test --expires 1 | grep "Bearer Token:" | cut -d' ' -f3)
 
 # 2. Test MCP endpoint
-curl -X POST http://localhost:8011/mcp/tools/call \
+curl -X POST http://localhost:8010/mcp/tools/call \
   -H "Authorization: Bearer $TEST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -268,7 +268,7 @@ curl -X POST http://localhost:8011/mcp/tools/call \
   }'
 
 # 3. Test Web API
-curl http://localhost:8010/templates \
+curl http://localhost:8012/templates \
   -H "Authorization: Bearer $TEST_TOKEN"
 ```
 
@@ -314,7 +314,7 @@ echo $DOCO_JWT_SECRET
 ```bash
 # List your group's sessions
 # (token automatically scopes to your group)
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8010/sessions
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8012/sessions
 
 # Sessions from other groups are invisible for security
 ```

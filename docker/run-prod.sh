@@ -1,12 +1,12 @@
 #!/bin/sh
 
 # Usage: ./run-prod.sh [WEB_PORT] [MCP_PORT]
-# Defaults: WEB_PORT=8010, MCP_PORT=8011
-# Example: ./run-prod.sh 9010 9011
+# Defaults: WEB_PORT=8012, MCP_PORT=8010
+# Example: ./run-prod.sh 9012 9010
 
 # Parse command line arguments
-WEB_PORT=${1:-8010}
-MCP_PORT=${2:-8011}
+WEB_PORT=${1:-8012}
+MCP_PORT=${2:-8010}
 
 # Create docker network if it doesn't exist
 echo "Checking for ai-net network..."
@@ -43,8 +43,8 @@ docker run -d \
 --name doco_prod \
 --network ai-net \
 -v doco_data:/home/doco/data \
--p $WEB_PORT:8010 \
--p $MCP_PORT:8011 \
+-p $WEB_PORT:8012 \
+-p $MCP_PORT:8010 \
 doco_prod:latest
 
 if docker ps -q -f name=doco_prod | grep -q .; then
@@ -64,8 +64,8 @@ if docker ps -q -f name=doco_prod | grep -q .; then
     echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
     echo ""
     echo "Access from ai-net (other containers):"
-    echo "  Web Server:    http://doco_prod:8010"
-    echo "  MCP Server:    http://doco_prod:8011/mcp"
+    echo "  Web Server:    http://doco_prod:8012"
+    echo "  MCP Server:    http://doco_prod:8010/mcp"
     echo ""
     echo "Data & Storage:"
     echo "  Volume:        doco_data"

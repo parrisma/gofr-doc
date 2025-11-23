@@ -19,8 +19,8 @@ class MCPOWrapper:
     def __init__(
         self,
         mcp_host: str = "localhost",
-        mcp_port: int = 8011,
-        mcpo_port: int = 8000,
+        mcp_port: int = 8010,
+        mcpo_port: int = 8011,
         mcpo_api_key: Optional[str] = None,
         auth_token: Optional[str] = None,
         use_auth: bool = False,
@@ -125,8 +125,8 @@ class MCPOWrapper:
 
 def start_mcpo_wrapper(
     mcp_host: str = "localhost",
-    mcp_port: int = 8011,
-    mcpo_port: int = 8000,
+    mcp_port: int = 8010,
+    mcpo_port: int = 8011,
     mcpo_api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
     use_auth: bool = False,
@@ -136,8 +136,8 @@ def start_mcpo_wrapper(
 
     Args:
         mcp_host: Host where MCP server is running (default: localhost)
-        mcp_port: Port where MCP server is listening (default: 8011)
-        mcpo_port: Port for MCPO proxy to listen on (default: 8000)
+        mcp_port: Port where MCP server is listening (default: 8010)
+        mcpo_port: Port for MCPO proxy to listen on (default: 8011)
         mcpo_api_key: API key for Open WebUI -> MCPO (default: from env or None for no auth)
         auth_token: JWT token for MCPO -> MCP (default: from env or None)
         use_auth: Whether to use authenticated mode (default: False)

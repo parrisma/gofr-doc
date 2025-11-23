@@ -72,7 +72,7 @@ This will:
 - Start a new container named `doco_dev`
 - Mount your local `~/devroot/doco` directory to `/home/doco/devroot/doco`
 - Mount your `~/.ssh` directory (read-only) for Git authentication
-- Expose port 8010 for the web server and 8011 for MCP server
+- Expose port 8012 for the web server and 8010 for MCP server
 
 **Connecting to the dev container:**
 
@@ -99,7 +99,7 @@ This script automatically:
 - Creates persistent data directory at `~/doco_data`
 - Mounts data directory for persistent session storage
 - Creates doco_net Docker network
-- Exposes configurable ports (default 8010, 8011)
+- Exposes configurable ports (default 8012, 8010)
 
 **Manual deployment:**
 ```bash
@@ -111,8 +111,8 @@ docker run -d \
   --name doco_prod \
   --network doco_net \
   -v ~/doco_data:/home/doco/devroot/doco/data \
+  -p 8012:8012 \
   -p 8010:8010 \
-  -p 8011:8011 \
   doco_prod:latest
 ```
 
@@ -207,8 +207,8 @@ docker run -d \
   --name doco_prod \
   -e DOCO_DATA_DIR=/data/doco \
   -v /host/path/to/data:/data/doco \
+  -p 8012:8012 \
   -p 8010:8010 \
-  -p 8011:8011 \
   doco_prod:latest
 ```
 
@@ -269,7 +269,7 @@ If you modify dependencies in `pyproject.toml`:
 - Check PDF conversion: `python -c "import weasyprint; print(weasyprint.__version__)"`
 
 ### Container Won't Start
-- Check if ports are in use: `lsof -i :8010` and `lsof -i :8011`
+- Check if ports are in use: `lsof -i :8012` and `lsof -i :8010`
 - View container logs: `docker logs doco_dev`
 
 ## Cleaning Up

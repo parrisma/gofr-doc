@@ -10,7 +10,7 @@ JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
 TOKEN_STORE="/tmp/doco_test_tokens.json"
 TEMPLATES_DIR="test/render/data/docs/templates"
 STYLES_DIR="test/render/data/docs/styles"
-PORT=8011
+PORT=8010
 LOG_FILE="/tmp/mcp_test_server.log"
 
 # Kill any existing MCP server on this port
@@ -26,7 +26,8 @@ python -m app.main_mcp \
     --token-store "$TOKEN_STORE" \
     --templates-dir "$TEMPLATES_DIR" \
     --styles-dir "$STYLES_DIR" \
-    --web-url "http://localhost:8010" \
+    --web-url "http://172.22.9.172:8012" \
+    --proxy-url-mode "url" \
     > "$LOG_FILE" 2>&1 &
 
 MCP_PID=$!

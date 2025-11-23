@@ -20,8 +20,8 @@ Start MCPO proxy for doco MCP server
 
 OPTIONS:
     --mode MODE          Authentication mode: 'auth' or 'public' (default: public)
-    --mcp-port PORT      MCP server port (default: 8011)
-    --mcpo-port PORT     MCPO proxy port (default: 8000)
+    --mcp-port PORT      MCP server port (default: 8010)
+    --mcpo-port PORT     MCPO proxy port (default: 8011)
     --api-key KEY        MCPO API key for Open WebUI (default: changeme)
     --jwt-token TOKEN    JWT token for MCP server auth (required for auth mode)
     --help               Show this help message
@@ -42,7 +42,7 @@ EXAMPLES:
     $(basename "$0") --mode auth --jwt-token "your-jwt-token"
 
     # Start with custom ports
-    $(basename "$0") --mcp-port 8011 --mcpo-port 8000
+    $(basename "$0") --mcp-port 8010 --mcpo-port 8011
 
     # Using environment variables
     export DOCO_MCPO_MODE=auth

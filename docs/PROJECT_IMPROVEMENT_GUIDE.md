@@ -59,7 +59,7 @@ app/
 - **Configuration Groups**: Tests (with/without servers) → Dev (with/without auth) → Production → Tools
 - **Debugger Support**: debugpy for Python, node-terminal for bash scripts
 - **Environment Variables**: Production uses env vars, dev uses inline test values
-- **Port Separation**: Dev ports (8012/8013) vs Production (8010/8011)
+- **Port Separation**: Dev ports differ from Production (MCP=8010, MCPO=8011, WEB=8012)
 
 ## Documentation Strategy
 
@@ -219,14 +219,14 @@ uv run black app/ test/
 uv run mypy app/
 
 # Start single server with debugging
-python -m app.main_mcp --no-auth --port 8011
+python -m app.main_mcp --no-auth --port 8010
 ```
 
 ## Key Metrics
 
 - **Test Count**: 300+ tests (all passing)
 - **Test Categories**: Unit, Integration, Security, Workflow, Concurrency
-- **Server Ports**: MCP 8011, Web 8010, MCPO 8000, n8n 5678, OpenWebUI 9090
+- **Server Ports**: MCP 8010, Web 8012, MCPO 8011, n8n 5678, OpenWebUI 9090
 - **Documentation Files**: 10 consolidated markdown files
 - **Launch Configurations**: 17 organized VS Code configs
 - **Python Version**: 3.11+ (async/await, Pydantic v2)

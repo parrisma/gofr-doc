@@ -551,7 +551,7 @@ print(response["data"]["proxy_guid"])
 
 ```bash
 # Render with proxy mode
-curl -X POST http://localhost:8010/render \
+curl -X POST http://localhost:8012/render \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
