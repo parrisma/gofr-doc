@@ -165,6 +165,7 @@ start_mcp_server() {
         --token-store="${DOCO_TOKEN_STORE}" \
         --templates-dir="${TEMPLATES_DIR}" \
         --styles-dir="${STYLES_DIR}" \
+        --web-url="http://localhost:${DOCO_WEB_PORT}" \
         > "${log_file}" 2>&1 &
     
     MCP_PID=$!

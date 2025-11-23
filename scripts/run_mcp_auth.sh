@@ -26,6 +26,7 @@ python -m app.main_mcp \
     --token-store "$TOKEN_STORE" \
     --templates-dir "$TEMPLATES_DIR" \
     --styles-dir "$STYLES_DIR" \
+    --web-url "http://localhost:8010" \
     > "$LOG_FILE" 2>&1 &
 
 MCP_PID=$!

@@ -62,6 +62,19 @@ if __name__ == "__main__":
         default=None,
         help="Path to styles directory (default: app/styles)",
     )
+    parser.add_argument(
+        "--web-url",
+        type=str,
+        default=None,
+        help="Web server base URL for proxy mode (default: http://localhost:8010, or DOCO_WEB_URL env var)",
+    )
+    parser.add_argument(
+        "--proxy-url-mode",
+        type=str,
+        choices=["guid", "url"],
+        default="url",
+        help="Proxy response mode: 'guid' returns only proxy_guid, 'url' returns both proxy_guid and full download_url (default: url)",
+    )
     args = parser.parse_args()
 
     # Create logger for startup messages
@@ -89,6 +102,8 @@ if __name__ == "__main__":
     mcp_server_module.auth_service = auth_service
     mcp_server_module.templates_dir_override = args.templates_dir
     mcp_server_module.styles_dir_override = args.styles_dir
+    mcp_server_module.web_url_override = args.web_url
+    mcp_server_module.proxy_url_mode = args.proxy_url_mode
     from app.mcp_server.mcp_server import main
 
     try:

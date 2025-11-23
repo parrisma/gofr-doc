@@ -81,6 +81,10 @@ logger: Logger = session_logger
 templates_dir_override: Optional[str] = None
 styles_dir_override: Optional[str] = None
 
+# Web server URL for proxy mode (set by main_mcp.py)
+web_url_override: Optional[str] = None
+proxy_url_mode: str = "url"  # "guid" or "url" - controls proxy response format
+
 auth_service: Optional[AuthService] = None  # Injected by entrypoint
 
 template_registry: Optional[TemplateRegistry] = None
@@ -1290,12 +1294,18 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
             proxy=payload.proxy,
         )
 
-        # If proxy mode, add download URL to the response
+        # If proxy mode, conditionally add download URL based on proxy_url_mode
         if payload.proxy and output.proxy_guid:
-            # Construct the download URL for the web server
-            # Default to localhost:8010 (web server port) but can be overridden via environment
-            web_server_host = os.getenv("DOCO_WEB_SERVER_URL", "http://localhost:8010")
-            output.download_url = f"{web_server_host}/proxy/{output.proxy_guid}"
+            if proxy_url_mode == "url":
+                # Construct the download URL for the web server
+                # Priority: CLI flag > environment variable > default
+                web_server_host = web_url_override or os.getenv(
+                    "DOCO_WEB_URL", "http://localhost:8010"
+                )
+                output.download_url = f"{web_server_host}/proxy/{output.proxy_guid}"
+            elif proxy_url_mode == "guid":
+                # In guid-only mode, clear download_url to return just the GUID
+                output.download_url = None
 
     except ValueError as exc:
         logger.warning("Rendering failed", error=str(exc))
