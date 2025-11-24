@@ -38,7 +38,7 @@ def mock_template_registry():
         """<html>
 <head><style>{{ css }}</style></head>
 <body>
-<h1>{{ global_params.get('title', 'Untitled') }}</h1>
+<h1>{{ title|default('Untitled') }}</h1>
 {% for fragment in fragments %}
 <div class="fragment">{{ fragment }}</div>
 {% endfor %}

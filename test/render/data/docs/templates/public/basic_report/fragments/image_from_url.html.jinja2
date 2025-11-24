@@ -3,7 +3,8 @@
 {% endif %}
 
 <div class="image-container" style="text-align: {{ alignment|default('center') }};">
-  <img src="{{ image_url }}" 
+  {# Use embedded data URI for HTML/PDF, fallback to URL for Markdown or if embedding failed #}
+  <img src="{{ embedded_data_uri|default(image_url) }}" 
        alt="{{ alt_text|default('Image') }}"
        {% if width %}width="{{ width }}"{% endif %}
        {% if height %}height="{{ height }}"{% endif %}

@@ -91,16 +91,28 @@ if __name__ == "__main__":
         logger.error("ERROR: --auth-token or DOCO_JWT_TOKEN required for authenticated mode")
         sys.exit(1)
 
-    mode_str = "authenticated" if use_auth else "public (no auth)"
+    mode_str = "AUTHENTICATED" if use_auth else "PUBLIC (NO AUTH)"
+
+    # Startup banner
+    logger.info("=" * 70)
+    logger.info("STARTING DOCO MCPO WRAPPER (OpenAPI Proxy)")
+    logger.info("=" * 70)
     logger.info(
-        f"Starting MCPO wrapper in {mode_str} mode",
+        "Configuration",
+        mode=mode_str,
         mcp_endpoint=f"http://{args.mcp_host}:{args.mcp_port}/mcp",
         mcpo_port=args.mcpo_port,
+        has_auth_token=bool(auth_token),
+        has_api_key=bool(args.api_key),
     )
+    logger.info("=" * 70)
 
     wrapper = None
     try:
         # Start MCPO wrapper
+        logger.info(
+            "🔌 Connecting to MCP server...", mcp_url=f"http://{args.mcp_host}:{args.mcp_port}/mcp"
+        )
         wrapper = start_mcpo_wrapper(
             mcp_host=args.mcp_host,
             mcp_port=args.mcp_port,
@@ -110,10 +122,13 @@ if __name__ == "__main__":
             use_auth=use_auth,
         )
 
-        logger.info(
-            "MCPO wrapper started successfully",
-            openapi_docs=f"http://localhost:{args.mcpo_port}/docs",
-        )
+        logger.info("=" * 70)
+        logger.info("✓ MCPO wrapper started successfully")
+        logger.info("=" * 70)
+        logger.info(f"📡 OpenAPI endpoint: http://localhost:{args.mcpo_port}")
+        logger.info(f"📚 API documentation: http://localhost:{args.mcpo_port}/docs")
+        logger.info(f"🔍 Health check: http://localhost:{args.mcpo_port}/health")
+        logger.info("=" * 70)
         logger.info("Press Ctrl+C to stop")
 
         # Wait for wrapper process

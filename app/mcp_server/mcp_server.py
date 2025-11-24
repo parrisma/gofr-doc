@@ -354,7 +354,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session identifier to check.",
+                        "description": "Session UUID to check (CRITICAL: Must be the EXACT 36-character UUID string from create_document_session including all dashes. Copy/paste only - never retype. Example format: 12345678-1234-1234-1234-123456789abc).",
                     },
                     "token": {"type": "string", "description": "Optional bearer token."},
                 },
@@ -568,7 +568,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session identifier from create_document_session.",
+                        "description": "Session UUID from create_document_session (CRITICAL: Use EXACT string character-for-character. UUIDs are case-sensitive 36-char strings with dashes at positions 8, 13, 18, 23. Any modification invalidates the UUID).",
                     },
                     "parameters": {
                         "type": "object",
@@ -620,7 +620,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session identifier from create_document_session.",
+                        "description": "Session UUID from create_document_session (CRITICAL: Copy this EXACT string - do not paraphrase, retype, or modify. Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx where x is hex digit 0-9 or a-f).",
                     },
                     "fragment_id": {
                         "type": "string",
@@ -706,7 +706,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session identifier from create_document_session.",
+                        "description": "Session UUID from create_document_session (CRITICAL: Must match EXACTLY - copy/paste the full 36-character UUID including dashes. Never modify or abbreviate).",
                     },
                     "image_url": {
                         "type": "string",
@@ -794,7 +794,10 @@ async def handle_list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "session_id": {"type": "string", "description": "Session identifier."},
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session UUID (CRITICAL: EXACT 36-character UUID from create_document_session. Copy/paste only - UUIDs have fixed format with dashes at positions 8,13,18,23).",
+                    },
                     "fragment_instance_guid": {
                         "type": "string",
                         "description": "Unique identifier for the specific fragment instance to remove (from add_fragment response or list_session_fragments).",
@@ -818,7 +821,10 @@ async def handle_list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "session_id": {"type": "string", "description": "Session identifier."},
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session UUID (CRITICAL: Use the EXACT string from create_document_session - copy/paste only, never retype. UUIDs must match character-for-character including dashes).",
+                    },
                     "token": {"type": "string", "description": "Bearer token if required."},
                 },
                 "required": ["session_id"],
@@ -840,7 +846,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session identifier to delete.",
+                        "description": "Session UUID to delete (CRITICAL: Must be the EXACT string from create_document_session response - do not modify any characters).",
                     },
                     "token": {"type": "string", "description": "Bearer token if required."},
                 },
@@ -855,10 +861,15 @@ async def handle_list_tools() -> List[Tool]:
                 "Returns: Rendered document content in requested format with metadata (format, session_id, render timestamp, success status). "
                 "FORMATS: 'html' (web display), 'pdf' (printable, base64-encoded), 'md' or 'markdown' (plain text with markdown). "
                 "STYLING: Optionally specify style_id from list_styles, or omit for default styling. "
-                "PROXY MODE: Set proxy=true to store the rendered document on the server and receive a proxy_guid instead of content. "
-                "  RESPONSE: Returns proxy_guid AND download_url. The download_url is the complete HTTP endpoint to retrieve the document from the web server. "
-                "  DOWNLOAD: Simply GET the download_url with your Authorization header to download the rendered document. "
-                "  BENEFITS: Reduces network overhead for large documents (PDFs); document stored server-side for later retrieval. "
+                "PROXY MODE: Set proxy=true to store rendered document on server and receive proxy_guid + download_url instead of full content. "
+                "  ⚠️ IMPORTANT: proxy_guid is NOT the same as session_id! The proxy_guid is a unique identifier for the stored rendered document. "
+                "  RESPONSE FIELDS: "
+                "    - proxy_guid: Unique GUID for THIS rendered document (different from session_id) "
+                "    - download_url: Complete HTTP URL to retrieve document: {web_server}/proxy/{proxy_guid} "
+                "    - content: Will be null when proxy=true "
+                "  RETRIEVAL: Use the download_url to GET the rendered document. The proxy_guid alone can also be used with /proxy/{proxy_guid} endpoint. "
+                "  BENEFITS: Reduces network overhead for large documents (PDFs); persistent server-side storage for later retrieval. "
+                "  EXAMPLE: get_document(session_id='abc-123', format='pdf', proxy=true) → returns proxy_guid='xyz-789' and download_url='http://server:8012/proxy/xyz-789' "
                 "ERROR HANDLING: If session not ready, verify global parameters are set and fragments added. If session_id not found, check the ID or create a new session. "
                 "TIP: You can call this multiple times with different formats to get the same document in different outputs. "
                 "GROUP SECURITY: Can only render documents from sessions in your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
@@ -869,7 +880,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session identifier from create_document_session.",
+                        "description": "Session UUID from create_document_session (CRITICAL: Must be EXACT 36-character string with dashes. Do not modify, shorten, or retype - copy/paste only. Wrong UUID = session not found error).",
                     },
                     "format": {
                         "type": "string",
@@ -1116,6 +1127,28 @@ async def _tool_add_image_fragment(arguments: Dict[str, Any]) -> ToolResponse:
             details=error_details,
         )
 
+    # DOWNLOAD IMAGE: For HTML/PDF embedding, download and create data URI
+    # For Markdown, we keep the original URL
+    embedded_data_uri = None
+    try:
+        import httpx
+        import base64
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(payload.image_url)
+            response.raise_for_status()
+
+            # Create data URI for embedding in HTML/PDF
+            image_bytes = response.content
+            content_type = validation_result.content_type or "image/png"
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+            embedded_data_uri = f"data:{content_type};base64,{image_base64}"
+
+            logger.info(f"Downloaded and embedded image: {len(image_bytes)} bytes")
+    except Exception as e:
+        logger.warning(f"Failed to download image for embedding: {e}. Will use URL fallback.")
+        # If download fails, we'll still proceed with URL-only mode
+
     # Build fragment parameters with validation metadata
     fragment_parameters = {
         "image_url": payload.image_url,
@@ -1123,6 +1156,10 @@ async def _tool_add_image_fragment(arguments: Dict[str, Any]) -> ToolResponse:
         "content_type": validation_result.content_type,
         "content_length": validation_result.content_length,
     }
+
+    # Add embedded data URI if successfully downloaded
+    if embedded_data_uri:
+        fragment_parameters["embedded_data_uri"] = embedded_data_uri
 
     if payload.title:
         fragment_parameters["title"] = payload.title
@@ -1424,160 +1461,81 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
         service_name="doco-document-service",
         version="1.21.0",
         workflow_overview=(
-            "The doco service helps you create structured documents through a multi-step workflow:\n"
-            "1. DISCOVERY: List templates and understand their requirements\n"
-            "2. SESSION CREATION: Create a document session based on a template\n"
-            "3. CONFIGURATION: Set global parameters (title, author, date, etc.)\n"
-            "4. CONTENT BUILDING: Add fragments (headings, paragraphs, tables, etc.) in sequence\n"
-            "5. RENDERING: Generate the final document in your chosen format (HTML, PDF, Markdown)\n\n"
-            "SECURITY & GROUP ISOLATION:\n"
-            "- JWT Authentication: Most tools require a Bearer token in the Authorization header\n"
-            "- Group-Based Isolation: Sessions are bound to your authenticated group\n"
-            "- Session Visibility: You can ONLY see and access sessions created by your group\n"
-            "- Cross-Group Protection: Attempts to access other groups' sessions return 'SESSION_NOT_FOUND'\n"
-            "- Discovery Tools: list_templates, get_template_details, list_styles do NOT require authentication\n"
-            "- Generic Errors: Error messages intentionally avoid revealing if sessions exist in other groups"
+            "WORKFLOW: DISCOVERY → SESSION → CONFIG → BUILD → RENDER\n"
+            "1. DISCOVERY: list_templates, get_template_details, list_template_fragments\n"
+            "2. SESSION: create_document_session\n"
+            "3. CONFIG: set_global_parameters (title, author, etc.)\n"
+            "4. BUILD: add_fragment repeatedly\n"
+            "5. RENDER: get_document (HTML/PDF/Markdown)\n\n"
+            "SECURITY: JWT Bearer token required for sessions. Group-isolated: you only see YOUR sessions.\n"
+            "Discovery tools (list_templates, get_template_details, list_styles) do NOT need auth."
         ),
         guid_persistence=(
-            "IMPORTANT - GUID Lifecycle Rules:\n\n"
-            "SESSION IDs:\n"
-            "- Created by: create_document_session\n"
-            "- Persist: Until you call abort_document_session or manually delete the session file\n"
-            "- Location: Stored in data/sessions/<session_id>.json\n"
-            "- CRITICAL: Save the exact session_id returned and use it in ALL subsequent calls\n\n"
-            "FRAGMENT INSTANCE GUIDs:\n"
-            "- Created by: add_fragment (returns fragment_instance_guid)\n"
-            "- Persist: As long as the parent session exists\n"
-            "- Purpose: Unique identifier to remove or reorder specific fragment instances\n"
-            "- CRITICAL: Each call to add_fragment creates a NEW guid, even for the same fragment_id\n"
-            "- Deleted: When you call remove_fragment or abort_document_session\n\n"
-            "PROXY GUIDs (Document Storage):\n"
-            "- Created by: get_document with proxy=true\n"
-            "- Persist: On server at data/proxy/<group>/<proxy_guid>.json\n"
-            "- Download: Retrieve via web server GET /proxy/{proxy_guid} endpoint\n"
-            "- Authentication: Include Authorization header (Bearer token) matching document's group\n"
-            "- Benefits: Avoid transmitting large documents over network; retrieve later on-demand\n\n"
-            "BEST PRACTICES:\n"
-            "- Always save session_id immediately after create_document_session\n"
-            "- Save fragment_instance_guid if you might need to remove that specific fragment later\n"
-            "- Don't try to reuse or guess GUIDs - they are UUIDs and must be copied exactly\n"
-            "- Use list_session_fragments to see all current fragment GUIDs in a session\n"
-            "- Use get_session_status to verify a session still exists before using it\n"
-            "- For proxy documents, save proxy_guid and include it in web download request"
+            "⚠️ CRITICAL: UUID HANDLING (36-char format only)\n"
+            "Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx | Example: 61ea2281-c8df-4719-b71e-56a1305352cc\n"
+            "✓ Copy/paste EXACT | ✗ Never retype (b71e ≠ b77e) | ✗ Never truncate | Case-sensitive\n\n"
+            "THREE GUID TYPES:\n"
+            "1. session_id: Document config (reusable, save immediately after create_document_session)\n"
+            "2. fragment_instance_guid: Unique per add_fragment call (use to remove specific fragments)\n"
+            "3. proxy_guid: One specific rendered output (DIFFERENT from session_id!)\n\n"
+            "PROXY MODE (session_id ≠ proxy_guid):\n"
+            "session_id = recipe (reusable) | proxy_guid = baked cake (one specific render)\n"
+            "One session → many proxy_guids (different formats/styles)\n"
+            "Download: GET /proxy/{proxy_guid} with Authorization header (NOT /proxy/{session_id}!)"
         ),
         common_pitfalls=[
-            "NOT SAVING session_id: Always save the exact session_id from create_document_session response",
-            "WRONG session_id: Don't try to guess or remember - copy the exact UUID string",
-            "SKIPPING global parameters: Call set_global_parameters BEFORE adding fragments",
-            "WRONG parameter names: Use get_template_details and get_fragment_details to see exact parameter names",
-            "ADDING fragments before globals: Template global parameters must be set first",
-            "NOT CHECKING errors: Read error messages - they tell you exactly what's wrong and how to fix it",
-            "REUSING OLD session_id: Sessions persist until deleted, but verify with get_session_status first",
-            "WRONG fragment_id: Use list_template_fragments to see valid fragment_id values for your template",
-            "CROSS-GROUP ACCESS: 'SESSION_NOT_FOUND' error often means you're trying to access another group's session",
-            "MISSING AUTHENTICATION: Session operations require JWT Bearer token - discovery tools do not",
-            "GROUP CONFUSION: list_active_sessions only shows YOUR group's sessions, not all sessions on the server",
-            "PROXY DOWNLOAD: When using proxy=true, save the returned proxy_guid and use it with web server GET /proxy/{proxy_guid} endpoint",
-            "PROXY AUTHENTICATION: Proxy document downloads require same Authorization header as MCP calls",
-            "TABLE COLUMN_WIDTHS: Total percentage must not exceed 100% (e.g., {0: '60%', 1: '50%'} = 110% will fail)",
-            "TABLE INDICES: All column/row indices are 0-based - first column is 0, not 1",
-            "TABLE FORMATTING: Use get_fragment_details to see exact format specs - 'currency:USD' not 'USD', 'decimal:2' not 'decimal2'",
-            "TABLE COLORS: Theme colors are lowercase ('primary', 'success') not capitalized; hex must include # symbol",
-            "TABLE SORT_BY: When has_header=true, you can use column name string; without header, must use column index (integer)",
-            "TABLE VALIDATION: Call validate_parameters with fragment_id='table' to catch errors before add_fragment - saves debugging time",
-            "IMAGE URL NOT TESTED: Always test image URLs in browser BEFORE calling add_image_fragment - validation happens immediately",
-            "IMAGE BEHIND LOGIN: URLs requiring authentication (cookies/headers) will fail - use publicly accessible URLs only",
-            "IMAGE WRONG CONTENT-TYPE: Ensure URL returns Content-Type: image/* header - HTML pages with <img> tags will be rejected",
-            "IMAGE HTTP VS HTTPS: Default requires HTTPS - set require_https=false only for local development (http://localhost)",
-            "IMAGE SIZE LIMITS: Default 10MB max - compress large images before hosting or use CDN with optimization",
-            "IMAGE DIMENSIONS: Setting both width AND height may distort aspect ratio - set one dimension to auto-scale proportionally",
-            "IMAGE VALIDATION ERRORS: Read error_code field for specific issue - each error includes recovery guidance in details",
+            "❌ Not saving session_id immediately after create_document_session",
+            "❌ Retyping/modifying UUIDs (b71e ≠ b77e) or truncating them (61ea2281-... invalid)",
+            "❌ Global parameters AFTER fragments (must be BEFORE) | ❌ Wrong parameter names",
+            "❌ Confusing session_id (config/reusable) with proxy_guid (rendered/one-time)",
+            "❌ Downloading proxy via /proxy/{session_id} instead of /proxy/{proxy_guid}",
+            "❌ Missing Authorization header on proxy downloads",
+            "❌ TABLE: Widths total >100% | 1-based indices (use 0-based) | Capitalized colors",
+            "❌ TABLE: Missing # in hex | Wrong format ('USD' not 'currency:USD') | sort_by column name when no header",
+            "❌ IMAGE: Not testing URL in browser first | Behind login | Missing image/* Content-Type",
+            "❌ IMAGE: HTTP without require_https=false | Both width AND height (distorts) | >10MB",
         ],
         example_workflows=[
             {
-                "name": "Basic Document Creation",
+                "name": "QUICK START: Create & Render Document",
                 "steps": [
-                    "1. list_templates → Find 'news_email' template",
-                    "2. get_template_details(template_id='news_email') → See it needs: email_subject, heading_title, company_name",
-                    "3. create_document_session(template_id='news_email') → Get session_id='abc-123...'",
-                    "4. set_global_parameters(session_id='abc-123...', parameters={email_subject: 'Weekly News', ...})",
-                    "5. list_template_fragments(template_id='news_email') → See available: heading, news_story, paragraph",
-                    "6. add_fragment(session_id='abc-123...', fragment_id='heading', parameters={text: 'Top Story', level: 2})",
-                    "7. add_fragment(session_id='abc-123...', fragment_id='news_story', parameters={...})",
-                    "8. get_document(session_id='abc-123...', format='markdown') → Get rendered document",
+                    "1. list_templates() → Pick a template_id",
+                    "2. create_document_session(template_id='...') → Save session_id",
+                    "3. set_global_parameters(session_id='...', parameters={title: '...', author: '...'})",
+                    "4. add_fragment(session_id='...', fragment_id='heading', parameters={text: '...'})",
+                    "5. add_fragment(session_id='...', fragment_id='paragraph', parameters={text: '...'})",
+                    "6. get_document(session_id='...', format='html') → Get HTML directly",
+                    "",
+                    "ALTERNATIVE (for large docs):",
+                    "6. get_document(session_id='...', format='pdf', proxy=true) → Save proxy_guid",
+                    "7. GET /proxy/{proxy_guid} with Authorization header → Download PDF from web",
                 ],
             },
             {
-                "name": "Parameter Validation Before Adding",
+                "name": "Validate Before Adding",
                 "steps": [
-                    "1. validate_parameters(template_id='news_email', parameter_type='global', parameters={...})",
-                    "2. Check is_valid=true before calling set_global_parameters",
-                    "3. validate_parameters(template_id='news_email', parameter_type='fragment', fragment_id='news_story', parameters={...})",
-                    "4. Check is_valid=true before calling add_fragment",
+                    "validate_parameters(template_id='...', parameter_type='global', parameters={...})",
+                    "validate_parameters(template_id='...', parameter_type='fragment', fragment_id='...', parameters={...})",
+                    "Only call add_fragment/set_global_parameters if is_valid=true",
                 ],
             },
             {
-                "name": "Session Recovery",
+                "name": "Table with Formatting",
                 "steps": [
-                    "1. list_active_sessions → See all existing sessions",
-                    "2. get_session_status(session_id='...') → Check if session is ready",
-                    "3. list_session_fragments(session_id='...') → See what content already exists",
-                    "4. Continue adding fragments or render if ready",
+                    "create_document_session → set_global_parameters → add_fragment with:",
+                    "  rows: [[...]], has_header: true, column_widths: {0: '40%', 1: '30%', 2: '30%'},",
+                    "  column_alignments: ['left','right','right'],",
+                    "  number_format: {1: 'currency:USD', 2: 'decimal:2'},",
+                    "  header_color: 'primary', zebra_stripe: true",
                 ],
             },
             {
-                "name": "Large Document Rendering with Proxy Mode",
+                "name": "Add Images",
                 "steps": [
-                    "1. Create and build session normally (create_document_session → add_fragment → etc)",
-                    "2. get_document(session_id='...', format='pdf', proxy=true) → Returns proxy_guid instead of full PDF",
-                    "3. Save the proxy_guid from response",
-                    "4. Later, construct web request: GET /proxy/{proxy_guid} with Authorization header",
-                    "5. Download document from web server endpoint with your Bearer token",
-                ],
-            },
-            {
-                "name": "Financial Table with All Features",
-                "steps": [
-                    "1. create_document_session(template_id='basic_report') → Get session_id",
-                    "2. set_global_parameters(session_id='...', parameters={title: 'Q4 Report', author: 'Finance Team'})",
-                    "3. get_fragment_details(template_id='basic_report', fragment_id='table') → Review 14 available parameters",
-                    "4. validate_parameters(template_id='basic_report', parameter_type='fragment', fragment_id='table', parameters={...}) → Pre-check table data",
-                    "5. add_fragment(session_id='...', fragment_id='table', parameters={\n"
-                    "     'rows': [['Product','Q1','Q2','Q3'], ['Widget','1500','1800','2100'], ['Gadget','900','1200','1400']],\n"
-                    "     'has_header': True, 'title': 'Quarterly Sales', 'width': 'full',\n"
-                    "     'column_alignments': ['left','right','right','right'],\n"
-                    "     'column_widths': {0: '40%', 1: '20%', 2: '20%', 3: '20%'},\n"
-                    "     'border_style': 'full', 'zebra_stripe': True,\n"
-                    "     'number_format': {1: 'currency:USD', 2: 'currency:USD', 3: 'currency:USD'},\n"
-                    "     'header_color': 'primary', 'stripe_color': 'light',\n"
-                    "     'highlight_columns': {3: 'success'},\n"
-                    "     'sort_by': {'column': 3, 'order': 'desc'}\n"
-                    "   }) → Adds formatted, sortable table with colors and precise widths",
-                    "6. get_document(session_id='...', format='html') → Render with all table features applied",
-                ],
-            },
-            {
-                "name": "Adding Images with Validation",
-                "steps": [
-                    "1. create_document_session(template_id='basic_report') → Get session_id",
-                    "2. set_global_parameters(session_id='...', parameters={title: 'Product Catalog'})",
-                    "3. Test image URL in browser first → Verify it loads and shows Content-Type: image/*",
-                    "4. add_image_fragment(session_id='...', image_url='https://cdn.example.com/product.png', title='Product Photo', width=600, alignment='center') → URL validated immediately",
-                    "5. If validation fails, check error_code and details → Fix URL or image format",
-                    "6. add_fragment(session_id='...', fragment_id='paragraph', parameters={text: 'Description here'})",
-                    "7. get_document(session_id='...', format='pdf') → Image embedded as base64 in PDF",
-                ],
-            },
-            {
-                "name": "Handling Image Validation Errors",
-                "steps": [
-                    "1. add_image_fragment returns error → Read error_code and details fields",
-                    "2. INVALID_IMAGE_URL (non-HTTPS) → Either use HTTPS URL or set require_https=false",
-                    "3. IMAGE_URL_NOT_ACCESSIBLE (404/403) → Verify URL in browser, check if public, not behind login",
-                    "4. INVALID_IMAGE_CONTENT_TYPE → Ensure URL returns image/png, image/jpeg, etc., not text/html or application/pdf",
-                    "5. IMAGE_TOO_LARGE (>10MB) → Compress image using online tools or image editing software",
-                    "6. IMAGE_URL_TIMEOUT → Try different CDN, check if server is slow/down",
-                    "7. Once fixed, retry add_image_fragment with corrected URL",
+                    "1. Test image URL in browser first (must show Content-Type: image/*)",
+                    "2. add_image_fragment(session_id='...', image_url='https://...', width=600, alignment='center')",
+                    "3. If error, check error_code: INVALID_IMAGE_URL (use HTTPS), IMAGE_URL_NOT_ACCESSIBLE (check if public)",
+                    "4. INVALID_IMAGE_CONTENT_TYPE (wrong format), IMAGE_TOO_LARGE (compress)",
                 ],
             },
         ],
@@ -1592,43 +1550,28 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
                     "get_fragment_details",
                     "list_styles",
                 ],
-                "description": "Use these to explore what's available before creating sessions",
             },
             {
-                "category": "SESSION MANAGEMENT",
+                "category": "SESSION",
                 "tools": [
                     "create_document_session",
                     "list_active_sessions",
                     "get_session_status",
                     "abort_document_session",
                 ],
-                "description": "Create, track, and manage document sessions",
             },
+            {"category": "VALIDATION", "tools": ["validate_parameters"]},
             {
-                "category": "VALIDATION",
-                "tools": ["validate_parameters"],
-                "description": "Check parameters before saving to catch errors early",
-            },
-            {
-                "category": "CONTENT BUILDING",
+                "category": "BUILD",
                 "tools": [
                     "set_global_parameters",
                     "add_fragment",
+                    "add_image_fragment",
                     "remove_fragment",
                     "list_session_fragments",
                 ],
-                "description": "Build document content step by step - ALWAYS set globals before adding fragments",
             },
-            {
-                "category": "RENDERING",
-                "tools": ["get_document"],
-                "description": "Generate the final document in your chosen format",
-            },
-            {
-                "category": "HELP",
-                "tools": ["help"],
-                "description": "Get comprehensive workflow documentation",
-            },
+            {"category": "RENDER", "tools": ["get_document"]},
         ],
     )
 
@@ -1659,11 +1602,11 @@ HANDLERS: Dict[str, ToolHandler] = {
 
 @app.call_tool()
 async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> ToolResponse:
-    logger.info("Tool invocation received", tool=name)
+    logger.info("Tool invocation started", tool=name, args_keys=list(arguments.keys()))
 
     handler = HANDLERS.get(name)
     if handler is None:
-        logger.warning("Unknown tool requested", tool=name)
+        logger.error("Unknown tool requested", tool=name, available_tools=list(HANDLERS.keys()))
         available_tools = list(HANDLERS.keys())
         return _error(
             code="UNKNOWN_TOOL",
@@ -1688,25 +1631,48 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> ToolResponse
         logger.debug("No auth provided, defaulting to public group", tool=name)
 
     try:
-        return await handler(arguments)
+        result = await handler(arguments)
+        logger.info("Tool completed successfully", tool=name)
+        return result
     except PydanticValidationError as exc:
-        logger.warning("Payload validation error", tool=name, errors=len(exc.errors()))
+        logger.error(
+            "Validation error",
+            tool=name,
+            error_count=len(exc.errors()),
+            errors=[{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()],
+        )
         return _handle_validation_error(exc)
     except DocoError as exc:
         # Use the error mapper to convert structured domain exceptions
-        logger.warning("Domain error", tool=name, code=exc.code, error=str(exc))
+        logger.error(
+            "Domain error",
+            tool=name,
+            error_code=exc.code,
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+        )
         error_response = map_error_for_mcp(exc)
         return [_json_text({"status": "error", **error_response})]
     except ValueError as exc:
         # Legacy support for any remaining ValueError exceptions
-        logger.warning("Business rule violation", tool=name, error=str(exc))
+        logger.error(
+            "Business rule violation",
+            tool=name,
+            error_type="ValueError",
+            error=str(exc),
+        )
         return _error(
             code="INVALID_OPERATION",
             message=str(exc),
             recovery="Review the error message, adjust the request, and try again.",
         )
     except Exception as exc:  # pragma: no cover - defensive guard
-        logger.error("Unexpected tool failure", tool=name, error=str(exc))
+        logger.error(
+            "Unexpected tool failure",
+            tool=name,
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
         return _error(
             code="UNEXPECTED_ERROR",
             message=f"Unexpected error: {exc}",

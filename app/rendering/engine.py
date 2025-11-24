@@ -173,11 +173,13 @@ class RenderingEngine:
                 rendered_fragments.append({"html": fragment_html})
 
         # Render main document
-        html_content = template.render(
-            global_params=session.global_parameters or {},
-            fragments=rendered_fragments,
-            css=css_content,
-        )
+        # Unpack global_parameters to top-level template variables (title, author, etc.)
+        template_context = {
+            **(session.global_parameters or {}),  # Unpack global params to top level
+            "fragments": rendered_fragments,
+            "css": css_content,
+        }
+        html_content = template.render(**template_context)
 
         return html_content
 

@@ -75,6 +75,13 @@ if __name__ == "__main__":
         default="url",
         help="Proxy response mode: 'guid' returns only proxy_guid, 'url' returns both proxy_guid and full download_url (default: url)",
     )
+    parser.add_argument(
+        "--transport",
+        type=str,
+        choices=["http", "sse"],
+        default="http",
+        help="Transport mode: 'http' for HTTP/REST, 'sse' for Server-Sent Events (default: http)",
+    )
     args = parser.parse_args()
 
     # Create logger for startup messages
@@ -92,9 +99,16 @@ if __name__ == "__main__":
     auth_service = None
     if jwt_secret:
         auth_service = AuthService(secret_key=jwt_secret, token_store_path=token_store_path)
-        startup_logger.info("Authentication service initialized", jwt_enabled=True)
+        startup_logger.info(
+            "Authentication service initialized",
+            jwt_enabled=True,
+            token_store=token_store_path,
+        )
     else:
-        startup_logger.info("Authentication disabled", jwt_enabled=False)
+        startup_logger.warning(
+            "Authentication DISABLED - running in no-auth mode (INSECURE)",
+            jwt_enabled=False,
+        )
 
     # Import and configure mcp_server with auth service
     import app.mcp_server.mcp_server as mcp_server_module
@@ -107,15 +121,29 @@ if __name__ == "__main__":
     from app.mcp_server.mcp_server import main
 
     try:
+        startup_logger.info("=" * 70)
+        startup_logger.info("STARTING DOCO MCP SERVER")
+        startup_logger.info("=" * 70)
         startup_logger.info(
-            "Starting MCP server",
+            "Configuration",
             host=args.host,
             port=args.port,
-            transport="Streamable HTTP",
-            jwt_enabled=True,
+            transport=args.transport.upper(),
+            jwt_enabled=auth_service is not None,
+            proxy_mode=args.proxy_url_mode.upper(),
+            web_url=args.web_url or "http://localhost:8012",
+            templates_dir=args.templates_dir or "(default)",
+            styles_dir=args.styles_dir or "(default)",
         )
+        startup_logger.info("=" * 70)
+        startup_logger.info(f"MCP endpoint: http://{args.host}:{args.port}/mcp")
+        if args.transport == "sse":
+            startup_logger.info(f"SSE endpoint: http://{args.host}:{args.port}/sse")
+        startup_logger.info("=" * 70)
         asyncio.run(main(host=args.host, port=args.port))
+        startup_logger.info("=" * 70)
         startup_logger.info("MCP server shutdown complete")
+        startup_logger.info("=" * 70)
     except KeyboardInterrupt:
         startup_logger.info("Shutdown complete")
         sys.exit(0)

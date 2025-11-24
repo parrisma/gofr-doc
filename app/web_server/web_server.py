@@ -190,17 +190,20 @@ class DocoWebServer:
                 {status: "ok", timestamp: ISO8601, service: "doco"}
             """
             current_time = datetime.now().isoformat()
-            self.logger.debug("Ping request received", timestamp=current_time)
-            return JSONResponse(
+            self.logger.info("GET /ping", timestamp=current_time)
+            result = JSONResponse(
                 content={"status": "ok", "timestamp": current_time, "service": "doco"}
             )
+            self.logger.info("/ping completed", status=200)
+            return result
 
         @self.app.get("/templates")
         async def list_templates(group: Optional[str] = None):
             """List available templates."""
-            self.logger.info("List templates request", group=group)
+            self.logger.info("GET /templates", group=group or "(all)")
             try:
                 templates = self.template_registry.list_templates(group=group)
+                self.logger.info("/templates completed", count=len(templates), status=200)
                 return JSONResponse(
                     content={
                         "status": "success",
@@ -216,16 +219,22 @@ class DocoWebServer:
                     }
                 )
             except Exception as e:
-                self.logger.error(f"Error listing templates: {str(e)}")
+                self.logger.error(
+                    "/templates failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    status=500,
+                )
                 raise HTTPException(status_code=500, detail=str(e))
 
         @self.app.get("/templates/{template_id}")
         async def get_template_details(template_id: str):
             """Get detailed information about a template."""
-            self.logger.info("Get template details request", template_id=template_id)
+            self.logger.info("GET /templates/{id}", template_id=template_id)
             try:
                 details = self.template_registry.get_template_details(template_id)
                 if not details:
+                    self.logger.warning("Template not found", template_id=template_id, status=404)
                     raise HTTPException(
                         status_code=404,
                         detail={
@@ -413,11 +422,12 @@ class DocoWebServer:
             proxy = body.get("proxy", False)
 
             self.logger.info(
-                "Render document request",
+                "POST /render/{id}",
                 session_id=session_id,
                 format=output_format,
                 proxy=proxy,
                 auth_group=auth_group,
+                style_id=style_id or "(default)",
             )
 
             try:
@@ -449,11 +459,13 @@ class DocoWebServer:
                 )
 
                 self.logger.info(
-                    "Document rendered successfully",
+                    "/render completed successfully",
                     session_id=session_id,
                     format=output_format,
                     proxy=proxy,
+                    proxy_guid=output_obj.proxy_guid if proxy else None,
                     output_size=len(output_obj.content) if output_obj.content else 0,
+                    status=200,
                 )
 
                 # Return appropriate response based on format and proxy mode
@@ -488,13 +500,31 @@ class DocoWebServer:
                             }
                         )
 
-            except HTTPException:
+            except HTTPException as e:
+                self.logger.error(
+                    "/render failed (HTTP)",
+                    session_id=session_id,
+                    status_code=e.status_code,
+                    detail=str(e.detail),
+                )
                 raise
             except ValueError as e:
-                self.logger.error(f"Invalid format or request: {str(e)}")
+                self.logger.error(
+                    "/render failed (validation)",
+                    session_id=session_id,
+                    error=str(e),
+                    error_type="ValueError",
+                    status=400,
+                )
                 raise HTTPException(status_code=400, detail=str(e))
             except Exception as e:
-                self.logger.error(f"Error rendering document: {str(e)}")
+                self.logger.error(
+                    "/render failed (unexpected)",
+                    session_id=session_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    status=500,
+                )
                 raise HTTPException(status_code=500, detail=str(e))
 
         # ====================================================================
@@ -524,13 +554,17 @@ class DocoWebServer:
             """
             auth_group = self._verify_auth_header(x_auth_token, authorization)
 
+            self.logger.info(
+                "GET /proxy/{guid}", proxy_guid=proxy_guid, auth_group=auth_group or "(none)"
+            )
+
             try:
                 # Retrieve the proxy document (reads stored group from metadata)
                 output_obj = await self.engine.get_proxy_document(proxy_guid)
                 stored_group = output_obj.group
 
                 self.logger.info(
-                    "Proxy document retrieval request",
+                    "Proxy document retrieved",
                     proxy_guid=proxy_guid,
                     stored_group=stored_group,
                     auth_group=auth_group,

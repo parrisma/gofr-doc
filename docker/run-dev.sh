@@ -1,12 +1,13 @@
 #!/bin/sh
 
-# Usage: ./run-dev.sh [WEB_PORT] [MCP_PORT]
-# Defaults: WEB_PORT=8012, MCP_PORT=8010
-# Example: ./run-dev.sh 9012 9010
+# Usage: ./run-dev.sh [WEB_PORT] [MCP_PORT] [MCPO_PORT]
+# Defaults: WEB_PORT=8012, MCP_PORT=8010, MCPO_PORT=8011
+# Example: ./run-dev.sh 9012 9010 9011
 
 # Parse command line arguments
 WEB_PORT=${1:-8012}
 MCP_PORT=${2:-8010}
+MCPO_PORT=${3:-8011}
 
 # Create docker network if it doesn't exist
 echo "Checking for ai-net network..."
@@ -39,7 +40,7 @@ echo "Starting new doco_dev container..."
 echo "Mounting $HOME/devroot/doco to /home/doco/devroot/doco in container"
 echo "Mounting $HOME/.ssh to /home/doco/.ssh (read-only) in container"
 echo "Mounting doco_data_dev volume to /home/doco/devroot/doco/data in container"
-echo "Web port: $WEB_PORT, MCP port: $MCP_PORT"
+echo "Web port: $WEB_PORT, MCP port: $MCP_PORT, MCPO port: $MCPO_PORT"
 
 docker run -d \
 --name doco_dev \
@@ -48,8 +49,9 @@ docker run -d \
 -v "$HOME/devroot/doco":/home/doco/devroot/doco \
 -v "$HOME/.ssh:/home/doco/.ssh:ro" \
 -v doco_data_dev:/home/doco/devroot/doco/data \
--p $WEB_PORT:8012 \
 -p $MCP_PORT:8010 \
+-p $MCPO_PORT:8011 \
+-p $WEB_PORT:8012 \
 doco_dev:latest
 
 if docker ps -q -f name=doco_dev | grep -q .; then
@@ -71,10 +73,12 @@ if docker ps -q -f name=doco_dev | grep -q .; then
     echo "Access from Host Machine:"
     echo "  Web Server:    http://localhost:$WEB_PORT"
     echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
+    echo "  MCPO Proxy:    http://localhost:$MCPO_PORT"
     echo ""
     echo "Access from ai-net (other containers):"
     echo "  Web Server:    http://doco_dev:8012"
     echo "  MCP Server:    http://doco_dev:8010/mcp"
+    echo "  MCPO Proxy:    http://doco_dev:8011"
     echo ""
     echo "Data & Storage:"
     echo "  Volume:        doco_data_dev"

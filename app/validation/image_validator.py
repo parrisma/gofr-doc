@@ -85,13 +85,15 @@ class ImageURLValidator:
                 },
             )
 
-        # 2. HEAD request to validate accessibility and content-type
+        # 2. GET request to validate accessibility and content-type
+        # Note: Using GET instead of HEAD because some servers (e.g., proxy endpoints)
+        # don't support HEAD and return 405 Method Not Allowed
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 if self.logger:
                     self.logger.info("Validating image URL", url=url)
 
-                response = await client.head(url, follow_redirects=True)
+                response = await client.get(url, follow_redirects=True)
 
                 # Check status code
                 if response.status_code != 200:

@@ -6,8 +6,8 @@ set -e
 
 # Default configuration
 MODE="${DOCO_MCPO_MODE:-public}"
-MCP_PORT="${DOCO_MCP_PORT:-8011}"
-MCPO_PORT="${DOCO_MCPO_PORT:-8000}"
+MCP_PORT="${DOCO_MCP_PORT:-8010}"
+MCPO_PORT="${DOCO_MCPO_PORT:-8011}"
 MCPO_API_KEY="${DOCO_MCPO_API_KEY:-changeme}"
 MCP_HOST="${DOCO_MCP_HOST:-localhost}"
 

@@ -1,0 +1,200 @@
+#!/bin/bash
+# Restart all Doco servers in correct order: MCP → MCPO → Web
+# Usage: ./restart_servers.sh [--kill-all]
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Default ports
+MCP_PORT=8010
+MCPO_PORT=8011
+WEB_PORT=8012
+
+# Data directories for test mode
+TEMPLATES_DIR="$PROJECT_ROOT/test/render/data/docs/templates"
+FRAGMENTS_DIR="$PROJECT_ROOT/test/render/data/docs/fragments"
+STYLES_DIR="$PROJECT_ROOT/test/render/data/docs/styles"
+
+echo "======================================================================="
+echo "Doco Server Restart Script"
+echo "======================================================================="
+
+# Kill existing processes
+echo ""
+echo "Step 1: Stopping existing servers..."
+echo "-----------------------------------------------------------------------"
+
+# Function to kill process and wait for it to die
+kill_and_wait() {
+    local pattern=$1
+    local name=$2
+    local pids=$(pgrep -f "$pattern")
+    
+    if [ -z "$pids" ]; then
+        echo "  - No $name running"
+        return 0
+    fi
+    
+    echo "  Killing $name (PIDs: $pids)..."
+    pkill -9 -f "$pattern"
+    
+    # Wait for processes to die (max 10 seconds)
+    for i in {1..20}; do
+        if ! pgrep -f "$pattern" >/dev/null 2>&1; then
+            echo "  ✓ $name stopped"
+            return 0
+        fi
+        sleep 0.5
+    done
+    
+    echo "  ⚠ Warning: $name may still be running"
+    return 1
+}
+
+# Kill servers in reverse order (Web, MCPO, MCP)
+kill_and_wait "app.main_web" "Web server"
+kill_and_wait "mcpo --port" "MCPO wrapper"
+kill_and_wait "app.main_mcpo" "MCPO wrapper process"
+kill_and_wait "app.main_mcp" "MCP server"
+
+# Wait for ports to be released
+echo ""
+echo "Waiting for ports to be released..."
+sleep 2
+
+# Check if --kill-all flag is set
+if [ "$1" == "--kill-all" ]; then
+    echo ""
+    echo "Kill-all mode: Exiting without restart"
+    echo "======================================================================="
+    exit 0
+fi
+
+# Start MCP server
+echo ""
+echo "Step 2: Starting MCP server (port $MCP_PORT)..."
+echo "-----------------------------------------------------------------------"
+
+cd "$PROJECT_ROOT"
+nohup python -m app.main_mcp \
+    --no-auth \
+    --host 0.0.0.0 \
+    --port $MCP_PORT \
+    --templates-dir "$TEMPLATES_DIR" \
+    --styles-dir "$STYLES_DIR" \
+    --web-url "http://localhost:$WEB_PORT" \
+    > /tmp/doco_mcp.log 2>&1 &
+
+MCP_PID=$!
+echo "  MCP server starting (PID: $MCP_PID)"
+echo "  Log: /tmp/doco_mcp.log"
+
+# Wait for MCP to be ready by checking if it responds to requests
+echo "  Waiting for MCP to be ready..."
+for i in {1..30}; do
+    # MCP requires specific headers, just check if port is responding
+    if curl -s -X GET http://localhost:$MCP_PORT/mcp/ \
+        -H "Accept: application/json, text/event-stream" \
+        2>&1 | grep -q "jsonrpc"; then
+        echo "  ✓ MCP server ready"
+        break
+    fi
+    sleep 1
+    if [ $i -eq 30 ]; then
+        echo "  ✗ ERROR: MCP server failed to start"
+        tail -20 /tmp/doco_mcp.log
+        exit 1
+    fi
+done
+
+# Start MCPO wrapper
+echo ""
+echo "Step 3: Starting MCPO wrapper (port $MCPO_PORT)..."
+echo "-----------------------------------------------------------------------"
+
+nohup python -m app.main_mcpo \
+    --no-auth \
+    --mcp-port $MCP_PORT \
+    --mcpo-port $MCPO_PORT \
+    > /tmp/doco_mcpo.log 2>&1 &
+
+MCPO_PID=$!
+echo "  MCPO wrapper starting (PID: $MCPO_PID)"
+echo "  Log: /tmp/doco_mcpo.log"
+
+# Wait for MCPO to be ready by calling ping endpoint
+echo "  Waiting for MCPO to be ready..."
+for i in {1..30}; do
+    if curl -s -X POST http://localhost:$MCPO_PORT/ping \
+        -H "Content-Type: application/json" \
+        -d '{}' 2>&1 | grep -q '"status":"success"'; then
+        echo "  ✓ MCPO wrapper ready"
+        break
+    fi
+    sleep 1
+    if [ $i -eq 30 ]; then
+        echo "  ✗ ERROR: MCPO wrapper failed to start"
+        tail -20 /tmp/doco_mcpo.log
+        exit 1
+    fi
+done
+
+# Start Web server
+echo ""
+echo "Step 4: Starting Web server (port $WEB_PORT)..."
+echo "-----------------------------------------------------------------------"
+
+nohup python -m app.main_web \
+    --no-auth \
+    --host 0.0.0.0 \
+    --port $WEB_PORT \
+    --templates-dir "$TEMPLATES_DIR" \
+    --fragments-dir "$FRAGMENTS_DIR" \
+    --styles-dir "$STYLES_DIR" \
+    > /tmp/doco_web.log 2>&1 &
+
+WEB_PID=$!
+echo "  Web server starting (PID: $WEB_PID)"
+echo "  Log: /tmp/doco_web.log"
+
+# Wait for Web server to be ready by calling ping endpoint
+echo "  Waiting for Web server to be ready..."
+for i in {1..30}; do
+    if curl -s http://localhost:$WEB_PORT/ping 2>&1 | grep -q '"status":"ok"'; then
+        echo "  ✓ Web server ready"
+        break
+    fi
+    sleep 1
+    if [ $i -eq 30 ]; then
+        echo "  ✗ ERROR: Web server failed to start"
+        tail -20 /tmp/doco_web.log
+        exit 1
+    fi
+done
+
+# Summary
+echo ""
+echo "======================================================================="
+echo "All servers started successfully!"
+echo "======================================================================="
+echo ""
+echo "Access URLs:"
+echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
+echo "  MCPO Proxy:    http://localhost:$MCPO_PORT"
+echo "  Web Server:    http://localhost:$WEB_PORT"
+echo ""
+echo "Process IDs:"
+echo "  MCP:   $MCP_PID"
+echo "  MCPO:  $MCPO_PID"
+echo "  Web:   $WEB_PID"
+echo ""
+echo "Logs:"
+echo "  MCP:   /tmp/doco_mcp.log"
+echo "  MCPO:  /tmp/doco_mcpo.log"
+echo "  Web:   /tmp/doco_web.log"
+echo ""
+echo "To stop all servers: $0 --kill-all"
+echo "To view logs: tail -f /tmp/doco_*.log"
+echo "======================================================================="

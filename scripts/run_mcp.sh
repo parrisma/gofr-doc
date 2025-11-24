@@ -16,11 +16,12 @@ pkill -f "main_mcp.*--port $PORT" 2>/dev/null
 pkill -f "python.*main_mcp.py" 2>/dev/null
 sleep 1
 
-# Start MCP server in no-auth mode
-echo "Starting MCP server in no-auth mode..."
+# Start MCP server in no-auth mode with HTTP transport (URL mode)
+echo "Starting MCP server in no-auth mode with HTTP transport..."
 uv run python -m app.main_mcp \
     --no-auth \
     --port "$PORT" \
+    --transport http \
     --templates-dir "$TEMPLATES_DIR" \
     --styles-dir "$STYLES_DIR" \
     --web-url "http://172.22.9.172:8012" \

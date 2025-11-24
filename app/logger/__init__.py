@@ -21,9 +21,10 @@ Usage:
 from .interface import Logger
 from .default_logger import DefaultLogger
 from .console_logger import ConsoleLogger
+import logging
 
 # Shared logger instance for modules that just need basic console logging
-session_logger: Logger = ConsoleLogger()
+session_logger: Logger = ConsoleLogger(level=logging.DEBUG)
 
 __all__ = [
     "Logger",
@@ -31,4 +32,3 @@ __all__ = [
     "ConsoleLogger",
     "session_logger",
 ]
-

@@ -85,6 +85,7 @@ class MCPOWrapper:
             mcp_url=f"http://{self.mcp_host}:{self.mcp_port}/mcp",
             mcpo_port=self.mcpo_port,
             use_auth=self.use_auth,
+            command=" ".join(cmd),
         )
 
         try:
@@ -94,9 +95,14 @@ class MCPOWrapper:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            logger.info("MCPO proxy started", pid=self.process.pid)
+            logger.info(
+                "MCPO proxy process started",
+                pid=self.process.pid,
+                mcpo_port=self.mcpo_port,
+                mcp_url=f"http://{self.mcp_host}:{self.mcp_port}/mcp",
+            )
         except Exception as e:
-            logger.error("Failed to start MCPO proxy", error=str(e))
+            logger.error("Failed to start MCPO proxy", error=str(e), error_type=type(e).__name__)
             raise
 
     def stop(self) -> None:
@@ -107,13 +113,35 @@ class MCPOWrapper:
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                logger.warning("MCPO proxy did not terminate, killing")
+                logger.warning("MCPO proxy did not terminate gracefully, forcing shutdown")
                 self.process.kill()
             self.process = None
 
     def is_running(self) -> bool:
         """Check if MCPO proxy is running"""
-        return self.process is not None and self.process.poll() is None
+        if self.process is None:
+            return False
+
+        returncode = self.process.poll()
+        if returncode is not None:
+            # Process exited - capture output for debugging
+            stdout, stderr = "", ""
+            try:
+                stdout, stderr = self.process.communicate(timeout=1)
+            except Exception:
+                pass
+
+            logger.error(
+                "MCPO proxy process exited unexpectedly",
+                pid=self.process.pid,
+                returncode=returncode,
+                mcpo_port=self.mcpo_port,
+                mcp_url=f"http://{self.mcp_host}:{self.mcp_port}/mcp",
+                stdout=stdout[:500] if stdout else "(empty)",
+                stderr=stderr[:500] if stderr else "(empty)",
+            )
+            return False
+        return True
 
     async def run_async(self) -> None:
         """Run MCPO proxy and wait for it to complete"""

@@ -8,7 +8,11 @@ cd "$PROJECT_ROOT"
 MCP_PORT=8010
 MCPO_PORT=8011
 MCP_HOST="localhost"
-LOG_FILE="/tmp/mcpo_server.log"
+LOG_DIR="/tmp/mcpo_logs"
+LOG_FILE="$LOG_DIR/mcpo_main.log"
+
+# Create log directory
+mkdir -p "$LOG_DIR"
 
 # Wait for MCP server to be available
 echo "Checking if MCP server is ready at http://${MCP_HOST}:${MCP_PORT}..."

@@ -82,6 +82,10 @@ fragments:
         type: boolean
         description: Whether HTTPS is required (injected automatically)
         required: false
+      - name: embedded_data_uri
+        type: string
+        description: Base64-encoded data URI of downloaded image for HTML/PDF embedding (injected automatically, Markdown uses image_url instead)
+        required: false
   - fragment_id: table
     name: Table
     description: Display tabular data with optional header row and title

@@ -404,7 +404,9 @@ dependencies = [
     { name = "mcp" },
     { name = "mcpo" },
     { name = "pydantic" },
+    { name = "pydf" },
     { name = "pyjwt" },
+    { name = "pypdf" },
     { name = "pyright" },
     { name = "pyyaml" },
     { name = "sse-starlette" },
@@ -443,7 +445,9 @@ requires-dist = [
     { name = "mcp", specifier = ">=0.9.0" },
     { name = "mcpo", specifier = ">=0.0.19" },
     { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pydf", specifier = ">=12" },
     { name = "pyjwt", specifier = ">=2.8.0" },
+    { name = "pypdf", specifier = ">=6.4.0" },
     { name = "pyright", specifier = ">=1.1.407" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
@@ -1086,6 +1090,12 @@ wheels = [
 ]
 
 [[package]]
+name = "pydf"
+version = "12"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/27/8174d7338be329ea3aabb185a3a19860ea97b8e223b78b21511df529e0fe/pydf-12.tar.gz", hash = "sha256:7f47a7c3abfceb1ac04fc009ded538df1ae449c31203962a1471a4eb3bf21439", size = 13537, upload-time = "2015-04-03T15:30:30.914Z" }
+
+[[package]]
 name = "pydyf"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1115,6 +1125,15 @@ wheels = [
 [package.optional-dependencies]
 crypto = [
     { name = "cryptography" },
+]
+
+[[package]]
+name = "pypdf"
+version = "6.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/01/f7510cc6124f494cfbec2e8d3c2e1a20d4f6c18622b0c03a3a70e968bacb/pypdf-6.4.0.tar.gz", hash = "sha256:4769d471f8ddc3341193ecc5d6560fa44cf8cd0abfabf21af4e195cc0c224072", size = 5276661, upload-time = "2025-11-23T14:04:43.185Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/f2/9c9429411c91ac1dd5cd66780f22b6df20c64c3646cdd1e6d67cf38579c4/pypdf-6.4.0-py3-none-any.whl", hash = "sha256:55ab9837ed97fd7fcc5c131d52fcc2223bc5c6b8a1488bbf7c0e27f1f0023a79", size = 329497, upload-time = "2025-11-23T14:04:41.448Z" },
 ]
 
 [[package]]

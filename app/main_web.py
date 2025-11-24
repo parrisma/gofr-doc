@@ -81,9 +81,16 @@ if __name__ == "__main__":
     auth_service = None
     if jwt_secret:
         auth_service = AuthService(secret_key=jwt_secret, token_store_path=token_store_path)
-        logger.info("Authentication service initialized", jwt_enabled=True)
+        logger.info(
+            "Authentication service initialized",
+            jwt_enabled=True,
+            token_store=token_store_path,
+        )
     else:
-        logger.warning("⚠️ Auth disabled: running in no-auth mode (insecure)")
+        logger.warning(
+            "Authentication DISABLED - running in no-auth mode (INSECURE)",
+            jwt_enabled=False,
+        )
 
     # Initialize server
     # Note: AuthService is injected for token verification
@@ -96,15 +103,28 @@ if __name__ == "__main__":
     )
 
     try:
+        logger.info("=" * 70)
+        logger.info("STARTING DOCO WEB SERVER (REST API)")
+        logger.info("=" * 70)
         logger.info(
-            "Starting web server",
+            "Configuration",
             host=args.host,
             port=args.port,
             transport="HTTP REST API",
             jwt_enabled=not args.no_auth,
+            templates_dir=args.templates_dir or "(default)",
+            fragments_dir=args.fragments_dir or "(default)",
+            styles_dir=args.styles_dir or "(default)",
         )
-        uvicorn.run(server.app, host=args.host, port=args.port)
+        logger.info("=" * 70)
+        logger.info(f"API endpoint: http://{args.host}:{args.port}")
+        logger.info(f"API documentation: http://{args.host}:{args.port}/docs")
+        logger.info(f"Health check: http://{args.host}:{args.port}/health")
+        logger.info("=" * 70)
+        uvicorn.run(server.app, host=args.host, port=args.port, log_level="info")
+        logger.info("=" * 70)
         logger.info("Web server shutdown complete")
+        logger.info("=" * 70)
     except KeyboardInterrupt:
         logger.info("Web server stopped by user")
         sys.exit(0)
