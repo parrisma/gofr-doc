@@ -43,13 +43,13 @@ def temp_proxy_dir():
 @pytest.fixture
 def temp_templates_dir():
     """Use test templates directory."""
-    return str(Path(__file__).parent.parent / "render" / "data" / "docs" / "templates")
+    return str(Path(__file__).parent.parent / "data" / "docs" / "templates")
 
 
 @pytest.fixture
 def temp_styles_dir():
     """Use test styles directory."""
-    return str(Path(__file__).parent.parent / "render" / "data" / "docs" / "styles")
+    return str(Path(__file__).parent.parent / "data" / "docs" / "styles")
 
 
 @pytest.fixture

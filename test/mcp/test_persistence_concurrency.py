@@ -41,7 +41,7 @@ def temp_sessions_dir():
 @pytest.fixture
 def temp_templates_dir():
     """Use the test templates directory for schema validation."""
-    templates_dir = Path(__file__).parent.parent / "render" / "data" / "docs" / "templates"
+    templates_dir = Path(__file__).parent.parent / "data" / "docs" / "templates"
     return str(templates_dir)
 
 

@@ -1,15 +1,17 @@
 #!/bin/bash
 # Run Web server without authentication (no-auth mode)
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/doco.env"
+cd "$DOCO_ROOT"
 
 # Configuration for no-auth mode
-TEMPLATES_DIR="test/render/data/docs/templates"
-FRAGMENTS_DIR="test/render/data/docs/fragments"
-STYLES_DIR="test/render/data/docs/styles"
-PORT=8012
-LOG_FILE="/tmp/web_server.log"
+export DOCO_ENV=TEST
+TEMPLATES_DIR="$DOCO_TEMPLATES"
+FRAGMENTS_DIR="$DOCO_FRAGMENTS"
+STYLES_DIR="$DOCO_STYLES"
+PORT="$DOCO_WEB_PORT"
+LOG_FILE="$DOCO_LOGS/web_server.log"
 
 # Kill any existing web server on this port
 echo "Stopping any existing web server on port $PORT..."

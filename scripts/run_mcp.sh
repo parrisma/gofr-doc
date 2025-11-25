@@ -1,14 +1,16 @@
 #!/bin/bash
 # Run MCP server without authentication (no-auth mode)
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/doco.env"
+cd "$DOCO_ROOT"
 
 # Configuration for no-auth mode
-TEMPLATES_DIR="test/render/data/docs/templates"
-STYLES_DIR="test/render/data/docs/styles"
-PORT=8010
-LOG_FILE="/tmp/mcp_server.log"
+export DOCO_ENV=TEST
+TEMPLATES_DIR="$DOCO_TEMPLATES"
+STYLES_DIR="$DOCO_STYLES"
+PORT="$DOCO_MCP_PORT"
+LOG_FILE="$DOCO_LOGS/mcp_server.log"
 
 # Kill any existing MCP server on this port
 echo "Stopping any existing MCP server on port $PORT..."

@@ -1,24 +1,49 @@
 #!/bin/bash
 # Restart all Doco servers in correct order: MCP → MCPO → Web
-# Usage: ./restart_servers.sh [--kill-all]
+# Usage: ./restart_servers.sh [--kill-all] [--env PROD|TEST]
+# Default: TEST environment using test/data
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Default ports
-MCP_PORT=8010
-MCPO_PORT=8011
-WEB_PORT=8012
+# Source centralized configuration (defaults to TEST)
+export DOCO_ENV="${DOCO_ENV:-PROD}"  # Default to PROD for this script
+source "$SCRIPT_DIR/doco.env"
 
-# Data directories for test mode
-TEMPLATES_DIR="$PROJECT_ROOT/test/render/data/docs/templates"
-FRAGMENTS_DIR="$PROJECT_ROOT/test/render/data/docs/fragments"
-STYLES_DIR="$PROJECT_ROOT/test/render/data/docs/styles"
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --env)
+            export DOCO_ENV="$2"
+            shift 2
+            ;;
+        --kill-all)
+            KILL_ALL=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Re-source after DOCO_ENV may have changed
+source "$SCRIPT_DIR/doco.env"
+
+# Use variables from doco.env
+MCP_PORT="$DOCO_MCP_PORT"
+MCPO_PORT="$DOCO_MCPO_PORT"
+WEB_PORT="$DOCO_WEB_PORT"
+TEMPLATES_DIR="$DOCO_TEMPLATES"
+FRAGMENTS_DIR="$DOCO_FRAGMENTS"
+STYLES_DIR="$DOCO_STYLES"
 
 echo "======================================================================="
 echo "Doco Server Restart Script"
+echo "Environment: $DOCO_ENV"
+echo "Data Root: $DOCO_DATA"
 echo "======================================================================="
 
 # Kill existing processes
@@ -65,7 +90,7 @@ echo "Waiting for ports to be released..."
 sleep 2
 
 # Check if --kill-all flag is set
-if [ "$1" == "--kill-all" ]; then
+if [ "$KILL_ALL" = true ]; then
     echo ""
     echo "Kill-all mode: Exiting without restart"
     echo "======================================================================="
@@ -77,19 +102,19 @@ echo ""
 echo "Step 2: Starting MCP server (port $MCP_PORT)..."
 echo "-----------------------------------------------------------------------"
 
-cd "$PROJECT_ROOT"
-nohup python -m app.main_mcp \
+cd "$DOCO_ROOT"
+nohup uv run python -m app.main_mcp \
     --no-auth \
     --host 0.0.0.0 \
     --port $MCP_PORT \
     --templates-dir "$TEMPLATES_DIR" \
     --styles-dir "$STYLES_DIR" \
     --web-url "http://localhost:$WEB_PORT" \
-    > /tmp/doco_mcp.log 2>&1 &
+    > "$DOCO_LOGS/doco_mcp.log" 2>&1 &
 
 MCP_PID=$!
 echo "  MCP server starting (PID: $MCP_PID)"
-echo "  Log: /tmp/doco_mcp.log"
+echo "  Log: $DOCO_LOGS/doco_mcp.log"
 
 # Wait for MCP to be ready by checking if it responds to requests
 echo "  Waiting for MCP to be ready..."
@@ -104,7 +129,7 @@ for i in {1..30}; do
     sleep 1
     if [ $i -eq 30 ]; then
         echo "  ✗ ERROR: MCP server failed to start"
-        tail -20 /tmp/doco_mcp.log
+        tail -20 "$DOCO_LOGS/doco_mcp.log"
         exit 1
     fi
 done
@@ -114,15 +139,15 @@ echo ""
 echo "Step 3: Starting MCPO wrapper (port $MCPO_PORT)..."
 echo "-----------------------------------------------------------------------"
 
-nohup python -m app.main_mcpo \
+nohup uv run python -m app.main_mcpo \
     --no-auth \
     --mcp-port $MCP_PORT \
     --mcpo-port $MCPO_PORT \
-    > /tmp/doco_mcpo.log 2>&1 &
+    > "$DOCO_LOGS/doco_mcpo.log" 2>&1 &
 
 MCPO_PID=$!
 echo "  MCPO wrapper starting (PID: $MCPO_PID)"
-echo "  Log: /tmp/doco_mcpo.log"
+echo "  Log: $DOCO_LOGS/doco_mcpo.log"
 
 # Wait for MCPO to be ready by calling ping endpoint
 echo "  Waiting for MCPO to be ready..."
@@ -136,7 +161,7 @@ for i in {1..30}; do
     sleep 1
     if [ $i -eq 30 ]; then
         echo "  ✗ ERROR: MCPO wrapper failed to start"
-        tail -20 /tmp/doco_mcpo.log
+        tail -20 "$DOCO_LOGS/doco_mcpo.log"
         exit 1
     fi
 done
@@ -146,18 +171,18 @@ echo ""
 echo "Step 4: Starting Web server (port $WEB_PORT)..."
 echo "-----------------------------------------------------------------------"
 
-nohup python -m app.main_web \
+nohup uv run python -m app.main_web \
     --no-auth \
     --host 0.0.0.0 \
     --port $WEB_PORT \
     --templates-dir "$TEMPLATES_DIR" \
     --fragments-dir "$FRAGMENTS_DIR" \
     --styles-dir "$STYLES_DIR" \
-    > /tmp/doco_web.log 2>&1 &
+    > "$DOCO_LOGS/doco_web.log" 2>&1 &
 
 WEB_PID=$!
 echo "  Web server starting (PID: $WEB_PID)"
-echo "  Log: /tmp/doco_web.log"
+echo "  Log: $DOCO_LOGS/doco_web.log"
 
 # Wait for Web server to be ready by calling ping endpoint
 echo "  Waiting for Web server to be ready..."
@@ -169,7 +194,7 @@ for i in {1..30}; do
     sleep 1
     if [ $i -eq 30 ]; then
         echo "  ✗ ERROR: Web server failed to start"
-        tail -20 /tmp/doco_web.log
+        tail -20 "$DOCO_LOGS/doco_web.log"
         exit 1
     fi
 done
@@ -191,10 +216,10 @@ echo "  MCPO:  $MCPO_PID"
 echo "  Web:   $WEB_PID"
 echo ""
 echo "Logs:"
-echo "  MCP:   /tmp/doco_mcp.log"
-echo "  MCPO:  /tmp/doco_mcpo.log"
-echo "  Web:   /tmp/doco_web.log"
+echo "  MCP:   $DOCO_LOGS/doco_mcp.log"
+echo "  MCPO:  $DOCO_LOGS/doco_mcpo.log"
+echo "  Web:   $DOCO_LOGS/doco_web.log"
 echo ""
 echo "To stop all servers: $0 --kill-all"
-echo "To view logs: tail -f /tmp/doco_*.log"
+echo "To view logs: tail -f $DOCO_LOGS/doco_*.log"
 echo "======================================================================="

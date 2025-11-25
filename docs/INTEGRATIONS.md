@@ -477,7 +477,7 @@ Expected: SSE stream with tools list
 
 **Solution**: Generate new token:
 ```bash
-python scripts/token_manager.py create --group n8n --expires 30
+./scripts/token_manager.sh create --group n8n --expires 30
 ```
 
 #### AUTH_FAILED - Invalid Token
@@ -487,7 +487,7 @@ python scripts/token_manager.py create --group n8n --expires 30
 **Solution**: Verify JWT secret matches:
 ```bash
 echo $DOCO_JWT_SECRET
-python scripts/token_manager.py verify <token>
+./scripts/token_manager.sh verify --token <token>
 ```
 
 ### Docker Networking
@@ -538,7 +538,7 @@ curl http://localhost:8012/sessions \
 
 #### Verify Token
 ```bash
-python scripts/token_manager.py verify <token>
+./scripts/token_manager.sh verify --token <token>
 ```
 
 #### Check Server Logs

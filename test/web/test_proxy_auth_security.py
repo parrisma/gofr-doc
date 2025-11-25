@@ -48,9 +48,9 @@ def auth_service(temp_token_store):
 @pytest.fixture
 def client_with_auth(auth_service):
     """Create a test client for the web server with authentication enabled"""
-    templates_dir = str(Path(__file__).parent.parent / "render" / "data" / "docs" / "templates")
-    fragments_dir = str(Path(__file__).parent.parent / "render" / "data" / "docs" / "fragments")
-    styles_dir = str(Path(__file__).parent.parent / "render" / "data" / "docs" / "styles")
+    templates_dir = str(Path(__file__).parent.parent / "data" / "docs" / "templates")
+    fragments_dir = str(Path(__file__).parent.parent / "data" / "docs" / "fragments")
+    styles_dir = str(Path(__file__).parent.parent / "data" / "docs" / "styles")
 
     server = DocoWebServer(
         templates_dir=templates_dir,
@@ -65,7 +65,7 @@ def client_with_auth(auth_service):
 @pytest.fixture
 def session_manager():
     """Create a session manager for test setup"""
-    templates_dir = str(Path(__file__).parent.parent / "render" / "data" / "docs" / "templates")
+    templates_dir = str(Path(__file__).parent.parent / "data" / "docs" / "templates")
     sessions_dir = get_default_sessions_dir()
 
     session_store = SessionStore(sessions_dir)

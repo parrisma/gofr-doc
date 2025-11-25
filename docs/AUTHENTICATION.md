@@ -62,11 +62,12 @@ Backward compatible - token passed in tool arguments.
 ### Creating Tokens
 ```bash
 # Create token for a group (expires in 30 days)
-python scripts/token_manager.py create --group engineering --expires 30
+./scripts/token_manager.sh create --group engineering --expires 30
 
 # Output:
 # Token created successfully!
-# Bearer Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# Token:
+# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # Group: engineering
 # Expires: 2025-12-23 10:30:45
 ```
@@ -74,7 +75,7 @@ python scripts/token_manager.py create --group engineering --expires 30
 ### Listing Tokens
 ```bash
 # View all active tokens
-python scripts/token_manager.py list
+./scripts/token_manager.sh list
 
 # Output shows: Group, Created, Expires, Status
 ```
@@ -82,16 +83,16 @@ python scripts/token_manager.py list
 ### Revoking Tokens
 ```bash
 # Revoke a specific token
-python scripts/token_manager.py revoke <token>
+./scripts/token_manager.sh revoke --token <token>
 
 # Revoke all tokens for a group
-python scripts/token_manager.py revoke --group engineering
+./scripts/token_manager.sh revoke --group engineering
 ```
 
 ### Verifying Tokens
 ```bash
 # Check token validity and decode claims
-python scripts/token_manager.py verify <token>
+./scripts/token_manager.sh verify --token <token>
 
 # Shows: Group, Issued At, Expires, Valid (yes/no)
 ```
@@ -301,7 +302,7 @@ python scripts/token_manager.py create --group yourgroup --expires 30
 **Solution**:
 ```bash
 # Verify token
-python scripts/token_manager.py verify <token>
+./scripts/token_manager.sh verify --token <token>
 
 # Check JWT secret matches between token creation and server
 echo $DOCO_JWT_SECRET

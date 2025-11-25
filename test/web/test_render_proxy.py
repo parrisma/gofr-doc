@@ -27,7 +27,7 @@ import uuid
 @pytest.fixture
 def client():
     """Create a test client for the web server"""
-    test_data_dir = Path(__file__).parent.parent / "render" / "data" / "docs"
+    test_data_dir = Path(__file__).parent.parent / "data" / "docs"
     from app.auth import AuthService
 
     auth_service = AuthService(
@@ -47,7 +47,7 @@ def client():
 @pytest.fixture
 def session_manager():
     """Create a session manager for test setup"""
-    test_data_dir = Path(__file__).parent.parent / "render" / "data" / "docs"
+    test_data_dir = Path(__file__).parent.parent / "data" / "docs"
     session_store = SessionStore(base_dir=get_default_sessions_dir(), logger=session_logger)
     template_registry = TemplateRegistry(str(test_data_dir / "templates"), session_logger)
     return SessionManager(

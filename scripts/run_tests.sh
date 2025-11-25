@@ -9,23 +9,23 @@
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
-# Test configuration constants
-export DOCO_JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
-export DOCO_TOKEN_STORE="/tmp/doco_test_tokens.json"
-export DOCO_MCP_PORT="8010"
-export DOCO_WEB_PORT="8012"
-
-# Test data directories (relative to project root)
-TEST_DATA_ROOT="test/render/data/docs"
-TEMPLATES_DIR="${TEST_DATA_ROOT}/templates"
-FRAGMENTS_DIR="${TEST_DATA_ROOT}/fragments"
-STYLES_DIR="${TEST_DATA_ROOT}/styles"
-STORAGE_DIR="test/render/data/storage"
-
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
+
+# Source centralized configuration
+export DOCO_ENV=TEST
+source "$SCRIPT_DIR/doco.env"
+
+# Test configuration constants
+export DOCO_JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
+
+# Use variables from doco.env
+TEMPLATES_DIR="$DOCO_TEMPLATES"
+FRAGMENTS_DIR="$DOCO_FRAGMENTS"
+STYLES_DIR="$DOCO_STYLES"
+STORAGE_DIR="$DOCO_STORAGE"
 
 # Colors for output
 RED='\033[0;31m'
@@ -36,6 +36,7 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}=== DOCO Test Runner ===${NC}"
 echo "Project root: ${PROJECT_ROOT}"
+echo "Data root: ${DOCO_DATA}"
 echo "JWT Secret: ${DOCO_JWT_SECRET:0:20}..."
 echo "MCP Port: ${DOCO_MCP_PORT}"
 echo "Web Port: ${DOCO_WEB_PORT}"
@@ -64,7 +65,7 @@ if [ -d "data/sessions" ]; then
 fi
 
 # Purge storage
-python scripts/storage_manager.py purge --age-days=0 --yes 2>/dev/null || \
+"$SCRIPT_DIR/storage_manager.sh" storage purge --age-days=0 --yes 2>/dev/null || \
     echo "  (storage purge skipped - no existing data)"
 
 echo -e "${GREEN}Cleanup complete${NC}"
@@ -159,7 +160,7 @@ start_mcp_server() {
     
     free_port "${DOCO_MCP_PORT}"
     
-    nohup python app/main_mcp.py \
+    nohup uv run python app/main_mcp.py \
         --port="${DOCO_MCP_PORT}" \
         --jwt-secret="${DOCO_JWT_SECRET}" \
         --token-store="${DOCO_TOKEN_STORE}" \
@@ -207,7 +208,7 @@ start_web_server() {
     
     free_port "${DOCO_WEB_PORT}"
     
-    nohup python app/main_web.py \
+    nohup uv run python app/main_web.py \
         --port="${DOCO_WEB_PORT}" \
         --jwt-secret="${DOCO_JWT_SECRET}" \
         --token-store="${DOCO_TOKEN_STORE}" \
@@ -244,7 +245,7 @@ start_web_server() {
 }
 
 # Parse command line arguments
-START_SERVERS=false
+START_SERVERS=true  # Always start servers by default
 STOP_ONLY=false
 CLEANUP_ONLY=false
 PYTEST_ARGS=()
@@ -309,10 +310,10 @@ echo -e "${GREEN}=== Running Tests ===${NC}"
 set +e
 if [ ${#PYTEST_ARGS[@]} -eq 0 ]; then
     # Default: run all tests
-    python -m pytest test/ -v
+    uv run python -m pytest test/ -v
 else
     # Run with custom arguments
-    python -m pytest "${PYTEST_ARGS[@]}"
+    uv run python -m pytest "${PYTEST_ARGS[@]}"
 fi
 TEST_EXIT_CODE=$?
 set -e

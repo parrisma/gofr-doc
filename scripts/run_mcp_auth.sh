@@ -2,16 +2,18 @@
 # Run MCP server with authentication enabled for testing
 # Uses test JWT secret and token store that matches conftest.py configuration
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/doco.env"
+cd "$DOCO_ROOT"
 
 # Configuration (matches conftest.py TEST_JWT_SECRET and TEST_TOKEN_STORE_PATH)
+export DOCO_ENV=TEST
 JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
-TOKEN_STORE="/tmp/doco_test_tokens.json"
-TEMPLATES_DIR="test/render/data/docs/templates"
-STYLES_DIR="test/render/data/docs/styles"
-PORT=8010
-LOG_FILE="/tmp/mcp_test_server.log"
+TOKEN_STORE="$DOCO_TOKEN_STORE"
+TEMPLATES_DIR="$DOCO_TEMPLATES"
+STYLES_DIR="$DOCO_STYLES"
+PORT="$DOCO_MCP_PORT"
+LOG_FILE="$DOCO_LOGS/mcp_test_server.log"
 
 # Kill any existing MCP server on this port
 echo "Stopping any existing MCP server on port $PORT..."
@@ -20,7 +22,7 @@ sleep 1
 
 # Start MCP server with auth
 echo "Starting MCP server with authentication..."
-python -m app.main_mcp \
+uv run python -m app.main_mcp \
     --port "$PORT" \
     --jwt-secret "$JWT_SECRET" \
     --token-store "$TOKEN_STORE" \

@@ -2,26 +2,28 @@
 # Run Web server with authentication enabled for testing
 # Uses test JWT secret and token store that matches conftest.py configuration
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/doco.env"
+cd "$DOCO_ROOT"
 
 # Configuration (matches conftest.py TEST_JWT_SECRET and TEST_TOKEN_STORE_PATH)
+export DOCO_ENV=TEST
 JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
-TOKEN_STORE="/tmp/doco_test_tokens.json"
-TEMPLATES_DIR="test/render/data/docs/templates"
-FRAGMENTS_DIR="test/render/data/docs/fragments"
-STYLES_DIR="test/render/data/docs/styles"
-PORT=8012
-LOG_FILE="/tmp/web_test_server.log"
+TOKEN_STORE="$DOCO_TOKEN_STORE"
+TEMPLATES_DIR="$DOCO_TEMPLATES"
+FRAGMENTS_DIR="$DOCO_FRAGMENTS"
+STYLES_DIR="$DOCO_STYLES"
+PORT="$DOCO_WEB_PORT"
+LOG_FILE="$DOCO_LOGS/web_test_server.log"
 
 # Kill any existing web server on this port
 echo "Stopping any existing web server on port $PORT..."
 pkill -f "main_web.*--port $PORT" 2>/dev/null
 sleep 1
 
-# Start web server with auth
-echo "Starting web server with authentication..."
-python -m app.main_web \
+# Start Web server with auth
+echo "Starting Web server with authentication..."
+uv run python -m app.main_web \
     --port "$PORT" \
     --jwt-secret "$JWT_SECRET" \
     --token-store "$TOKEN_STORE" \

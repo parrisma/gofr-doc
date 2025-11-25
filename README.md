@@ -89,16 +89,16 @@ bash scripts/run_mcp_auth.sh
 
 ```bash
 # Create a JWT token for a group
-python3 scripts/token_manager.py create --group engineering --expires 30
+./scripts/token_manager.sh create --group engineering --expires 30
 
 # List all active tokens
-python3 scripts/token_manager.py list
+./scripts/token_manager.sh list
 
 # Revoke a token
-python3 scripts/token_manager.py revoke <token>
+./scripts/token_manager.sh revoke --token <token>
 
 # View token details
-python3 scripts/token_manager.py verify <token>
+./scripts/token_manager.sh verify --token <token>
 ```
 
 **Security Note**: When authentication is enabled:

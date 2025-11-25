@@ -297,7 +297,7 @@ class TestIntegrationWithEntryPoints:
 
     def test_token_manager_imports_auth_config(self):
         """Verify token_manager.py imports resolve_jwt_secret_for_cli."""
-        with open("scripts/token_manager.py") as f:
+        with open("app/management/token_manager.py") as f:
             content = f.read()
 
         assert "from app.startup.auth_config import resolve_jwt_secret_for_cli" in content
@@ -310,7 +310,7 @@ class TestIntegrationWithEntryPoints:
             "app/main_mcp.py",
             "app/main_web.py",
             "app/web_server/web_server.py",
-            "scripts/token_manager.py",
+            "app/management/token_manager.py",
         ]
 
         # This is the old test secret that should NOT appear in production code

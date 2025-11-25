@@ -6,11 +6,12 @@ Command-line utility to create, list, and revoke JWT tokens for doco authenticat
 
 import argparse
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.auth import AuthService
 from app.logger import Logger, session_logger
@@ -194,34 +195,48 @@ def main():
         epilog="""
 Examples:
   # Create a token for the 'research' group that expires in 30 days (2592000 seconds)
-  python token_manager.py create --group research --expires 2592000
+  python -m app.management.token_manager create --group research --expires 2592000
 
   # Create a token that expires in 1 hour
-  python token_manager.py create --group research --expires 3600
+  python -m app.management.token_manager create --group research --expires 3600
 
   # List all tokens
-  python token_manager.py list
+  python -m app.management.token_manager list
 
   # Verify a token
-  python token_manager.py verify --token eyJhbGc...
+  python -m app.management.token_manager verify --token eyJhbGc...
 
   # Revoke a token
-  python token_manager.py revoke --token eyJhbGc...
+  python -m app.management.token_manager revoke --token eyJhbGc...
+
+  # Using with environment variables
+  python -m app.management.token_manager --doco-env PROD --token-store /path/to/tokens.json create --group research
 
 Environment Variables:
+    DOCO_ENV            Environment mode (TEST or PROD)
     DOCO_JWT_SECRET     JWT secret key for token signing and verification
+    DOCO_TOKEN_STORE    Token store file path
         """,
     )
 
+    # Global arguments
+    parser.add_argument(
+        "--doco-env",
+        type=str,
+        default=os.environ.get("DOCO_ENV", "TEST"),
+        choices=["TEST", "PROD"],
+        help="Environment mode (TEST or PROD, default: from DOCO_ENV or TEST)",
+    )
     parser.add_argument(
         "--secret",
         type=str,
+        default=os.environ.get("DOCO_JWT_SECRET"),
         help="JWT secret key (default: DOCO_JWT_SECRET env var)",
     )
     parser.add_argument(
         "--token-store",
         type=str,
-        default=None,
+        default=os.environ.get("DOCO_TOKEN_STORE"),
         help="Path to token store file (default: /tmp/doco_tokens.json)",
     )
 

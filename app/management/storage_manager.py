@@ -8,23 +8,43 @@ listing sessions, and displaying storage statistics.
 import argparse
 import sys
 import json
+import os
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.storage.file_storage import FileStorage
 from app.logger import Logger, session_logger
 from app.config import Config
 
 
-def resolve_storage_dir(cli_dir: Optional[str]) -> str:
-    """Resolve storage directory from CLI, environment variable, or project default."""
+def resolve_storage_dir(cli_dir: Optional[str], data_root: Optional[str] = None) -> str:
+    """
+    Resolve storage directory with priority chain.
+
+    Priority:
+    1. CLI --data-root argument (storage/subdirectory)
+    2. CLI --storage-dir argument (legacy)
+    3. DOCO_DATA environment variable
+    4. Config defaults
+    """
+    # Priority 1: --data-root points to data directory, storage/ is subdirectory
+    if data_root:
+        return str(Path(data_root) / "storage")
+
+    # Priority 2: Legacy --storage-dir argument
     if cli_dir:
         return cli_dir
 
+    # Priority 3: DOCO_DATA environment variable
+    doco_data = os.environ.get("DOCO_DATA")
+    if doco_data:
+        return str(Path(doco_data) / "storage")
+
+    # Priority 4: Config defaults
     return str(Config.get_storage_dir())
 
 
@@ -32,7 +52,7 @@ def purge_documents(args):
     """Purge documents older than specified age"""
     logger: Logger = session_logger
 
-    storage_dir = resolve_storage_dir(args.storage_dir)
+    storage_dir = resolve_storage_dir(args.storage_dir, args.data_root)
 
     try:
         storage = FileStorage(storage_dir)
@@ -64,7 +84,7 @@ def list_documents(args):
     """List stored documents"""
     logger: Logger = session_logger
 
-    storage_dir = resolve_storage_dir(args.storage_dir)
+    storage_dir = resolve_storage_dir(args.storage_dir, args.data_root)
 
     try:
         storage = FileStorage(storage_dir)
@@ -109,10 +129,10 @@ def list_documents(args):
 
 
 def stats(args):
-    """Show storage statistics"""
+    """Display storage statistics"""
     logger: Logger = session_logger
 
-    storage_dir = resolve_storage_dir(args.storage_dir)
+    storage_dir = resolve_storage_dir(args.storage_dir, args.data_root)
 
     try:
         storage = FileStorage(storage_dir)
@@ -148,11 +168,30 @@ def stats(args):
         return 1
 
 
-def resolve_sessions_dir(cli_dir: Optional[str]) -> str:
-    """Resolve sessions directory from CLI, environment variable, or project default."""
+def resolve_sessions_dir(cli_dir: Optional[str], data_root: Optional[str] = None) -> str:
+    """
+    Resolve sessions directory with priority chain.
+
+    Priority:
+    1. CLI --data-root argument (sessions/subdirectory)
+    2. CLI --sessions-dir argument (legacy)
+    3. DOCO_DATA environment variable
+    4. Config defaults
+    """
+    # Priority 1: --data-root points to data directory, sessions/ is subdirectory
+    if data_root:
+        return str(Path(data_root) / "sessions")
+
+    # Priority 2: Legacy --sessions-dir argument
     if cli_dir:
         return cli_dir
 
+    # Priority 3: DOCO_DATA environment variable
+    doco_data = os.environ.get("DOCO_DATA")
+    if doco_data:
+        return str(Path(doco_data) / "sessions")
+
+    # Priority 4: Config defaults
     return str(Config.get_sessions_dir())
 
 
@@ -160,7 +199,7 @@ def list_sessions(args):
     """List stored sessions"""
     logger: Logger = session_logger
 
-    sessions_dir = resolve_sessions_dir(args.sessions_dir)
+    sessions_dir = resolve_sessions_dir(args.sessions_dir, args.data_root)
     sessions_path = Path(sessions_dir)
 
     try:
@@ -209,7 +248,7 @@ def purge_sessions(args):
     """Purge sessions older than specified age"""
     logger: Logger = session_logger
 
-    sessions_dir = resolve_sessions_dir(args.sessions_dir)
+    sessions_dir = resolve_sessions_dir(args.sessions_dir, args.data_root)
     sessions_path = Path(sessions_dir)
 
     try:
@@ -282,7 +321,7 @@ def sessions_stats(args):
     """Show sessions statistics"""
     logger: Logger = session_logger
 
-    sessions_dir = resolve_sessions_dir(args.sessions_dir)
+    sessions_dir = resolve_sessions_dir(args.sessions_dir, args.data_root)
     sessions_path = Path(sessions_dir)
 
     try:
@@ -349,32 +388,56 @@ def main():
         epilog="""
 Examples:
   # Storage Commands (manage rendered documents)
-  python storage_manager.py storage purge --age-days 30
-  python storage_manager.py storage list --verbose
-  python storage_manager.py storage stats
+  python -m app.management.storage_manager storage purge --age-days 30
+  python -m app.management.storage_manager storage list --verbose
+  python -m app.management.storage_manager storage stats
 
   # Sessions Commands (manage document sessions)
-  python storage_manager.py sessions list --verbose
-  python storage_manager.py sessions purge --age-days 7
-  python storage_manager.py sessions stats
+  python -m app.management.storage_manager sessions list --verbose
+  python -m app.management.storage_manager sessions purge --age-days 7
+  python -m app.management.storage_manager sessions stats
 
   # Purge all with confirmation skip
-  python storage_manager.py storage purge --age-days 0 --yes
-  python storage_manager.py sessions purge --age-days 0 --yes
+  python -m app.management.storage_manager storage purge --age-days 0 --yes
+  python -m app.management.storage_manager sessions purge --age-days 0 --yes
 
   # Filter storage by group
-  python storage_manager.py storage list --group research --verbose
-  python storage_manager.py storage stats --group research
+  python -m app.management.storage_manager storage list --group research --verbose
+  python -m app.management.storage_manager storage stats --group research
 
-  # Custom directories
-  python storage_manager.py --storage-dir /custom/path storage stats
-  python storage_manager.py --sessions-dir /custom/path sessions list
+  # Using with environment variables
+  python -m app.management.storage_manager --doco-env PROD --data-root /path/to/data storage stats
+  python -m app.management.storage_manager --doco-env TEST sessions list --verbose
 
 Environment Variables:
-    DOCO_DATA_DIR       Override project data directory (optional)
+    DOCO_ENV           Environment mode (TEST or PROD)
+    DOCO_DATA          Data root directory (contains storage/ and sessions/)
+    DOCO_TOKEN_STORE   Token store path
         """,
     )
 
+    # Global arguments
+    parser.add_argument(
+        "--doco-env",
+        type=str,
+        default=os.environ.get("DOCO_ENV", "TEST"),
+        choices=["TEST", "PROD"],
+        help="Environment mode (TEST or PROD, default: from DOCO_ENV or TEST)",
+    )
+    parser.add_argument(
+        "--data-root",
+        type=str,
+        default=os.environ.get("DOCO_DATA"),
+        help="Data root directory (contains storage/ and sessions/)",
+    )
+    parser.add_argument(
+        "--token-store",
+        type=str,
+        default=os.environ.get("DOCO_TOKEN_STORE"),
+        help="Token store path",
+    )
+
+    # Legacy arguments (kept for backward compatibility)
     parser.add_argument(
         "--storage-dir",
         type=str,

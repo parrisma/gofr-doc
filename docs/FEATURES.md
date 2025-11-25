@@ -341,24 +341,24 @@ metadata:
 
 ```bash
 # Show all groups
-python scripts/render_manager.py groups
+./scripts/render_manager.sh groups
 
 # With statistics
-python scripts/render_manager.py groups -v
+./scripts/render_manager.sh groups -v
 ```
 
 #### Filter by Group
 
 ```bash
 # List templates in specific group
-python scripts/render_manager.py templates list --group public
+./scripts/render_manager.sh templates list --group public
 
 # List fragments in group
-python scripts/render_manager.py fragments list --group internal -v
+./scripts/render_manager.sh fragments list --group internal -v
 
 # Storage operations by group
-python scripts/storage_manager.py list --group research
-python scripts/storage_manager.py stats --group public
+./scripts/storage_manager.sh storage list --group research
+./scripts/storage_manager.sh storage stats --group public
 ```
 
 ### Python API

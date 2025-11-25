@@ -25,7 +25,17 @@ from app.storage import get_storage, reset_storage
 # Shared JWT secret for all test servers and token generation
 # Must match the secret used when launching test MCP/web servers
 TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
-TEST_TOKEN_STORE_PATH = "/tmp/doco_test_tokens.json"
+
+# Get token store path from environment or use default based on project root
+if "DOCO_TOKEN_STORE" not in os.environ:
+    # Calculate from doco.env pattern
+    project_root = Path(__file__).parent.parent
+    logs_dir = project_root / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    TEST_TOKEN_STORE_PATH = str(logs_dir / "doco_tokens.json")
+else:
+    TEST_TOKEN_STORE_PATH = os.environ["DOCO_TOKEN_STORE"]
+
 TEST_GROUP = "test_group"
 
 

@@ -1,4 +1,5 @@
 """Test rendering with templates, fragments, and styles."""
+
 import pytest
 from pathlib import Path
 from app.templates.registry import TemplateRegistry
@@ -10,7 +11,7 @@ from app.logger import ConsoleLogger
 @pytest.fixture
 def test_data_dir():
     """Get the test data directory."""
-    return Path(__file__).parent / "data/docs"
+    return Path(__file__).parent.parent / "data/docs"
 
 
 @pytest.fixture
@@ -68,8 +69,7 @@ class TestTemplateRegistry:
     def test_validate_global_parameters_valid(self, template_registry):
         """Test parameter validation with valid parameters."""
         is_valid, errors = template_registry.validate_global_parameters(
-            "basic_report",
-            {"title": "Test Report", "author": "Test Author"}
+            "basic_report", {"title": "Test Report", "author": "Test Author"}
         )
         assert is_valid
         assert len(errors) == 0
@@ -77,8 +77,7 @@ class TestTemplateRegistry:
     def test_validate_global_parameters_missing_required(self, template_registry):
         """Test parameter validation with missing required parameters."""
         is_valid, errors = template_registry.validate_global_parameters(
-            "basic_report",
-            {"author": "Test Author"}
+            "basic_report", {"author": "Test Author"}
         )
         assert not is_valid
         assert len(errors) > 0
@@ -86,9 +85,7 @@ class TestTemplateRegistry:
     def test_validate_fragment_parameters_valid(self, template_registry):
         """Test fragment parameter validation with valid parameters."""
         is_valid, errors = template_registry.validate_fragment_parameters(
-            "basic_report",
-            "paragraph",
-            {"text": "Some text"}
+            "basic_report", "paragraph", {"text": "Some text"}
         )
         assert is_valid
         assert len(errors) == 0
@@ -96,9 +93,7 @@ class TestTemplateRegistry:
     def test_validate_fragment_parameters_missing_required(self, template_registry):
         """Test fragment parameter validation with missing required parameters."""
         is_valid, errors = template_registry.validate_fragment_parameters(
-            "basic_report",
-            "paragraph",
-            {}
+            "basic_report", "paragraph", {}
         )
         assert not is_valid
         assert len(errors) > 0
@@ -127,8 +122,7 @@ class TestFragmentRegistry:
     def test_validate_parameters_valid(self, fragment_registry):
         """Test parameter validation with valid parameters."""
         is_valid, errors = fragment_registry.validate_parameters(
-            "news_item",
-            {"headline": "Breaking News", "body": "News content"}
+            "news_item", {"headline": "Breaking News", "body": "News content"}
         )
         assert is_valid
         assert len(errors) == 0
@@ -136,8 +130,7 @@ class TestFragmentRegistry:
     def test_validate_parameters_missing_required(self, fragment_registry):
         """Test parameter validation with missing required parameters."""
         is_valid, errors = fragment_registry.validate_parameters(
-            "news_item",
-            {"headline": "Breaking News"}
+            "news_item", {"headline": "Breaking News"}
         )
         assert not is_valid
         assert len(errors) > 0
@@ -153,7 +146,9 @@ class TestJinjaTemplateLoading:
 
     def test_load_fragment_template(self, template_registry):
         """Test loading fragment template from template."""
-        template = template_registry.get_jinja_template("basic_report", "fragments/paragraph.html.jinja2")
+        template = template_registry.get_jinja_template(
+            "basic_report", "fragments/paragraph.html.jinja2"
+        )
         assert template is not None
 
     def test_load_standalone_fragment_template(self, fragment_registry):
@@ -165,6 +160,7 @@ class TestJinjaTemplateLoading:
 # ============================================================================
 # GROUP FUNCTIONALITY TESTS
 # ============================================================================
+
 
 class TestGroupDiscovery:
     """Test group discovery in registries."""
@@ -193,11 +189,7 @@ class TestGroupIsolation:
 
     def test_single_group_template_loading(self, test_data_dir, logger):
         """Test loading templates from a single group."""
-        registry = TemplateRegistry(
-            str(test_data_dir / "templates"), 
-            logger, 
-            group="public"
-        )
+        registry = TemplateRegistry(str(test_data_dir / "templates"), logger, group="public")
         templates = registry.list_templates()
         assert len(templates) > 0
         # All templates should be from public group
@@ -206,11 +198,7 @@ class TestGroupIsolation:
 
     def test_single_group_fragment_loading(self, test_data_dir, logger):
         """Test loading fragments from a single group."""
-        registry = FragmentRegistry(
-            str(test_data_dir / "fragments"),
-            logger,
-            group="public"
-        )
+        registry = FragmentRegistry(str(test_data_dir / "fragments"), logger, group="public")
         fragments = registry.list_fragments()
         assert len(fragments) > 0
         # All fragments should be from public group
@@ -219,11 +207,7 @@ class TestGroupIsolation:
 
     def test_single_group_style_loading(self, test_data_dir, logger):
         """Test loading styles from a single group."""
-        registry = StyleRegistry(
-            str(test_data_dir / "styles"),
-            logger,
-            group="public"
-        )
+        registry = StyleRegistry(str(test_data_dir / "styles"), logger, group="public")
         styles = registry.list_styles()
         assert len(styles) > 0
         # All styles should be from public group
@@ -233,10 +217,10 @@ class TestGroupIsolation:
     def test_filter_templates_by_group(self, test_data_dir, logger):
         """Test filtering templates by group."""
         registry = TemplateRegistry(str(test_data_dir / "templates"), logger)
-        
+
         all_templates = registry.list_templates()
         public_templates = registry.list_templates(group="public")
-        
+
         # Public should be a subset of all
         assert len(public_templates) <= len(all_templates)
         assert all(t.group == "public" for t in public_templates)
@@ -244,10 +228,10 @@ class TestGroupIsolation:
     def test_filter_fragments_by_group(self, test_data_dir, logger):
         """Test filtering fragments by group."""
         registry = FragmentRegistry(str(test_data_dir / "fragments"), logger)
-        
+
         all_fragments = registry.list_fragments()
         public_fragments = registry.list_fragments(group="public")
-        
+
         # Public should be a subset of all
         assert len(public_fragments) <= len(all_fragments)
         assert all(f["group"] == "public" for f in public_fragments)
@@ -255,10 +239,10 @@ class TestGroupIsolation:
     def test_filter_styles_by_group(self, test_data_dir, logger):
         """Test filtering styles by group."""
         registry = StyleRegistry(str(test_data_dir / "styles"), logger)
-        
+
         all_styles = registry.list_styles()
         public_styles = registry.list_styles(group="public")
-        
+
         # Public should be a subset of all
         assert len(public_styles) <= len(all_styles)
         assert all(s.group == "public" for s in public_styles)
@@ -271,7 +255,7 @@ class TestGetItemsByGroup:
         """Test retrieving templates organized by group."""
         registry = TemplateRegistry(str(test_data_dir / "templates"), logger)
         items_by_group = registry.get_items_by_group()
-        
+
         # Should have public group
         assert "public" in items_by_group
         # Public group should have items
@@ -283,7 +267,7 @@ class TestGetItemsByGroup:
         """Test retrieving fragments organized by group."""
         registry = FragmentRegistry(str(test_data_dir / "fragments"), logger)
         items_by_group = registry.get_items_by_group()
-        
+
         # Should have public group
         assert "public" in items_by_group
         # Public group should have items
@@ -295,7 +279,7 @@ class TestGetItemsByGroup:
         """Test retrieving styles organized by group."""
         registry = StyleRegistry(str(test_data_dir / "styles"), logger)
         items_by_group = registry.get_items_by_group()
-        
+
         # Should have public group
         assert "public" in items_by_group
         # Public group should have items
@@ -310,7 +294,7 @@ class TestMetadataGroupValidation:
     def test_template_metadata_group_validation(self, test_data_dir, logger):
         """Test that template metadata group matches directory."""
         registry = TemplateRegistry(str(test_data_dir / "templates"), logger)
-        
+
         # Get a template and verify its group matches directory
         schema = registry.get_template_schema("basic_report")
         assert schema is not None
@@ -319,7 +303,7 @@ class TestMetadataGroupValidation:
     def test_fragment_metadata_group_validation(self, test_data_dir, logger):
         """Test that fragment metadata group matches directory."""
         registry = FragmentRegistry(str(test_data_dir / "fragments"), logger)
-        
+
         # Get a fragment and verify its group matches directory
         schema = registry.get_fragment_schema("news_item")
         assert schema is not None
@@ -328,7 +312,7 @@ class TestMetadataGroupValidation:
     def test_style_metadata_group_validation(self, test_data_dir, logger):
         """Test that style metadata group matches directory."""
         registry = StyleRegistry(str(test_data_dir / "styles"), logger)
-        
+
         # Get a style and verify its group matches directory
         metadata = registry.get_style_metadata("default")
         assert metadata is not None
@@ -344,7 +328,7 @@ class TestMultiGroupLoading:
         registry = TemplateRegistry(
             str(test_data_dir / "templates"),
             logger,
-            groups=["public"]  # Only public exists in test fixtures
+            groups=["public"],  # Only public exists in test fixtures
         )
         groups = registry.list_groups()
         assert "public" in groups
@@ -354,7 +338,7 @@ class TestMultiGroupLoading:
         registry = FragmentRegistry(
             str(test_data_dir / "fragments"),
             logger,
-            groups=["public"]  # Only public exists in test fixtures
+            groups=["public"],  # Only public exists in test fixtures
         )
         groups = registry.list_groups()
         assert "public" in groups
@@ -364,7 +348,7 @@ class TestMultiGroupLoading:
         registry = StyleRegistry(
             str(test_data_dir / "styles"),
             logger,
-            groups=["public"]  # Only public exists in test fixtures
+            groups=["public"],  # Only public exists in test fixtures
         )
         groups = registry.list_groups()
         assert "public" in groups
@@ -377,7 +361,7 @@ class TestGroupIsolationInSchemas:
         """Test that TemplateSchema includes group information."""
         registry = TemplateRegistry(str(test_data_dir / "templates"), logger)
         schema = registry.get_template_schema("basic_report")
-        
+
         assert schema is not None
         assert hasattr(schema.metadata, "group")
         assert schema.metadata.group == "public"
@@ -386,7 +370,7 @@ class TestGroupIsolationInSchemas:
         """Test that FragmentSchema includes group information."""
         registry = FragmentRegistry(str(test_data_dir / "fragments"), logger)
         schema = registry.get_fragment_schema("news_item")
-        
+
         assert schema is not None
         assert hasattr(schema, "group")
         assert schema.group == "public"
@@ -395,7 +379,7 @@ class TestGroupIsolationInSchemas:
         """Test that StyleMetadata includes group information."""
         registry = StyleRegistry(str(test_data_dir / "styles"), logger)
         metadata = registry.get_style_metadata("default")
-        
+
         assert metadata is not None
         assert hasattr(metadata, "group")
         assert metadata.group == "public"
@@ -404,7 +388,7 @@ class TestGroupIsolationInSchemas:
         """Test that template details include group."""
         registry = TemplateRegistry(str(test_data_dir / "templates"), logger)
         details = registry.get_template_details("basic_report")
-        
+
         assert details is not None
         assert hasattr(details, "group")
         assert details.group == "public"
@@ -417,10 +401,10 @@ class TestEmbeddedFragmentsInheritGroup:
         """Test that embedded fragments inherit template's group."""
         registry = TemplateRegistry(str(test_data_dir / "templates"), logger)
         schema = registry.get_template_schema("basic_report")
-        
+
         assert schema is not None
         assert len(schema.fragments) > 0
-        
+
         # All embedded fragments should have the template's group
         for fragment in schema.fragments:
             assert fragment.group == schema.metadata.group
