@@ -51,3 +51,127 @@ p {
 .fragment-news-item p {
     margin: 5px 0;
 }
+
+/* ===== TABLE STYLES - PROFESSIONAL FINANCIAL FORMAT ===== */
+
+.doco-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+}
+
+.doco-table thead {
+  border-bottom: 1px solid #333;
+  background-color: transparent;
+}
+
+.doco-table thead th {
+  padding: 2px 8px;
+  text-align: right;
+  font-weight: 600;
+  color: #333;
+  border: none;
+  border-bottom: 1px solid #333;
+  background-color: transparent;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.doco-table thead th:first-child {
+  text-align: left;
+}
+
+.doco-table tbody td {
+  padding: 2px 8px;
+  border: none;
+  border-bottom: 1px solid #DDD;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.doco-table tbody td:first-child {
+  text-align: left;
+  font-weight: 400;
+  color: #333;
+}
+
+.doco-table tbody tr {
+  background-color: transparent;
+}
+
+.doco-table tbody tr:hover {
+  background-color: #F8F8F8;
+}
+
+.doco-table tbody tr.total,
+.doco-table tbody tr.summary {
+  font-weight: 600;
+  border-top: 1px solid #333;
+}
+
+.doco-table tbody tr.total td,
+.doco-table tbody tr.summary td {
+  border-bottom: none;
+  padding-top: 4px;
+}
+
+.doco-table tbody tr.subtotal {
+  font-weight: 500;
+}
+
+.doco-table tbody tr.subtotal td {
+  border-top: 1px solid #999;
+}
+
+.doco-table tbody tr.highlight {
+  background-color: #FFFDE7;
+}
+
+.doco-table tbody tr.highlight td {
+  font-weight: 500;
+}
+
+.doco-table td.negative {
+  color: #C62828;
+}
+
+.doco-table td.positive {
+  color: #2E7D32;
+}
+
+.doco-table td.change-up::before {
+  content: "▲ ";
+  color: #2E7D32;
+  font-size: 0.7em;
+}
+
+.doco-table td.change-down::before {
+  content: "▼ ";
+  color: #C62828;
+  font-size: 0.7em;
+}
+
+.doco-table tbody td.highlight-column {
+  background-color: #F5F5F5;
+  font-weight: 500;
+}
+
+.doco-table.compact thead th,
+.doco-table.compact tbody td {
+  padding: 1px 6px;
+  font-size: 0.85em;
+}
+
+.table-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 0.95em;
+  color: #333;
+  letter-spacing: 0.3px;
+}

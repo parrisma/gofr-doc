@@ -81,7 +81,7 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-22"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
@@ -142,7 +142,7 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-23"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -224,7 +224,7 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-24"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -278,7 +278,7 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-25"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -350,7 +350,7 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-26"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -426,7 +426,7 @@ class TestTablePerformance:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-27"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -492,7 +492,7 @@ class TestTablePerformance:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-28"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -542,7 +542,7 @@ class TestTablePerformance:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report"}
+                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-29"}
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")

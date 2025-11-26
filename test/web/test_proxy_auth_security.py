@@ -87,7 +87,7 @@ class TestProxyGroupAccessControl:
         marketing_token = auth_service.create_token(group="marketing", expires_in_seconds=3600)
 
         # Create and render document in 'finance' group
-        result = await session_manager.create_session(template_id="news_email", group="finance")
+        result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-1", group="finance")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -137,7 +137,7 @@ class TestProxyGroupAccessControl:
     async def test_no_auth_token_with_auth_required(self, client_with_auth, session_manager):
         """Test that accessing proxy without auth token is denied when auth is required"""
         # Create document in public group
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-2", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -168,7 +168,7 @@ class TestProxyGroupAccessControl:
         sales_token = auth_service.create_token(group="sales", expires_in_seconds=3600)
 
         # Create document in 'sales' group
-        result = await session_manager.create_session(template_id="news_email", group="sales")
+        result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-3", group="sales")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -222,7 +222,7 @@ class TestProxyGroupAccessControl:
         proxy_guids = {}
 
         for group, token in [("alpha", alpha_token), ("beta", beta_token)]:
-            result = await session_manager.create_session(template_id="news_email", group=group)
+            result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-4", group=group)
             session_id = result.session_id
 
             await session_manager.set_global_parameters(

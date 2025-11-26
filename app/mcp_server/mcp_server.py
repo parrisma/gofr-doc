@@ -354,7 +354,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID to check (CRITICAL: Must be the EXACT 36-character UUID string from create_document_session including all dashes. Copy/paste only - never retype. Example format: 12345678-1234-1234-1234-123456789abc).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "token": {"type": "string", "description": "Optional bearer token."},
                 },
@@ -364,11 +364,13 @@ async def handle_list_tools() -> List[Tool]:
         Tool(
             name="list_active_sessions",
             description=(
-                "Session Discovery - List all available document sessions with summary information. "
-                "WORKFLOW: Use this to see all existing sessions, recover lost session_ids, or check session states. "
-                "Returns: Array of session summaries with session_id, template_id, fragment_count, has_global_parameters, timestamps. "
-                "USEFUL FOR: Finding a session_id you forgot, seeing all in-progress documents, understanding session state. "
-                "RECOVERY: If you lost a session_id, call this to find it again. "
+                "Session Discovery - List all available document sessions with summary information including their friendly aliases. "
+                "WORKFLOW: Use this to see all existing sessions, discover session aliases, recover lost session identifiers, or check session states. "
+                "Returns: Array of session summaries with session_id, alias (friendly name), template_id, fragment_count, has_global_parameters, timestamps. "
+                "ALIASES: Each session has a friendly alias (e.g., 'invoice-march', 'weekly-report') that's easier to remember than UUIDs. "
+                "Use the alias in other tools - they accept either session_id (UUID) or alias for identification. "
+                "USEFUL FOR: Finding a session alias you forgot, discovering available sessions by name, seeing all in-progress documents, understanding session state. "
+                "RECOVERY: If you lost a session identifier, call this to find both the UUID and friendly alias. "
                 "GROUP ISOLATION: Only returns sessions from your authenticated group. You will NOT see sessions created by other groups. "
                 "AUTHENTICATION: Requires JWT Bearer token to determine which group's sessions to return."
             ),
@@ -529,12 +531,12 @@ async def handle_list_tools() -> List[Tool]:
             description=(
                 "Session Management - Create a new document session based on a template. This is REQUIRED before building content. "
                 "WORKFLOW: After discovering templates with list_templates and understanding requirements with get_template_details, create a session. "
-                "Returns: session_id (SAVE THIS - you'll need it for all subsequent operations), template_id, creation timestamps. "
+                "Returns: session_id (UUID), alias (friendly name), template_id, creation timestamps. "
                 "NEXT STEPS: (1) Call set_global_parameters to set required template parameters, (2) Call add_fragment repeatedly to build document content, (3) Call get_document to render. "
-                "ERROR HANDLING: If template_id not found, call list_templates to get valid identifiers. "
-                "IMPORTANT: Sessions persist across API calls - the session_id is your handle to the document being built. "
+                "ERROR HANDLING: If template_id not found, call list_templates to get valid identifiers. If alias already exists, choose a different name. "
+                "IMPORTANT: Sessions persist across API calls - use either session_id (UUID) or alias in subsequent operations. Alias is easier for LLMs to remember. "
                 "AUTHENTICATION: Requires JWT Bearer token. Session is bound to your group - you can only access sessions created by your group. "
-                "GROUP ISOLATION: Sessions are isolated by group. You will only see and can only operate on sessions within your authenticated group."
+                "GROUP ISOLATION: Sessions are isolated by group. Aliases are unique within a group but can be reused across groups."
             ),
             inputSchema={
                 "type": "object",
@@ -543,12 +545,16 @@ async def handle_list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "Template identifier from list_templates. The template defines the document structure.",
                     },
+                    "alias": {
+                        "type": "string",
+                        "description": "Friendly name for this session (3-64 chars: letters, numbers, hyphens, underscores). Example: 'q4-report-2025', 'marketing-draft'. Use this instead of UUID in subsequent calls.",
+                    },
                     "token": {
                         "type": "string",
                         "description": "Optional bearer token for authenticated sessions.",
                     },
                 },
-                "required": ["template_id"],
+                "required": ["template_id", "alias"],
             },
         ),
         Tool(
@@ -568,7 +574,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID from create_document_session (CRITICAL: Use EXACT string character-for-character. UUIDs are case-sensitive 36-char strings with dashes at positions 8, 13, 18, 23. Any modification invalidates the UUID).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "parameters": {
                         "type": "object",
@@ -620,7 +626,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID from create_document_session (CRITICAL: Copy this EXACT string - do not paraphrase, retype, or modify. Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx where x is hex digit 0-9 or a-f).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "fragment_id": {
                         "type": "string",
@@ -706,7 +712,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID from create_document_session (CRITICAL: Must match EXACTLY - copy/paste the full 36-character UUID including dashes. Never modify or abbreviate).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "image_url": {
                         "type": "string",
@@ -796,7 +802,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID (CRITICAL: EXACT 36-character UUID from create_document_session. Copy/paste only - UUIDs have fixed format with dashes at positions 8,13,18,23).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "fragment_instance_guid": {
                         "type": "string",
@@ -823,7 +829,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID (CRITICAL: Use the EXACT string from create_document_session - copy/paste only, never retype. UUIDs must match character-for-character including dashes).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "token": {"type": "string", "description": "Bearer token if required."},
                 },
@@ -846,7 +852,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID to delete (CRITICAL: Must be the EXACT string from create_document_session response - do not modify any characters).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "token": {"type": "string", "description": "Bearer token if required."},
                 },
@@ -880,7 +886,7 @@ async def handle_list_tools() -> List[Tool]:
                 "properties": {
                     "session_id": {
                         "type": "string",
-                        "description": "Session UUID from create_document_session (CRITICAL: Must be EXACT 36-character string with dashes. Do not modify, shorten, or retype - copy/paste only. Wrong UUID = session not found error).",
+                        "description": "Session identifier: Use the session alias (friendly name from create_document_session) OR the UUID. Aliases are easier to remember and use. Example alias: 'my-report-2025'. Example UUID: '12345678-1234-1234-1234-123456789abc'.",
                     },
                     "format": {
                         "type": "string",
@@ -901,6 +907,27 @@ async def handle_list_tools() -> List[Tool]:
             },
         ),
     ]
+
+
+def _resolve_session_identifier(identifier: str, group: str, manager) -> Optional[str]:
+    """Resolve session identifier (alias or GUID) to session GUID.
+
+    Args:
+        identifier: Either a session alias or GUID
+        group: Group context for alias resolution
+        manager: SessionManager instance
+
+    Returns:
+        Session GUID if found, None otherwise
+    """
+    # Try to resolve as alias first, falls back to treating as GUID
+    session_id = manager.resolve_session(group, identifier)
+    if session_id:
+        return session_id
+    # If resolve_session returns None, check if it's a valid GUID that exists
+    if manager._is_valid_uuid(identifier):
+        return identifier
+    return None
 
 
 async def _tool_ping(arguments: Dict[str, Any]) -> ToolResponse:
@@ -1012,7 +1039,9 @@ async def _tool_list_styles(arguments: Dict[str, Any]) -> ToolResponse:
 async def _tool_create_session(arguments: Dict[str, Any]) -> ToolResponse:
     payload = CreateDocumentSessionInput.model_validate(arguments)
     manager = _ensure_manager()
-    output = await manager.create_session(template_id=payload.template_id, group=payload.group)
+    output = await manager.create_session(
+        template_id=payload.template_id, group=payload.group, alias=payload.alias
+    )
     return _success(_model_dump(output))
 
 
@@ -1024,7 +1053,7 @@ async def _tool_set_global_parameters(arguments: Dict[str, Any]) -> ToolResponse
     non-existent or cross-group sessions to prevent information leakage.
 
     Args:
-        arguments: Dict containing session_id, parameters, and group (injected from JWT)
+        arguments: Dict containing session_id (or alias), parameters, and group (injected from JWT)
 
     Returns:
         ToolResponse with success or SESSION_NOT_FOUND error
@@ -1033,16 +1062,25 @@ async def _tool_set_global_parameters(arguments: Dict[str, Any]) -> ToolResponse
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # SECURITY: Verify session belongs to caller's group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None or session.group != caller_group:
         return _error(
             code="SESSION_NOT_FOUND",
             message=f"Session '{payload.session_id}' not found",
-            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+            recovery="Verify the session_id or alias is correct and belongs to your group. Call list_active_sessions to see your sessions.",
         )
 
-    output = await manager.set_global_parameters(payload.session_id, payload.parameters)
+    output = await manager.set_global_parameters(session_id, payload.parameters)
     return _success(_model_dump(output))
 
 
@@ -1054,7 +1092,7 @@ async def _tool_add_fragment(arguments: Dict[str, Any]) -> ToolResponse:
     non-existent or cross-group sessions to prevent information leakage.
 
     Args:
-        arguments: Dict containing session_id, fragment_id, parameters, position, and group (injected from JWT)
+        arguments: Dict containing session_id (or alias), fragment_id, parameters, position, and group (injected from JWT)
 
     Returns:
         ToolResponse with success or SESSION_NOT_FOUND error
@@ -1063,17 +1101,26 @@ async def _tool_add_fragment(arguments: Dict[str, Any]) -> ToolResponse:
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # SECURITY: Verify session belongs to caller's group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None or session.group != caller_group:
         return _error(
             code="SESSION_NOT_FOUND",
             message=f"Session '{payload.session_id}' not found",
-            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+            recovery="Verify the session_id or alias is correct and belongs to your group. Call list_active_sessions to see your sessions.",
         )
 
     output = await manager.add_fragment(
-        session_id=payload.session_id,
+        session_id=session_id,
         fragment_id=payload.fragment_id,
         parameters=payload.parameters,
         position=payload.position or "end",
@@ -1103,13 +1150,22 @@ async def _tool_add_image_fragment(arguments: Dict[str, Any]) -> ToolResponse:
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # SECURITY: Verify session belongs to caller's group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None or session.group != caller_group:
         return _error(
             code="SESSION_NOT_FOUND",
             message=f"Session '{payload.session_id}' not found",
-            recovery="Verify the session_id is correct. Call list_active_sessions to see your sessions.",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
         )
 
     # VALIDATION: Validate image URL
@@ -1174,7 +1230,7 @@ async def _tool_add_image_fragment(arguments: Dict[str, Any]) -> ToolResponse:
 
     # Add fragment to session using standard fragment_id
     output = await manager.add_fragment(
-        session_id=payload.session_id,
+        session_id=session_id,
         fragment_id="image_from_url",  # Standard fragment ID
         parameters=fragment_parameters,
         position=payload.position or "end",
@@ -1190,7 +1246,7 @@ async def _tool_remove_fragment(arguments: Dict[str, Any]) -> ToolResponse:
     non-existent or cross-group sessions to prevent information leakage.
 
     Args:
-        arguments: Dict containing session_id, fragment_instance_guid, and group (injected from JWT)
+        arguments: Dict containing session_id (or alias), fragment_instance_guid, and group (injected from JWT)
 
     Returns:
         ToolResponse with success or SESSION_NOT_FOUND error
@@ -1199,17 +1255,26 @@ async def _tool_remove_fragment(arguments: Dict[str, Any]) -> ToolResponse:
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # SECURITY: Verify session belongs to caller's group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None or session.group != caller_group:
         return _error(
             code="SESSION_NOT_FOUND",
             message=f"Session '{payload.session_id}' not found",
-            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+            recovery="Verify the session_id or alias is correct and belongs to your group. Call list_active_sessions to see your sessions.",
         )
 
     output = await manager.remove_fragment(
-        session_id=payload.session_id,
+        session_id=session_id,
         fragment_instance_guid=payload.fragment_instance_guid,
     )
     return _success(_model_dump(output))
@@ -1223,7 +1288,7 @@ async def _tool_list_session_fragments(arguments: Dict[str, Any]) -> ToolRespons
     non-existent or cross-group sessions to prevent information leakage.
 
     Args:
-        arguments: Dict containing session_id and group (injected from JWT)
+        arguments: Dict containing session_id (or alias) and group (injected from JWT)
 
     Returns:
         ToolResponse with fragment list or SESSION_NOT_FOUND error
@@ -1232,16 +1297,25 @@ async def _tool_list_session_fragments(arguments: Dict[str, Any]) -> ToolRespons
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # SECURITY: Verify session belongs to caller's group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None or session.group != caller_group:
         return _error(
             code="SESSION_NOT_FOUND",
             message=f"Session '{payload.session_id}' not found",
-            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+            recovery="Verify the session_id or alias is correct and belongs to your group. Call list_active_sessions to see your sessions.",
         )
 
-    output = await manager.list_session_fragments(session_id=payload.session_id)
+    output = await manager.list_session_fragments(session_id=session_id)
     return _success(_model_dump(output))
 
 
@@ -1253,7 +1327,7 @@ async def _tool_abort_session(arguments: Dict[str, Any]) -> ToolResponse:
     non-existent or cross-group sessions to prevent information leakage.
 
     Args:
-        arguments: Dict containing session_id and group (injected from JWT)
+        arguments: Dict containing session_id (or alias) and group (injected from JWT)
 
     Returns:
         ToolResponse with success or SESSION_NOT_FOUND error
@@ -1262,16 +1336,25 @@ async def _tool_abort_session(arguments: Dict[str, Any]) -> ToolResponse:
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # SECURITY: Verify session belongs to caller's group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None or session.group != caller_group:
         return _error(
             code="SESSION_NOT_FOUND",
             message=f"Session '{payload.session_id}' not found",
-            recovery="Verify the session_id is correct and belongs to your group. Call list_active_sessions to see your sessions.",
+            recovery="Verify the session_id or alias is correct and belongs to your group. Call list_active_sessions to see your sessions.",
         )
 
-    output = await manager.abort_session(session_id=payload.session_id)
+    output = await manager.abort_session(session_id=session_id)
     return _success(_model_dump(output))
 
 
@@ -1281,8 +1364,17 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
     renderer = _ensure_renderer()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # Get session first to verify it exists and check group
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None:
         return _error(
             code="SESSION_NOT_FOUND",
@@ -1304,7 +1396,7 @@ async def _tool_get_document(arguments: Dict[str, Any]) -> ToolResponse:
             recovery="The session may not exist in your group. Call list_active_sessions to see sessions you have access to.",
         )
 
-    valid, message = await manager.validate_session_for_render(payload.session_id)
+    valid, message = await manager.validate_session_for_render(session_id)
     if not valid:
         return _error(
             code="SESSION_NOT_READY",
@@ -1373,8 +1465,17 @@ async def _tool_get_session_status(arguments: Dict[str, Any]) -> ToolResponse:
     manager = _ensure_manager()
     caller_group = payload.group if hasattr(payload, "group") else "public"
 
+    # Resolve alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
     # Get session and verify group access
-    session = await manager.get_session(payload.session_id)
+    session = await manager.get_session(session_id)
     if session is None:
         return _error(
             code="SESSION_NOT_FOUND",
@@ -1391,7 +1492,7 @@ async def _tool_get_session_status(arguments: Dict[str, Any]) -> ToolResponse:
         )
 
     try:
-        output = await manager.get_session_status(payload.session_id)
+        output = await manager.get_session_status(session_id)
         return _success(_model_dump(output))
     except ValueError as exc:
         return _error(

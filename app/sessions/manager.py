@@ -1,5 +1,6 @@
 """Session manager for document generation sessions."""
 
+import re
 import uuid
 from datetime import datetime
 from typing import Dict, Optional
@@ -27,6 +28,9 @@ from app.validation.document_models import (
 class SessionManager:
     """Manages document generation sessions with persistent storage."""
 
+    # Regex for valid alias: alphanumeric, hyphens, underscores, 3-64 chars
+    ALIAS_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{3,64}$")
+
     def __init__(
         self,
         session_store: SessionStore,
@@ -45,7 +49,121 @@ class SessionManager:
         self.template_registry = template_registry
         self.logger = logger
 
-    async def create_session(self, template_id: str, group: str) -> CreateSessionOutput:
+        # Bidirectional alias mapping: {group: {alias: guid}}
+        self._alias_to_guid: Dict[str, Dict[str, str]] = {}
+        # Reverse mapping: {guid: alias}
+        self._guid_to_alias: Dict[str, str] = {}
+
+        # Load existing aliases from storage on initialization
+        self._load_aliases_from_storage()
+
+    def _load_aliases_from_storage(self) -> None:
+        """Load alias mappings from all stored sessions."""
+        session_ids = self.session_store.list_sessions()
+        for session_id in session_ids:
+            session = self.session_store.load_session(session_id)
+            if session and hasattr(session, "alias") and session.alias:
+                group = session.group
+                if group not in self._alias_to_guid:
+                    self._alias_to_guid[group] = {}
+                self._alias_to_guid[group][session.alias] = session_id
+                self._guid_to_alias[session_id] = session.alias
+
+    def _is_valid_alias(self, alias: str) -> bool:
+        """
+        Validate alias format.
+
+        Args:
+            alias: Alias to validate
+
+        Returns:
+            True if alias is valid
+        """
+        return bool(self.ALIAS_PATTERN.match(alias))
+
+    def _is_valid_uuid(self, identifier: str) -> bool:
+        """
+        Check if string is a valid UUID.
+
+        Args:
+            identifier: String to check
+
+        Returns:
+            True if valid UUID
+        """
+        try:
+            uuid.UUID(identifier)
+            return True
+        except (ValueError, AttributeError):
+            return False
+
+    def resolve_session(self, group: str, session_identifier: str) -> Optional[str]:
+        """
+        Resolve a session identifier to a GUID.
+
+        Accepts either an alias or GUID. If alias, looks up the GUID
+        in the group's alias mapping. If GUID, validates format.
+
+        Args:
+            group: Group context for alias lookup
+            session_identifier: Either an alias or GUID
+
+        Returns:
+            Session GUID if found/valid, None otherwise
+        """
+        # Check if it's an alias in this group
+        if group in self._alias_to_guid:
+            if session_identifier in self._alias_to_guid[group]:
+                return self._alias_to_guid[group][session_identifier]
+
+        # Check if it's a valid GUID
+        if self._is_valid_uuid(session_identifier):
+            return session_identifier
+
+        return None
+
+    def get_alias(self, session_id: str) -> Optional[str]:
+        """
+        Get the alias for a session GUID.
+
+        Args:
+            session_id: Session GUID
+
+        Returns:
+            Alias if exists, None otherwise
+        """
+        return self._guid_to_alias.get(session_id)
+
+    def _register_alias(self, group: str, alias: str, session_id: str) -> None:
+        """
+        Register an alias mapping.
+
+        Args:
+            group: Group context
+            alias: Alias to register
+            session_id: Session GUID
+        """
+        if group not in self._alias_to_guid:
+            self._alias_to_guid[group] = {}
+        self._alias_to_guid[group][alias] = session_id
+        self._guid_to_alias[session_id] = alias
+
+    def _unregister_alias(self, session_id: str) -> None:
+        """
+        Remove alias mapping for a session.
+
+        Args:
+            session_id: Session GUID
+        """
+        alias = self._guid_to_alias.pop(session_id, None)
+        if alias:
+            # Find and remove from group mapping
+            for group_aliases in self._alias_to_guid.values():
+                if alias in group_aliases and group_aliases[alias] == session_id:
+                    del group_aliases[alias]
+                    break
+
+    async def create_session(self, template_id: str, group: str, alias: str) -> CreateSessionOutput:
         """
         Create a new document session with group-based isolation.
 
@@ -56,18 +174,35 @@ class SessionManager:
         Args:
             template_id: Template to use for this session
             group: Group context for this session (determines isolation boundary)
+            alias: Friendly name for the session (3-64 chars, alphanumeric, hyphens, underscores)
 
         Returns:
-            CreateSessionOutput with session_id
+            CreateSessionOutput with session_id and alias
 
         Raises:
-            SessionValidationError: If template doesn't exist
+            SessionValidationError: If template doesn't exist, alias is invalid, or alias already exists
         """
         if not self.template_registry.template_exists(template_id):
             raise SessionValidationError(
                 code="TEMPLATE_NOT_FOUND",
                 message=f"Template '{template_id}' not found",
                 details={"template_id": template_id},
+            )
+
+        # Validate alias format
+        if not self._is_valid_alias(alias):
+            raise SessionValidationError(
+                code="INVALID_ALIAS",
+                message="Invalid alias format. Must be 3-64 characters: alphanumeric, hyphens, underscores",
+                details={"alias": alias},
+            )
+
+        # Check alias uniqueness within group
+        if group in self._alias_to_guid and alias in self._alias_to_guid[group]:
+            raise SessionValidationError(
+                code="ALIAS_EXISTS",
+                message=f"Alias '{alias}' already exists in group '{group}'",
+                details={"alias": alias, "group": group},
             )
 
         session_id = str(uuid.uuid4())
@@ -77,18 +212,26 @@ class SessionManager:
             session_id=session_id,
             template_id=template_id,
             group=group,
+            alias=alias,
             global_parameters={},
             fragments=[],
             created_at=now,
             updated_at=now,
         )
 
+        # Register alias mapping
+        self._register_alias(group, alias, session_id)
+
         # Persist session
         self.session_store.save_session(session)
 
-        self.logger.info(f"Created session {session_id} with template {template_id}")
+        self.logger.info(
+            f"Created session {session_id} (alias: {alias}) with template {template_id}"
+        )
 
-        return CreateSessionOutput(session_id=session_id, template_id=template_id, created_at=now)
+        return CreateSessionOutput(
+            session_id=session_id, alias=alias, template_id=template_id, created_at=now
+        )
 
     async def get_session(self, session_id: str) -> Optional[DocumentSession]:
         """
@@ -459,6 +602,7 @@ class SessionManager:
                 summaries.append(
                     SessionSummary(
                         session_id=session.session_id,
+                        alias=self.get_alias(session.session_id),
                         template_id=session.template_id,
                         group=session.group,
                         fragment_count=len(session.fragments),

@@ -34,6 +34,7 @@ class SessionStore:
             "session_id": session.session_id,
             "template_id": session.template_id,
             "group": session.group,
+            "alias": session.alias,
             "global_parameters": session.global_parameters,
             "fragments": [
                 {

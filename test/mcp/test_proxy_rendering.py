@@ -88,7 +88,9 @@ def rendering_engine(temp_templates_dir, temp_styles_dir, temp_proxy_dir):
 async def test_render_with_proxy_returns_guid(session_manager, rendering_engine):
     """Test that proxy=true returns a GUID instead of document content."""
     # Create and populate session
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-test-session"
+    )
     session_id = result.session_id
 
     # Set required parameters
@@ -123,7 +125,9 @@ async def test_render_with_proxy_returns_guid(session_manager, rendering_engine)
 async def test_proxy_document_can_be_retrieved(session_manager, rendering_engine):
     """Test that a proxy document can be retrieved by GUID."""
     # Create and populate session
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-test-session"
+    )
     session_id = result.session_id
 
     await session_manager.set_global_parameters(
@@ -160,7 +164,9 @@ async def test_proxy_document_can_be_retrieved(session_manager, rendering_engine
 @pytest.mark.asyncio
 async def test_proxy_mode_works_with_pdf(session_manager, rendering_engine):
     """Test proxy mode with PDF format."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-test-session"
+    )
     session_id = result.session_id
 
     await session_manager.set_global_parameters(
@@ -201,7 +207,9 @@ async def test_proxy_document_not_found_error(rendering_engine):
 @pytest.mark.asyncio
 async def test_regular_rendering_still_works(session_manager, rendering_engine):
     """Test that non-proxy rendering still works normally."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-test-session"
+    )
     session_id = result.session_id
 
     await session_manager.set_global_parameters(
@@ -233,7 +241,9 @@ async def test_regular_rendering_still_works(session_manager, rendering_engine):
 async def test_proxy_documents_segregated_by_group(session_manager, rendering_engine):
     """Test that proxy documents are segregated by group."""
     # Create session in "public" group
-    result1 = await session_manager.create_session(template_id="basic_report", group="public")
+    result1 = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-test-session"
+    )
     session_id1 = result1.session_id
 
     await session_manager.set_global_parameters(
@@ -268,7 +278,9 @@ async def test_proxy_documents_segregated_by_group(session_manager, rendering_en
 async def test_multiple_proxy_documents_independent(session_manager, rendering_engine):
     """Test that multiple proxy documents can be stored and retrieved independently."""
     # Create and render first document
-    result1 = await session_manager.create_session(template_id="basic_report", group="public")
+    result1 = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-doc-1"
+    )
     session_id1 = result1.session_id
 
     await session_manager.set_global_parameters(session_id1, {"title": "Doc 1", "author": "Test"})
@@ -289,7 +301,9 @@ async def test_multiple_proxy_documents_independent(session_manager, rendering_e
     guid1 = output1.proxy_guid
 
     # Create and render second document
-    result2 = await session_manager.create_session(template_id="basic_report", group="public")
+    result2 = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="proxy-doc-2"
+    )
     session_id2 = result2.session_id
 
     await session_manager.set_global_parameters(session_id2, {"title": "Doc 2", "author": "Test"})

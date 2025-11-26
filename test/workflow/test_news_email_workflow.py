@@ -105,10 +105,14 @@ class TestNewsEmailWorkflow:
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
-                # Step 1: Create session
+                # Step 2: Create second session
                 result = await session.call_tool(
                     "create_document_session",
-                    arguments={"template_id": "news_email", "group": "test_group"},
+                    arguments={
+                        "template_id": "news_email",
+                        "alias": "news-workflow-3",
+                        "group": "test_group",
+                    },
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 session_id = resp.get("data", {}).get("session_id")
@@ -287,7 +291,11 @@ class TestNewsEmailWorkflow:
                 # Create and build document
                 result = await session.call_tool(
                     "create_document_session",
-                    arguments={"template_id": "news_email", "group": "test_group"},
+                    arguments={
+                        "template_id": "news_email",
+                        "group": "test_group",
+                        "alias": "multiple-renders-test",
+                    },
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 session_id = resp.get("data", {}).get("session_id")
@@ -363,7 +371,11 @@ class TestNewsEmailWorkflow:
 
                 result = await session.call_tool(
                     "create_document_session",
-                    arguments={"template_id": "news_email", "group": "test_group"},
+                    arguments={
+                        "template_id": "news_email",
+                        "group": "test_group",
+                        "alias": "proxy-persistence-test",
+                    },
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 session_id = resp.get("data", {}).get("session_id")
@@ -444,7 +456,7 @@ class TestNewsEmailWorkflow:
                 # Create session (will be tagged with 'engineering' group from JWT)
                 result = await session.call_tool(
                     "create_document_session",
-                    arguments={"template_id": "news_email"},
+                    arguments={"template_id": "news_email", "alias": "news-workflow-4"},
                 )
                 resp = _safe_json_parse(_extract_text(result))
                 assert resp.get("status") == "success", "Failed to create session as engineering"

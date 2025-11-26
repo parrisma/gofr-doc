@@ -120,8 +120,8 @@ class TestBasicTableRendering:
 
         # Verify proper structure
         assert 'class="doco-table"' in html
-        assert 'class="header-row"' in html
-        assert 'class="data-row"' in html
+        assert "<thead>" in html
+        assert "<tbody>" in html
         assert "<th" in html
         assert "<td" in html
 
@@ -197,7 +197,7 @@ class TestColumnAlignment:
 
 
 class TestBorderStyles:
-    """Tests for border styles - Phase 2."""
+    """Tests for border styles - now CSS-driven, inline styles removed."""
 
     @pytest.fixture
     def table_template(self):
@@ -208,51 +208,21 @@ class TestBorderStyles:
         with open(template_path, "r") as f:
             return Template(f.read())
 
-    def test_full_border(self, table_template):
-        """Test full border style."""
+    def test_table_uses_css_class(self, table_template):
+        """Test table uses doco-table class for styling."""
         html = table_template.render(
             rows=[["A", "B"], ["1", "2"]],
             has_header=True,
-            border_style="full",
         )
 
-        assert "border: 1px solid" in html
-
-    def test_horizontal_border(self, table_template):
-        """Test horizontal border style."""
-        html = table_template.render(
-            rows=[["A", "B"], ["1", "2"]],
-            has_header=True,
-            border_style="horizontal",
-        )
-
-        assert "border-bottom: 1px solid" in html
-
-    def test_minimal_border(self, table_template):
-        """Test minimal border style."""
-        html = table_template.render(
-            rows=[["A", "B"], ["1", "2"]],
-            has_header=True,
-            border_style="minimal",
-        )
-
-        assert "border-bottom: 1px solid" in html
-
-    def test_no_border(self, table_template):
-        """Test no border style."""
-        html = table_template.render(
-            rows=[["A", "B"], ["1", "2"]],
-            has_header=True,
-            border_style="none",
-        )
-
-        # Should not have border styles in cells
+        # Borders now handled by CSS class, not inline styles
+        assert 'class="doco-table"' in html
+        # Should NOT have inline border styles
         assert "border: 1px solid" not in html
-        assert "border-bottom: 1px solid" not in html
 
 
 class TestZebraStriping:
-    """Tests for zebra striping - Phase 2."""
+    """Tests for zebra striping - now CSS-driven via .doco-table styles."""
 
     @pytest.fixture
     def table_template(self):
@@ -263,30 +233,20 @@ class TestZebraStriping:
         with open(template_path, "r") as f:
             return Template(f.read())
 
-    def test_zebra_stripe_enabled(self, table_template):
-        """Test zebra striping enabled."""
+    def test_zebra_striping_removed_from_template(self, table_template):
+        """Test zebra striping is now CSS-driven, not in template."""
         html = table_template.render(
             rows=[["A"], ["1"], ["2"], ["3"]],
             has_header=True,
-            zebra_stripe=True,
         )
 
-        assert "zebra-stripe" in html
-        assert "--doco-zebra-bg" in html
-
-    def test_zebra_stripe_disabled(self, table_template):
-        """Test zebra striping disabled."""
-        html = table_template.render(
-            rows=[["A"], ["1"], ["2"], ["3"]],
-            has_header=True,
-            zebra_stripe=False,
-        )
-
+        # Zebra stripe class no longer generated - CSS handles it
         assert "zebra-stripe" not in html
+        assert "--doco-zebra-bg" not in html
 
 
 class TestCompactMode:
-    """Tests for compact mode - Phase 2."""
+    """Tests for compact mode - now CSS-driven."""
 
     @pytest.fixture
     def table_template(self):
@@ -297,25 +257,31 @@ class TestCompactMode:
         with open(template_path, "r") as f:
             return Template(f.read())
 
-    def test_compact_mode_enabled(self, table_template):
-        """Test compact mode enabled."""
+    def test_compact_mode_adds_class(self, table_template):
+        """Test compact mode adds CSS class."""
         html = table_template.render(
             rows=[["A"], ["1"]],
             has_header=True,
             compact=True,
         )
 
-        assert "padding: 4px;" in html
+        # Compact mode adds class, CSS handles padding
+        assert 'class="doco-table compact"' in html
+        # Should NOT have inline padding
+        assert "padding: 4px;" not in html
 
-    def test_compact_mode_disabled(self, table_template):
-        """Test compact mode disabled (default)."""
+    def test_normal_mode_no_compact_class(self, table_template):
+        """Test normal mode (default) has no compact class."""
         html = table_template.render(
             rows=[["A"], ["1"]],
             has_header=True,
             compact=False,
         )
 
-        assert "padding: 8px;" in html
+        assert 'class="doco-table"' in html
+        assert "compact" not in html
+        # Should NOT have inline padding
+        assert "padding: 8px;" not in html
 
 
 class TestNumberFormatting:
@@ -429,7 +395,7 @@ class TestNumberFormatting:
 
 
 class TestColorRendering:
-    """Tests for color rendering - Phase 4."""
+    """Tests for color rendering - now CSS-driven via classes."""
 
     @pytest.fixture
     def table_template(self):
@@ -449,142 +415,43 @@ class TestColorRendering:
 
         return env.get_template("public/basic_report/fragments/table.html.jinja2")
 
-    def test_header_color_theme(self, table_template):
-        """Test header with theme color."""
-        html = table_template.render(
-            rows=[["Name", "Age"], ["Alice", "30"]],
-            has_header=True,
-            header_color="blue",
-        )
-
-        assert "var(--doco-blue" in html
-        assert "<thead>" in html
-
-    def test_header_color_hex(self, table_template):
-        """Test header with hex color."""
-        html = table_template.render(
-            rows=[["Name", "Age"], ["Alice", "30"]],
-            has_header=True,
-            header_color="#FF0000",
-        )
-
-        assert "#FF0000" in html
-        assert "<thead>" in html
-
-    def test_stripe_color_theme(self, table_template):
-        """Test zebra striping with theme color."""
+    def test_highlight_row_adds_class(self, table_template):
+        """Test that highlight_rows adds CSS class."""
         html = table_template.render(
             rows=[["Name"], ["Alice"], ["Bob"], ["Charlie"]],
             has_header=False,
-            zebra_stripe=True,
-            stripe_color="green",
+            highlight_rows={"1": True},
         )
 
-        assert "var(--doco-green" in html
-        assert "zebra-stripe" in html
+        assert 'class="highlight"' in html
 
-    def test_stripe_color_hex(self, table_template):
-        """Test zebra striping with hex color."""
-        html = table_template.render(
-            rows=[["Name"], ["Alice"], ["Bob"], ["Charlie"]],
-            has_header=False,
-            zebra_stripe=True,
-            stripe_color="#E0E0E0",
-        )
-
-        assert "#E0E0E0" in html
-        assert "zebra-stripe" in html
-
-    def test_highlight_single_row(self, table_template):
-        """Test highlighting a single row."""
-        html = table_template.render(
-            rows=[["Name"], ["Alice"], ["Bob"], ["Charlie"]],
-            has_header=False,
-            highlight_rows={"1": "orange"},
-        )
-
-        assert "var(--doco-orange" in html
-
-    def test_highlight_multiple_rows(self, table_template):
-        """Test highlighting multiple rows with different colors."""
-        html = table_template.render(
-            rows=[["Name"], ["Alice"], ["Bob"], ["Charlie"]],
-            has_header=False,
-            highlight_rows={"0": "blue", "2": "red"},
-        )
-
-        assert "var(--doco-blue" in html
-        assert "var(--doco-red" in html
-
-    def test_highlight_row_with_hex(self, table_template):
-        """Test row highlight with hex color."""
-        html = table_template.render(
-            rows=[["Name"], ["Alice"], ["Bob"]],
-            has_header=False,
-            highlight_rows={"1": "#FFFF00"},
-        )
-
-        assert "#FFFF00" in html
-
-    def test_highlight_single_column(self, table_template):
-        """Test highlighting a single column."""
+    def test_highlight_column_adds_class(self, table_template):
+        """Test that highlight_columns adds CSS class."""
         html = table_template.render(
             rows=[["Name", "Age", "City"], ["Alice", "30", "NYC"]],
             has_header=False,
-            highlight_columns={"1": "purple"},
+            highlight_columns={"1": True},
         )
 
-        assert "var(--doco-purple" in html
+        assert 'class="highlight-column"' in html
 
-    def test_highlight_multiple_columns(self, table_template):
-        """Test highlighting multiple columns."""
-        html = table_template.render(
-            rows=[["A", "B", "C"], ["1", "2", "3"]],
-            has_header=False,
-            highlight_columns={"0": "green", "2": "pink"},
-        )
-
-        assert "var(--doco-green" in html
-        assert "var(--doco-pink" in html
-
-    def test_combined_colors(self, table_template):
-        """Test combining header color, stripe color, and highlights."""
+    def test_no_inline_colors(self, table_template):
+        """Test that inline color styles are not generated."""
         html = table_template.render(
             rows=[
                 ["Product", "Price", "Stock"],
                 ["Widget", "10.50", "100"],
                 ["Gadget", "25.00", "50"],
-                ["Doohickey", "5.00", "200"],
-                ["Thingamabob", "15.00", "75"],
             ],
             has_header=True,
-            header_color="blue",
-            zebra_stripe=True,
-            stripe_color="gray",
-            highlight_rows={"2": "orange"},  # Highlights Gadget row (index 2)
-            highlight_columns={"1": "green"},  # Highlights Price column
+            highlight_rows={"2": True},
+            highlight_columns={"1": True},
         )
 
-        # Verify all colors present
-        assert "var(--doco-blue" in html  # header
-        assert "var(--doco-gray" in html  # stripes (on rows without highlight)
-        assert "var(--doco-orange" in html  # row highlight (row 2)
-        assert "var(--doco-green" in html  # column highlight (col 1)
-
-    def test_row_highlight_overrides_stripe(self, table_template):
-        """Test that row highlight takes precedence over stripe color."""
-        html = table_template.render(
-            rows=[["A"], ["1"], ["2"], ["3"]],
-            has_header=False,
-            zebra_stripe=True,
-            stripe_color="gray",
-            highlight_rows={"1": "orange"},  # Row 1 would be striped
-        )
-
-        # Row 1 should have orange, not gray
-        # This is tricky to test in HTML, but we can verify both colors exist
-        assert "var(--doco-orange" in html
-        assert "var(--doco-gray" in html  # Other rows still striped
+        # No inline background colors
+        assert "background-color:" not in html
+        # But classes should be present
+        assert "doco-table" in html
 
 
 class TestSorting:

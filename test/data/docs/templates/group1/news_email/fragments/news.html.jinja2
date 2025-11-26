@@ -1,0 +1,22 @@
+<div class="fragment">
+    <div class="header">
+        <h3 class="title">{{ story_summary }}</h3>
+        <div class="metadata">
+            <span class="news-date">{{ date }}</span>
+            <span class="news-author">{{ author }}</span>
+        </div>
+    </div>
+    
+    <div class="content">
+        <div class="source">
+            <strong>Source:</strong> <a href="{{ source }}" target="_blank">{{ source }}</a>
+        </div>
+        
+        <div class="impact">
+            <strong>Impact:</strong> 
+            <span class="badge impact-{{ impact_rating|lower|replace(' ', '-') }}">
+                {{ impact_rating }}
+            </span>
+        </div>
+    </div>
+</div>

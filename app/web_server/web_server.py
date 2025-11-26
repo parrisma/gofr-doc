@@ -401,6 +401,10 @@ class DocoWebServer:
             """
             Render a finalized document session to the specified format.
 
+            Path parameter:
+            - session_id: Session identifier - can be either session alias (e.g., 'my-report-2025')
+                         or session UUID. Aliases are easier to use and remember.
+
             Request body should contain:
             - format: Output format (html, markdown, pdf). Default: html
             - style_id: Optional style ID override
@@ -431,8 +435,25 @@ class DocoWebServer:
             )
 
             try:
+                # Resolve alias to GUID if needed
+                resolved_session_id = self.session_manager.resolve_session(
+                    auth_group or "public", session_id
+                )
+                if not resolved_session_id:
+                    # If not found as alias, try as direct GUID
+                    if self.session_manager._is_valid_uuid(session_id):
+                        resolved_session_id = session_id
+                    else:
+                        raise HTTPException(
+                            status_code=404,
+                            detail={
+                                "error": "SESSION_NOT_FOUND",
+                                "message": f"Session '{session_id}' not found. Use session alias or UUID.",
+                            },
+                        )
+
                 # Get the session
-                session = await self.session_manager.get_session(session_id)
+                session = await self.session_manager.get_session(resolved_session_id)
                 if not session:
                     raise HTTPException(
                         status_code=404,
@@ -460,7 +481,8 @@ class DocoWebServer:
 
                 self.logger.info(
                     "/render completed successfully",
-                    session_id=session_id,
+                    session_id=resolved_session_id,
+                    session_alias=session_id if session_id != resolved_session_id else None,
                     format=output_format,
                     proxy=proxy,
                     proxy_guid=output_obj.proxy_guid if proxy else None,
@@ -503,7 +525,7 @@ class DocoWebServer:
             except HTTPException as e:
                 self.logger.error(
                     "/render failed (HTTP)",
-                    session_id=session_id,
+                    session_identifier=session_id,
                     status_code=e.status_code,
                     detail=str(e.detail),
                 )
@@ -511,7 +533,7 @@ class DocoWebServer:
             except ValueError as e:
                 self.logger.error(
                     "/render failed (validation)",
-                    session_id=session_id,
+                    session_identifier=session_id,
                     error=str(e),
                     error_type="ValueError",
                     status=400,
@@ -520,7 +542,7 @@ class DocoWebServer:
             except Exception as e:
                 self.logger.error(
                     "/render failed (unexpected)",
-                    session_id=session_id,
+                    session_identifier=session_id,
                     error=str(e),
                     error_type=type(e).__name__,
                     status=500,

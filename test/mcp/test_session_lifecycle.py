@@ -123,7 +123,7 @@ async def test_create_document_session_invalid_template(logger, mcp_headers):
 
             result = await session.call_tool(
                 "create_document_session",
-                arguments={"template_id": "nonexistent_template"},
+                arguments={"template_id": "nonexistent_template", "alias": "test-invalid-template"},
             )
 
             response = _parse_json_response(result)
@@ -158,7 +158,8 @@ async def test_create_document_session_success(logger, mcp_headers):
             # Create session with first template
             template_id = templates[0]["template_id"]
             result = await session.call_tool(
-                "create_document_session", arguments={"template_id": template_id}
+                "create_document_session",
+                arguments={"template_id": template_id, "alias": "test_session_lifecycle-1"},
             )
 
             response = _parse_json_response(result)
@@ -261,7 +262,8 @@ async def test_set_global_parameters_success(logger, mcp_headers):
 
             # Create a session with news_email template
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "news_email"}
+                "create_document_session",
+                arguments={"template_id": "news_email", "alias": "test_session_lifecycle-2"},
             )
             create_response = _parse_json_response(create_result)
             session_id = create_response["data"]["session_id"]
@@ -454,7 +456,8 @@ async def test_abort_document_session_success(logger, mcp_headers):
 
             template_id = templates[0]["template_id"]
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": template_id}
+                "create_document_session",
+                arguments={"template_id": template_id, "alias": "test_session_lifecycle-3"},
             )
             create_response = _parse_json_response(create_result)
             session_id = create_response["data"]["session_id"]
@@ -495,7 +498,8 @@ async def test_create_set_abort_workflow(logger, mcp_headers):
 
             # Step 1: Create session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": template_id}
+                "create_document_session",
+                arguments={"template_id": template_id, "alias": "test_session_lifecycle-4"},
             )
             create_response = _parse_json_response(create_result)
             assert create_response["status"] == "success"
@@ -531,3 +535,54 @@ async def test_create_set_abort_workflow(logger, mcp_headers):
             logger.info(f"Step 3: Aborted session {session_id}")
 
             logger.info("Workflow completed successfully")
+
+
+@pytest.mark.asyncio
+@skip_if_mcp_unavailable
+async def test_list_active_sessions_includes_alias(logger, mcp_headers):
+    """Test that list_active_sessions returns alias information for each session."""
+    logger.info("Testing that list_active_sessions includes alias field")
+
+    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # Get first available template
+            templates_result = await session.call_tool("list_templates", arguments={})
+            templates_response = _parse_json_response(templates_result)
+            assert templates_response["status"] == "success"
+            templates = templates_response["data"]["templates"]
+            assert len(templates) > 0, "No templates available"
+            template_id = templates[0]["template_id"]
+
+            # Create a session with a known alias
+            test_alias = "test-list-alias-verification"
+            create_result = await session.call_tool(
+                "create_document_session",
+                arguments={"template_id": template_id, "alias": test_alias},
+            )
+            create_response = _parse_json_response(create_result)
+            assert create_response["status"] == "success"
+            session_id = create_response["data"]["session_id"]
+
+            # List active sessions
+            list_result = await session.call_tool("list_active_sessions", arguments={})
+            list_response = _parse_json_response(list_result)
+
+            assert list_response["status"] == "success"
+            sessions = list_response["data"]["sessions"]
+
+            # Find our session
+            our_session = next((s for s in sessions if s["session_id"] == session_id), None)
+            assert our_session is not None, f"Session {session_id} not found in list"
+
+            # Verify alias is present and correct
+            assert "alias" in our_session, "alias field missing from session summary"
+            assert (
+                our_session["alias"] == test_alias
+            ), f"Expected alias '{test_alias}', got '{our_session['alias']}'"
+
+            logger.info(f"Verified alias '{test_alias}' appears in list_active_sessions output")
+
+            # Clean up
+            await session.call_tool("abort_document_session", arguments={"session_id": session_id})

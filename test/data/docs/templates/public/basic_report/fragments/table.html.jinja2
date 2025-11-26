@@ -1,13 +1,11 @@
-{# Table fragment template - Phase 6: Column Widths #}
+{# Table fragment template - CSS-driven styling #}
+{# Styling is controlled by .doco-table classes in style.css #}
+{# Use 'compact' parameter for tighter spacing #}
 
 {# Set default values #}
-{% set border_style = border_style|default('full') %}
-{% set zebra_stripe = zebra_stripe|default(false) %}
 {% set compact = compact|default(false) %}
 {% set column_alignments = column_alignments|default(none) %}
 {% set number_format = number_format|default(none) %}
-{% set header_color = header_color|default(none) %}
-{% set stripe_color = stripe_color|default(none) %}
 {% set highlight_rows = highlight_rows|default(none) %}
 {% set highlight_columns = highlight_columns|default(none) %}
 {% set sort_by = sort_by|default(none) %}
@@ -19,29 +17,12 @@
   {% set rows = rows|sort_table(sort_by, has_header) %}
 {% endif %}
 
-{# Calculate padding based on compact mode #}
-{% set cell_padding = '4px' if compact else '8px' %}
-
-{# Define border styles #}
-{% if border_style == 'full' %}
-  {% set border = '1px solid var(--doco-grid, #ccc)' %}
-{% elif border_style == 'horizontal' %}
-  {% set border_top = '1px solid var(--doco-grid, #ccc)' %}
-  {% set border_bottom = '1px solid var(--doco-grid, #ccc)' %}
-  {% set border = 'none' %}
-{% elif border_style == 'minimal' %}
-  {% set border_bottom = '1px solid var(--doco-grid, #ccc)' %}
-  {% set border = 'none' %}
-{% else %}
-  {% set border = 'none' %}
-{% endif %}
-
 {# Title #}
 {% if title %}
-<div class="table-title" style="font-weight: bold; margin-bottom: 8px;">{{ title }}</div>
+<div class="table-title">{{ title }}</div>
 {% endif %}
 
-<table class="doco-table" style="border-collapse: collapse; {% if width == 'full' %}width: 100%;{% elif width != 'auto' %}width: {{ width }};{% endif %}{% if border_style in ['horizontal', 'minimal'] %} border-top: {{ border_top|default('none') }};{% endif %}">
+<table class="doco-table{% if compact %} compact{% endif %}"{% if width and width != 'auto' %} style="width: {% if width == 'full' %}100%{% else %}{{ width }}{% endif %};"{% endif %}>
   {# Column widths (if specified) #}
   {% if column_widths %}
   <colgroup>
@@ -55,12 +36,11 @@
   {# Header row #}
   {% if has_header and rows|length > 0 %}
   <thead>
-    <tr class="header-row">
+    <tr>
       {% for cell in rows[0] %}
       {% set col_index = loop.index0 %}
-      {% set alignment = column_alignments[col_index] if column_alignments and col_index < column_alignments|length else 'left' %}
-      {% set header_bg = header_color|get_css_color if header_color else 'var(--doco-fragment-bg, #f5f5f5)' %}
-      <th style="{% if border_style == 'full' %}border: {{ border }};{% elif border_style in ['horizontal', 'minimal'] %}border-bottom: {{ border_bottom }};{% endif %} padding: {{ cell_padding }}; text-align: {{ alignment }}; background-color: {{ header_bg }};">
+      {% set alignment = column_alignments[col_index] if column_alignments and col_index < column_alignments|length else none %}
+      <th{% if alignment %} style="text-align: {{ alignment }};"{% endif %}>
         {{ cell }}
       </th>
       {% endfor %}
@@ -74,18 +54,21 @@
     {% for row in rows[start_index:] %}
     {% set row_index = loop.index0 %}
     {% set actual_row_index = row_index + start_index %}
-    {% set is_even = row_index % 2 == 0 %}
-    {% set row_highlight_color = highlight_rows.get(actual_row_index|string)|get_css_color if highlight_rows and (actual_row_index|string) in highlight_rows else none %}
-    {% set zebra_bg = stripe_color|get_css_color if stripe_color else 'var(--doco-zebra-bg, #f9f9f9)' %}
-    <tr class="data-row{% if zebra_stripe and not is_even %} zebra-stripe{% endif %}"{% if row_highlight_color %} style="background-color: {{ row_highlight_color }};"{% elif zebra_stripe and not is_even %} style="background-color: {{ zebra_bg }};"{% endif %}>
+    {% set row_class = [] %}
+    {% if highlight_rows and (actual_row_index|string) in highlight_rows %}
+      {% set _ = row_class.append('highlight') %}
+    {% endif %}
+    <tr{% if row_class %} class="{{ row_class|join(' ') }}"{% endif %}>
       {% for cell in row %}
       {% set col_index = loop.index0 %}
-      {% set alignment = column_alignments[col_index] if column_alignments and col_index < column_alignments|length else 'left' %}
+      {% set alignment = column_alignments[col_index] if column_alignments and col_index < column_alignments|length else none %}
       {% set format_spec = number_format.get(col_index|string) if number_format else none %}
       {% set formatted_cell = cell|format_number(format_spec) if format_spec else cell %}
-      {% set col_highlight_color = highlight_columns.get(col_index|string)|get_css_color if highlight_columns and (col_index|string) in highlight_columns else none %}
-      {% set cell_bg = col_highlight_color if col_highlight_color and not row_highlight_color else none %}
-      <td style="{% if border_style == 'full' %}border: {{ border }};{% elif border_style == 'horizontal' %}border-bottom: {{ border_bottom }};{% endif %} padding: {{ cell_padding }}; text-align: {{ alignment }};{% if cell_bg %} background-color: {{ cell_bg }};{% endif %}">
+      {% set td_class = [] %}
+      {% if highlight_columns and (col_index|string) in highlight_columns %}
+        {% set _ = td_class.append('highlight-column') %}
+      {% endif %}
+      <td{% if td_class %} class="{{ td_class|join(' ') }}"{% endif %}{% if alignment %} style="text-align: {{ alignment }};"{% endif %}>
         {{ formatted_cell }}
       </td>
       {% endfor %}

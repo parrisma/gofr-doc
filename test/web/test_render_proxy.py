@@ -62,7 +62,7 @@ class TestProxyRenderEndpoint:
     async def test_render_with_proxy_returns_guid(self, client, session_manager):
         """Test that proxy render returns proxy_guid instead of content"""
         # Create a test session
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-5", group="public")
         session_id = result.session_id
 
         # Set global parameters
@@ -125,7 +125,7 @@ class TestProxyRenderEndpoint:
     async def test_render_without_proxy_returns_content(self, client, session_manager):
         """Test that non-proxy render returns HTML content directly"""
         # Create a minimal session
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-6", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -174,7 +174,7 @@ class TestProxyRenderEndpoint:
     async def test_render_with_invalid_format_returns_400(self, client, session_manager):
         """Test that invalid output format returns 400"""
         # Create a minimal session
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-7", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -199,7 +199,7 @@ class TestProxyRetrievalEndpoint:
     async def test_get_proxy_document_returns_html(self, client, session_manager):
         """Test retrieving a stored proxy document returns HTML content"""
         # Setup: Create and render with proxy
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-8", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -241,7 +241,7 @@ class TestProxyRetrievalEndpoint:
     async def test_get_proxy_document_with_group_parameter(self, client, session_manager):
         """Test retrieving proxy document with explicit group parameter"""
         # Setup session
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-9", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -292,7 +292,7 @@ class TestProxyRetrievalEndpoint:
     async def test_get_proxy_document_different_formats(self, client, session_manager):
         """Test retrieving proxy documents in different formats"""
         # Create session
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-10", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -339,7 +339,7 @@ class TestProxyWorkflow:
     async def test_complete_proxy_workflow(self, client, session_manager):
         """Test full workflow from session creation to proxy retrieval"""
         # Step 1: Create session with news stories
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-11", group="public")
         session_id = result.session_id
 
         # Step 2: Set global params
@@ -424,7 +424,7 @@ class TestProxyWorkflow:
     async def test_multiple_renders_create_different_guids(self, client, session_manager):
         """Test that rendering same session multiple times creates different proxy GUIDs"""
         # Create session
-        result = await session_manager.create_session(template_id="news_email", group="public")
+        result = await session_manager.create_session(template_id="news_email", alias="test_render_proxy-12", group="public")
         session_id = result.session_id
 
         await session_manager.set_global_parameters(

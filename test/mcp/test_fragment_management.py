@@ -8,6 +8,7 @@ Tests cover:
 
 import json
 import os
+import uuid
 from typing import Any, Dict
 
 import httpx
@@ -114,8 +115,10 @@ async def _select_fragment_template(
 
 async def _create_session_for_template(session: ClientSession, template_id: str) -> str:
     """Create a document session for a template and return its ID."""
+    unique_alias = f"test-fragment-mgmt-{uuid.uuid4().hex[:8]}"
     create_result = await session.call_tool(
-        "create_document_session", arguments={"template_id": template_id}
+        "create_document_session",
+        arguments={"template_id": template_id, "alias": unique_alias},
     )
     create_response = _parse_json_response(create_result)
     assert create_response["status"] == "success"
@@ -382,7 +385,7 @@ async def test_add_table_fragment_with_column_widths(logger, mcp_headers):
                             ["Gadget", "$19.99", "75"],
                         ],
                         "has_header": True,
-                        "column_widths": {'0': "40%", '1': "30%", '2': "30%"},
+                        "column_widths": {"0": "40%", "1": "30%", "2": "30%"},
                     },
                 },
             )
@@ -400,7 +403,7 @@ async def test_add_table_fragment_with_column_widths(logger, mcp_headers):
             assert list_response["status"] == "success"
             fragments = list_response["data"]["fragments"]
             assert len(fragments) == 1
-            
+
             fragment = fragments[0]
             assert fragment["fragment_id"] == "table"
             assert "column_widths" in fragment["parameters"]
@@ -427,7 +430,7 @@ async def test_add_table_fragment_with_invalid_column_widths(logger, mcp_headers
                     "parameters": {
                         "rows": [["A", "B"], ["1", "2"]],
                         "has_header": False,
-                        "column_widths": {'0': "60%", '1': "50%"},  # Total: 110%
+                        "column_widths": {"0": "60%", "1": "50%"},  # Total: 110%
                     },
                 },
             )
@@ -436,7 +439,10 @@ async def test_add_table_fragment_with_invalid_column_widths(logger, mcp_headers
 
             # Should fail validation
             assert add_response["status"] == "error"
-            assert "100%" in add_response.get("message", "").lower() or "exceed" in add_response.get("message", "").lower()
+            assert (
+                "100%" in add_response.get("message", "").lower()
+                or "exceed" in add_response.get("message", "").lower()
+            )
 
 
 @pytest.mark.asyncio
@@ -469,12 +475,12 @@ async def test_add_table_fragment_with_all_phase6_features(logger, mcp_headers):
                         "border_style": "full",
                         "zebra_stripe": True,
                         "compact": False,
-                        "number_format": {'1': "currency:USD", '3': "currency:USD"},
+                        "number_format": {"1": "currency:USD", "3": "currency:USD"},
                         "header_color": "primary",
                         "stripe_color": "light",
-                        "highlight_columns": {'3': "success"},
+                        "highlight_columns": {"3": "success"},
                         "sort_by": {"column": 3, "order": "desc"},
-                        "column_widths": {'0': "40%", '1': "20%", '2': "20%", '3': "20%"},
+                        "column_widths": {"0": "40%", "1": "20%", "2": "20%", "3": "20%"},
                     },
                 },
             )

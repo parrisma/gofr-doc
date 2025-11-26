@@ -94,7 +94,7 @@ async def test_add_fragment_handles_missing_required_parameters(mcp_headers):
     async with mcp_session(mcp_headers) as session:
         # First create a valid session
         create_result = await session.call_tool(
-            "create_document_session", arguments={"template_id": "default"}
+            "create_document_session", arguments={"template_id": "default", "alias": "test_error_handling-16"}
         )
         session_text = _extract_text(create_result.content)
         session_id = session_text.split("\n")[0] if session_text else None
@@ -168,7 +168,7 @@ async def test_remove_fragment_with_invalid_guid_fails_gracefully(mcp_headers):
     async with mcp_session(mcp_headers) as session:
         # Create a valid session
         create_result = await session.call_tool(
-            "create_document_session", arguments={"template_id": "default"}
+            "create_document_session", arguments={"template_id": "default", "alias": "test_error_handling-17"}
         )
         session_text = _extract_text(create_result.content)
         session_id = session_text.split("\n")[0] if session_text else None
@@ -254,7 +254,7 @@ async def test_session_remains_valid_after_invalid_operation(mcp_headers):
     async with mcp_session(mcp_headers) as session:
         # Create a session
         create_result = await session.call_tool(
-            "create_document_session", arguments={"template_id": "default"}
+            "create_document_session", arguments={"template_id": "default", "alias": "test_error_handling-18"}
         )
         session_text = _extract_text(create_result.content)
         session_id = session_text.split("\n")[0] if session_text else None
@@ -293,7 +293,7 @@ async def test_mixed_valid_and_invalid_operations(mcp_headers):
     async with mcp_session(mcp_headers) as session:
         # Create session (valid)
         create_result = await session.call_tool(
-            "create_document_session", arguments={"template_id": "default"}
+            "create_document_session", arguments={"template_id": "default", "alias": "test_error_handling-19"}
         )
         session_text = _extract_text(create_result.content)
         session_id = session_text.split("\n")[0] if session_text else None
@@ -394,7 +394,7 @@ async def test_abort_session_then_operations_fail_gracefully(mcp_headers):
     async with mcp_session(mcp_headers) as session:
         # Create and abort session
         create_result = await session.call_tool(
-            "create_document_session", arguments={"template_id": "default"}
+            "create_document_session", arguments={"template_id": "default", "alias": "test_error_handling-20"}
         )
         session_text = _extract_text(create_result.content)
         session_id = session_text.split("\n")[0] if session_text else None
@@ -448,7 +448,7 @@ async def test_session_id_format_validation(mcp_headers):
 
     async with mcp_session(mcp_headers) as session:
         result = await session.call_tool(
-            "create_document_session", arguments={"template_id": "default"}
+            "create_document_session", arguments={"template_id": "default", "alias": "test_error_handling-21"}
         )
         text = _extract_text(result.content)
 

@@ -8,6 +8,29 @@
 
 This guide explains the document generation workflow, API surface, and best practices for using doco.
 
+## Quick Start: Session Aliases
+
+**🎯 Key Point**: All sessions require a friendly alias instead of just UUIDs!
+
+```python
+# ✅ Create session with alias
+create_document_session(
+  template_id="basic_report",
+  alias="q4-report"  # Required! 3-64 chars: alphanumeric, hyphens, underscores
+)
+
+# ✅ Use alias everywhere instead of UUID
+set_global_parameters(session_id="q4-report", ...)
+add_fragment(session_id="q4-report", ...)
+get_document(session_id="q4-report", format="pdf")
+
+# ✅ Discover sessions by alias
+list_active_sessions()
+→ [{session_id: "550e...", alias: "q4-report", ...}, ...]
+```
+
+**Benefits**: Memorable names, self-documenting code, LLM-friendly, persistent across restarts.
+
 ## Overview
 
 doco implements a **stateful, discoverable document generation service** via MCP. The workflow follows:
@@ -19,6 +42,36 @@ doco implements a **stateful, discoverable document generation service** via MCP
 5. **Cleanup** by aborting the session
 
 ## Key Concepts
+
+### Session Aliases
+
+**Every session requires a friendly alias** - a memorable name that's easier to remember than UUIDs. Aliases:
+
+- **Required**: Must be provided when creating a session (3-64 characters)
+- **Format**: Alphanumeric, hyphens, and underscores only (e.g., `invoice-march`, `q4-report`, `weekly-summary`)
+- **Unique per group**: Aliases must be unique within a group but can be reused across different groups
+- **Interchangeable**: All session tools accept either the alias or session UUID
+- **Discoverable**: Use `list_active_sessions` to see all your sessions with their aliases
+
+**Why use aliases?**
+- **Memorable**: `invoice-march` is easier to remember than `550e8400-e29b-41d4-a716-446655440000`
+- **Self-documenting**: Aliases describe the session purpose
+- **LLM-friendly**: AI agents can remember and reference sessions by name
+- **Persistent**: Aliases persist across server restarts along with session data
+
+**Example aliases:**
+```
+✅ Good: "q4-report", "invoice-march-2024", "weekly_summary", "client-proposal"
+❌ Bad: "x", "ab", "report!!!!", "my session", "verylongaliasnamethatiswaytooolongtobeuseful"
+```
+
+**Validation rules:**
+- Minimum 3 characters
+- Maximum 64 characters
+- Alphanumeric, hyphens (`-`), and underscores (`_`) only
+- No spaces or special characters
+
+---
 
 ### Templates
 
@@ -219,15 +272,62 @@ List all available rendering styles.
 
 ---
 
+#### `list_active_sessions`
+List all active document sessions with their aliases and metadata.
+
+**Request:**
+```json
+{
+  "token": "optional_bearer_token"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "session_count": 2,
+    "sessions": [
+      {
+        "session_id": "550e8400-e29b-41d4-a716-446655440000",
+        "alias": "q4-report",
+        "template_id": "basic_report",
+        "group": "engineering",
+        "fragment_count": 3,
+        "has_global_parameters": true,
+        "created_at": "2025-11-15T10:30:00Z",
+        "updated_at": "2025-11-15T10:35:00Z"
+      },
+      {
+        "session_id": "660f9511-f3ac-52e5-b827-557766551111",
+        "alias": "invoice-march",
+        "template_id": "invoice",
+        "group": "engineering",
+        "fragment_count": 5,
+        "has_global_parameters": true,
+        "created_at": "2025-11-16T09:00:00Z",
+        "updated_at": "2025-11-16T09:15:00Z"
+      }
+    ]
+  }
+}
+```
+
+**💡 Discovery**: Use this tool to find sessions when you forget the alias or UUID. The response includes both identifiers - use the memorable alias in subsequent operations!
+
+---
+
 ### Session Management Tools
 
 #### `create_document_session`
-Create a new document session for the specified template.
+Create a new document session for the specified template with a friendly alias.
 
 **Request:**
 ```json
 {
   "template_id": "basic_report",
+  "alias": "q4-report",
   "token": "optional_bearer_token"
 }
 ```
@@ -238,21 +338,24 @@ Create a new document session for the specified template.
   "status": "success",
   "data": {
     "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "alias": "q4-report",
     "template_id": "basic_report",
     "created_at": "2025-11-15T10:30:00Z"
   }
 }
 ```
 
+**💡 Alias Usage**: The `alias` parameter is **required** and must be 3-64 characters (alphanumeric, hyphens, underscores). Use memorable names like `invoice-march`, `weekly-summary`, or `q4-report`. All subsequent session operations accept either the alias or session_id UUID.
+
 ---
 
 #### `set_global_parameters`
-Set or update global parameters for a document session. **Required before rendering.**
+Set or update global parameters for a document session. **Required before rendering.** Accepts alias or UUID.
 
 **Request:**
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "q4-report",
   "parameters": {
     "title": "Q4 2025 Report",
     "author": "Data Team"
@@ -281,12 +384,12 @@ Set or update global parameters for a document session. **Required before render
 ### Fragment Management Tools
 
 #### `add_fragment`
-Add a fragment instance to the document body.
+Add a fragment instance to the document body. Accepts alias or UUID.
 
 **Request:**
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "q4-report",
   "fragment_id": "paragraph",
   "parameters": {
     "text": "This is the introduction section."
@@ -301,7 +404,7 @@ Add a fragment instance to the document body.
 {
   "status": "success",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "session_id": "q4-report",
     "fragment_instance_guid": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
     "fragment_id": "paragraph",
     "position_index": 0,
@@ -313,12 +416,12 @@ Add a fragment instance to the document body.
 ---
 
 #### `list_session_fragments`
-List the ordered fragments currently in a session.
+List the ordered fragments currently in a session. Accepts alias or UUID.
 
 **Request:**
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "q4-report",
   "token": "optional_bearer_token"
 }
 ```
@@ -328,7 +431,7 @@ List the ordered fragments currently in a session.
 {
   "status": "success",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "session_id": "q4-report",
     "fragments": [
       {
         "fragment_instance_guid": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
@@ -344,12 +447,12 @@ List the ordered fragments currently in a session.
 ---
 
 #### `remove_fragment`
-Remove a fragment instance from a session.
+Remove a fragment instance from a session. Accepts alias or UUID.
 
 **Request:**
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "q4-report",
   "fragment_instance_guid": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "token": "optional_bearer_token"
 }
@@ -360,7 +463,7 @@ Remove a fragment instance from a session.
 {
   "status": "success",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "session_id": "q4-report",
     "fragment_instance_guid": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
     "message": "Fragment removed successfully"
   }
@@ -372,12 +475,12 @@ Remove a fragment instance from a session.
 ### Rendering Tools
 
 #### `get_document`
-Render the document for a session in the requested format. **Requires prior `set_global_parameters`.**
+Render the document for a session in the requested format. **Requires prior `set_global_parameters`.** Accepts alias or UUID.
 
 **Request:**
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "q4-report",
   "format": "pdf",
   "style_id": "default",
   "token": "optional_bearer_token"
@@ -389,7 +492,7 @@ Render the document for a session in the requested format. **Requires prior `set
 {
   "status": "success",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "session_id": "q4-report",
     "format": "pdf",
     "style_id": "default",
     "content_base64": "JVBERi0xLjQK...",
@@ -404,7 +507,7 @@ Render the document for a session in the requested format. **Requires prior `set
 {
   "status": "success",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "session_id": "q4-report",
     "format": "html",
     "style_id": "default",
     "content": "<!DOCTYPE html>...",
@@ -419,12 +522,12 @@ Render the document for a session in the requested format. **Requires prior `set
 ### Cleanup Tools
 
 #### `abort_document_session`
-Abort a session and delete its persisted data.
+Abort a session and delete its persisted data. Accepts alias or UUID.
 
 **Request:**
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_id": "q4-report",
   "token": "optional_bearer_token"
 }
 ```
@@ -434,7 +537,7 @@ Abort a session and delete its persisted data.
 {
   "status": "success",
   "data": {
-    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "session_id": "q4-report",
     "message": "Session aborted and cleaned up"
   }
 }
@@ -454,13 +557,16 @@ list_templates() → ["basic_report", "technical_doc"]
 get_template_details("basic_report")
 → global params: [title, author], output_format
 
-# 3. Create session
-create_document_session("basic_report")
-→ session_id: "550e8400..."
+# 3. Create session with friendly alias
+create_document_session(
+  template_id="basic_report",
+  alias="q4-report"
+)
+→ session_id: "550e8400...", alias: "q4-report"
 
-# 4. Set global parameters (REQUIRED before render)
+# 4. Set global parameters using alias (REQUIRED before render)
 set_global_parameters(
-  session_id="550e8400...",
+  session_id="q4-report",  # Use alias instead of UUID!
   parameters={"title": "Q4 Report", "author": "Data Team"}
 )
 
@@ -472,45 +578,47 @@ list_template_fragments("basic_report")
 get_fragment_details("basic_report", "paragraph")
 → parameters: [text]
 
-# 7. Add fragments in sequence
+# 7. Add fragments using alias
 frag1_guid = add_fragment(
-  session_id="550e8400...",
+  session_id="q4-report",  # Use alias!
   fragment_id="paragraph",
   parameters={"text": "Introduction..."}
 )
 → fragment_instance_guid: "f47ac10b..."
 
 section_guid = add_fragment(
-  session_id="550e8400...",
+  session_id="q4-report",  # Use alias!
   fragment_id="section",
   parameters={"heading": "Analysis"},
   position="end"
 )
 → fragment_instance_guid: "d4f1b3a0..."
 
-# 8. List fragments (inspect state)
-list_session_fragments("550e8400...")
+# 8. List fragments using alias (inspect state)
+list_session_fragments("q4-report")  # Use alias!
 → [paragraph (index 0), section (index 1)]
 
-# 9. Render in multiple formats
+# 9. Render in multiple formats using alias
 html_doc = get_document(
-  session_id="550e8400...",
+  session_id="q4-report",  # Use alias!
   format="html"
 )
 
 pdf_doc = get_document(
-  session_id="550e8400...",
+  session_id="q4-report",  # Use alias!
   format="pdf",
   style_id="minimal"
 )
 
 md_doc = get_document(
-  session_id="550e8400...",
+  session_id="q4-report",  # Use alias!
   format="md"
 )
 
-# 10. Clean up
-abort_document_session("550e8400...")
+# 10. Clean up using alias
+abort_document_session("q4-report")  # Use alias!
+
+# 💡 Tip: Use list_active_sessions() to discover all your session aliases
 ```
 
 ### Iterative Refinement
@@ -518,16 +626,18 @@ abort_document_session("550e8400...")
 Sessions support re-rendering and fragment adjustments:
 
 ```python
-# After initial render, add more fragments
-add_fragment(..., fragment_id="chart", ...)
-add_fragment(..., fragment_id="conclusion", ...)
+# After initial render, add more fragments using alias
+add_fragment(session_id="q4-report", fragment_id="chart", ...)
+add_fragment(session_id="q4-report", fragment_id="conclusion", ...)
 
 # Re-render with new content
-pdf_v2 = get_document(session_id="...", format="pdf")
+pdf_v2 = get_document(session_id="q4-report", format="pdf")
 
 # Remove a fragment and re-render
-remove_fragment(session_id="...", fragment_instance_guid="...")
-pdf_v3 = get_document(session_id="...", format="pdf")
+remove_fragment(session_id="q4-report", fragment_instance_guid="...")
+pdf_v3 = get_document(session_id="q4-report", format="pdf")
+
+# 💡 Tip: Aliases remain valid throughout the session lifecycle
 ```
 
 ## Error Handling
@@ -559,12 +669,15 @@ All MCP responses follow a consistent error format:
 
 ## Best Practices
 
-1. **Discover before creating**: Always call `list_templates` and `get_template_details` first
-2. **Set parameters early**: Call `set_global_parameters` immediately after session creation
-3. **Inspect fragments**: Use `list_session_fragments` to verify state before rendering
-4. **Handle errors gracefully**: Check `recovery_strategy` in error responses
-5. **Clean up sessions**: Always call `abort_document_session` when done
-6. **Retry rendering**: Sessions remain valid for multiple renders; reuse to avoid re-assembly
+1. **Use memorable aliases**: Create sessions with descriptive aliases like `invoice-march` or `q4-report` instead of remembering UUIDs
+2. **Discover before creating**: Always call `list_templates` and `get_template_details` first
+3. **Find sessions by alias**: Use `list_active_sessions` to discover available sessions and their aliases
+4. **Set parameters early**: Call `set_global_parameters` immediately after session creation
+5. **Use aliases everywhere**: All session tools accept aliases - use them instead of UUIDs for better readability
+6. **Inspect fragments**: Use `list_session_fragments` to verify state before rendering
+7. **Handle errors gracefully**: Check `recovery_strategy` in error responses
+8. **Clean up sessions**: Always call `abort_document_session` when done
+9. **Retry rendering**: Sessions remain valid for multiple renders; reuse to avoid re-assembly
 
 ## See Also
 

@@ -114,29 +114,34 @@ See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the full JWT configurat
 ### REST API (FastAPI)
 
 ```bash
-# Create a document session
+# Create a document session with a friendly alias
 curl -X POST http://localhost:8010/session \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{"template_id": "basic_report"}'
+  -d '{"template_id": "basic_report", "alias": "q4-report"}'
 
-# Set global parameters
-curl -X POST http://localhost:8010/session/{session_id}/parameters \
+# Use the alias in subsequent calls instead of the session UUID
+SESSION="q4-report"  # or use the returned session_id UUID
+
+# Set global parameters (using alias)
+curl -X POST http://localhost:8010/session/$SESSION/parameters \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"title": "Q4 Report", "author": "Data Team"}'
 
-# Add fragments
-curl -X POST http://localhost:8010/session/{session_id}/fragment \
+# Add fragments (using alias)
+curl -X POST http://localhost:8010/session/$SESSION/fragment \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"fragment_id": "paragraph", "parameters": {"text": "Introduction..."}}'
 
-# Render document
-curl -X GET "http://localhost:8010/session/{session_id}/render?format=pdf&style_id=default" \
+# Render document (using alias)
+curl -X GET "http://localhost:8010/session/$SESSION/render?format=pdf&style_id=default" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -o document.pdf
 ```
+
+**💡 Tip**: Use memorable aliases like `q4-report`, `invoice-march`, or `weekly-summary` instead of UUIDs. Aliases work everywhere session_id is accepted!
 
 ### MCP Server
 
@@ -152,16 +157,19 @@ Use any MCP-compatible client to call document generation tools:
 - `list_styles` — discover available rendering styles
 
 **Session Tools** (authentication required when enabled):
-- `create_document_session` — start a new document session (bound to authenticated group)
-- `set_global_parameters` — configure session-wide parameters
-- `add_fragment` — insert a fragment with parameters
-- `remove_fragment` — delete a fragment instance
-- `list_session_fragments` — inspect ordered fragments in a session
-- `get_session_status` — get current session state and readiness
-- `list_active_sessions` — list all sessions in your group
+- `create_document_session` — start a new document session with a friendly alias (bound to authenticated group)
+- `list_active_sessions` — discover all sessions in your group with their aliases
+- `set_global_parameters` — configure session-wide parameters (accepts alias or UUID)
+- `add_fragment` — insert a fragment with parameters (accepts alias or UUID)
+- `add_image_fragment` — insert an image with URL (accepts alias or UUID)
+- `remove_fragment` — delete a fragment instance (accepts alias or UUID)
+- `list_session_fragments` — inspect ordered fragments in a session (accepts alias or UUID)
+- `get_session_status` — get current session state and readiness (accepts alias or UUID)
 - `validate_parameters` — pre-validate parameters before saving
-- `abort_document_session` — discard session and cleanup storage
-- `get_document` — render session in requested format (html, pdf, md)
+- `abort_document_session` — discard session and cleanup storage (accepts alias or UUID)
+- `get_document` — render session in requested format (accepts alias or UUID)
+
+**💡 Session Aliases**: Every session requires a friendly alias (3-64 chars: alphanumeric, hyphens, underscores). Use memorable names like `invoice-march` or `weekly-report` instead of UUIDs. All session tools accept either the alias or UUID for identification.
 
 **Authentication Flow**:
 1. Client sends JWT token in `Authorization: Bearer <token>` header

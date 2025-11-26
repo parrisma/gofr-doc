@@ -76,7 +76,9 @@ def session_manager(session_store, template_registry):
 async def test_session_persists_to_disk(session_manager, session_store):
     """Test that session is saved to disk immediately after creation."""
     # Create session
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Verify session file exists
@@ -94,7 +96,9 @@ async def test_session_persists_to_disk(session_manager, session_store):
 async def test_session_survives_manager_restart(session_manager, session_store, template_registry):
     """Test that session data survives SessionManager restart."""
     # Create and populate session with old manager
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="public-session"
+    )
     session_id = result.session_id
 
     # Set global parameters - basic_report requires title and author
@@ -132,7 +136,9 @@ async def test_session_survives_manager_restart(session_manager, session_store, 
 @pytest.mark.asyncio
 async def test_global_parameters_persist_across_updates(session_manager):
     """Test that global parameters are correctly persisted through multiple updates."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Set initial parameters
@@ -154,7 +160,9 @@ async def test_global_parameters_persist_across_updates(session_manager):
 @pytest.mark.asyncio
 async def test_fragment_order_persists(session_manager):
     """Test that fragment order is maintained across save/load cycles."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Add fragments in specific order
@@ -178,7 +186,9 @@ async def test_fragment_order_persists(session_manager):
 @pytest.mark.asyncio
 async def test_session_timestamps_persist(session_manager):
     """Test that creation and update timestamps are correctly persisted."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
     created_at = result.created_at
 
@@ -203,7 +213,9 @@ async def test_session_timestamps_persist(session_manager):
 @pytest.mark.asyncio
 async def test_concurrent_add_fragments(session_manager):
     """Test adding multiple fragments in succession maintains consistency."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="public-session"
+    )
     session_id = result.session_id
 
     # Set required parameters
@@ -237,7 +249,9 @@ async def test_concurrent_add_fragments(session_manager):
 @pytest.mark.asyncio
 async def test_concurrent_parameter_updates(session_manager):
     """Test updating global parameters sequentially maintains consistency."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="public-session"
+    )
     session_id = result.session_id
 
     # Sequential parameter updates (to avoid file write race)
@@ -258,7 +272,9 @@ async def test_concurrent_parameter_updates(session_manager):
 @pytest.mark.asyncio
 async def test_concurrent_add_and_remove_fragments(session_manager):
     """Test sequential add and remove operations on same session."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="public-session"
+    )
     session_id = result.session_id
 
     # Set required parameters
@@ -298,7 +314,7 @@ async def test_rapid_session_creation(session_manager):
 
     async def create_session(index):
         return await session_manager.create_session(
-            template_id="basic_report", group=f"group_{index}"
+            template_id="basic_report", group=f"group_{index}", alias=f"rapid-session-{index}"
         )
 
     tasks = [create_session(i) for i in range(20)]
@@ -323,7 +339,9 @@ async def test_rapid_session_creation(session_manager):
 @pytest.mark.asyncio
 async def test_orphaned_session_detection(session_manager):
     """Test detection and handling of orphaned session files."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Verify session exists
@@ -341,7 +359,9 @@ async def test_orphaned_session_detection(session_manager):
 @pytest.mark.asyncio
 async def test_session_deletion_cleans_up_storage(session_manager, session_store):
     """Test that aborting a session removes all persisted data."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Verify session persisted
@@ -363,7 +383,7 @@ async def test_concurrent_deletion_safety(session_manager):
     session_ids = []
     for i in range(5):
         result = await session_manager.create_session(
-            template_id="basic_report", group=f"group_{i}"
+            template_id="basic_report", group=f"group_{i}", alias=f"delete-session-{i}"
         )
         session_ids.append(result.session_id)
 
@@ -383,7 +403,9 @@ async def test_concurrent_deletion_safety(session_manager):
 @pytest.mark.asyncio
 async def test_metadata_integrity_under_load(session_manager):
     """Test metadata consistency under sequential load operations."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="public-session"
+    )
     session_id = result.session_id
 
     # Set required parameters first
@@ -413,7 +435,9 @@ async def test_metadata_integrity_under_load(session_manager):
 @pytest.mark.asyncio
 async def test_fragment_guid_uniqueness_under_load(session_manager):
     """Test that fragment GUIDs remain unique under concurrent operations."""
-    result = await session_manager.create_session(template_id="basic_report", group="public")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="public", alias="public-session"
+    )
     session_id = result.session_id
 
     # Set required parameters
@@ -451,7 +475,9 @@ async def test_fragment_guid_uniqueness_under_load(session_manager):
 @pytest.mark.asyncio
 async def test_corrupted_session_file_recovery(session_manager, temp_sessions_dir):
     """Test graceful handling of corrupted session JSON files."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Corrupt the session file
@@ -467,7 +493,9 @@ async def test_corrupted_session_file_recovery(session_manager, temp_sessions_di
 @pytest.mark.asyncio
 async def test_partial_write_recovery(session_manager, temp_sessions_dir):
     """Test handling of partially written session files."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Add a fragment to create valid data
@@ -486,7 +514,9 @@ async def test_partial_write_recovery(session_manager, temp_sessions_dir):
 @pytest.mark.asyncio
 async def test_missing_required_fields_recovery(session_manager, temp_sessions_dir):
     """Test recovery from sessions missing required fields."""
-    result = await session_manager.create_session(template_id="basic_report", group="test")
+    result = await session_manager.create_session(
+        template_id="basic_report", group="test", alias="test-session"
+    )
     session_id = result.session_id
 
     # Corrupt by removing required field
@@ -529,8 +559,12 @@ async def test_sessions_isolated_by_directory(template_registry):
         )
 
         # Create sessions in each store
-        result1 = await manager1.create_session(template_id="basic_report", group="test")
-        result2 = await manager2.create_session(template_id="basic_report", group="test")
+        result1 = await manager1.create_session(
+            template_id="basic_report", group="test", alias="isolation-session-1"
+        )
+        result2 = await manager2.create_session(
+            template_id="basic_report", group="test", alias="isolation-session-2"
+        )
 
         # Sessions should be isolated
         session1_from_store1 = await manager1.get_session(result1.session_id)
@@ -568,7 +602,9 @@ async def test_multiple_concurrent_managers(template_registry):
 
         # Each manager creates a session
         async def create_and_modify(manager_id, manager):
-            result = await manager.create_session(template_id="basic_report", group="test")
+            result = await manager.create_session(
+                template_id="basic_report", group="test", alias=f"test-session-{manager_id}"
+            )
             sid = result.session_id
 
             # Add fragments

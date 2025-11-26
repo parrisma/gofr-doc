@@ -88,7 +88,7 @@ fragments:
         required: false
   - fragment_id: table
     name: Table
-    description: Display tabular data with optional header row and title
+    description: Display tabular data with professional financial styling (controlled by CSS)
     parameters:
       - name: rows
         type: array
@@ -96,7 +96,7 @@ fragments:
         required: true
       - name: has_header
         type: boolean
-        description: If true (default), first row is treated as header with bold styling
+        description: If true (default), first row is treated as header
         required: false
       - name: title
         type: string
@@ -110,37 +110,21 @@ fragments:
         type: array
         description: Array of alignment values for each column ('left', 'center', 'right')
         required: false
-      - name: border_style
-        type: string
-        description: "Border style: 'full' (all borders), 'horizontal' (top/bottom), 'minimal' (bottom only), 'none'"
-        required: false
-      - name: zebra_stripe
-        type: boolean
-        description: If true, alternating rows have background color (default false)
-        required: false
       - name: compact
         type: boolean
-        description: If true, uses reduced padding for a more compact table (default false)
+        description: If true, uses tighter padding (1px vs 2px) for dense financial tables
         required: false
       - name: number_format
         type: object
         description: "Dictionary mapping column indices (0-based) to format specs: 'currency:USD', 'percent', 'decimal:2', 'integer', 'accounting'"
         required: false
-      - name: header_color
-        type: string
-        description: "Background color for header row: theme color ('primary', 'success', 'warning', 'danger', 'info', 'light', 'dark', 'muted') or hex code (e.g., '#4A90E2')"
-        required: false
-      - name: stripe_color
-        type: string
-        description: "Background color for alternating rows when zebra_stripe=true: theme color or hex code"
-        required: false
       - name: highlight_rows
         type: object
-        description: "Dictionary mapping row indices (0-based) to highlight colors (theme color or hex)"
+        description: "Dictionary mapping row indices (0-based) to apply .highlight CSS class"
         required: false
       - name: highlight_columns
         type: object
-        description: "Dictionary mapping column indices (0-based) to highlight colors (theme color or hex)"
+        description: "Dictionary mapping column indices (0-based) to apply .highlight-column CSS class"
         required: false
       - name: sort_by
         type: object

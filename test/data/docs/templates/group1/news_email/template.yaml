@@ -1,0 +1,90 @@
+metadata:
+  template_id: news_email
+  group: group1
+  name: News Email Template
+  description: Email template for distributing news stories with heading, story list, and disclaimer
+
+global_parameters:
+  - name: email_subject
+    type: string
+    description: Email subject line
+    required: true
+  - name: heading_title
+    type: string
+    description: Main heading title for the email
+    required: true
+  - name: heading_subtitle
+    type: string
+    description: Optional subtitle or date range for the email
+    required: false
+  - name: company_name
+    type: string
+    description: Company name for disclaimer
+    required: true
+  - name: recipient_type
+    type: string
+    description: Type of recipient (e.g., Professional Investors, Institutional Clients)
+    required: false
+  - name: include_ai_notice
+    type: boolean
+    description: Whether to include AI-assisted content notice in disclaimer
+    required: false
+    default: true
+  - name: contact_email
+    type: string
+    description: Contact email for inquiries
+    required: false
+
+fragments:
+  - fragment_id: news
+    group: group1
+    name: News Story
+    description: Financial news story with summary, source, and impact rating
+    parameters:
+      - name: story_summary
+        type: string
+        description: Executive summary of the news story
+        required: true
+      - name: date
+        type: string
+        description: Publication date
+        required: true
+      - name: source
+        type: string
+        description: Source URL or reference
+        required: true
+      - name: author
+        type: string
+        description: Author name
+        required: true
+      - name: impact_rating
+        type: string
+        description: Impact rating (high, medium, low)
+        required: true
+  - fragment_id: disclaimer
+    group: group1
+    name: Financial Disclaimer
+    description: Legal disclaimer for financial content with optional AI notice
+    parameters:
+      - name: company_name
+        type: string
+        description: Name of the financial services company
+        required: true
+      - name: recipient_type
+        type: string
+        description: Type of recipient
+        required: false
+      - name: include_ai_notice
+        type: boolean
+        description: Whether to include AI-assisted content notice
+        required: false
+        default: true
+      - name: jurisdiction
+        type: string
+        description: Relevant jurisdiction for legal disclaimers
+        required: false
+        default: US
+      - name: contact_email
+        type: string
+        description: Contact email for inquiries
+        required: false

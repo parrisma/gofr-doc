@@ -26,5 +26,6 @@ class DocumentSession(BaseModel):
     created_at: str
     updated_at: str
     group: str  # Mandatory - track group context in session
+    alias: Optional[str] = None  # Optional friendly name for session
     global_parameters: dict = Field(default_factory=dict)
     fragments: List[FragmentInstance] = Field(default_factory=list)

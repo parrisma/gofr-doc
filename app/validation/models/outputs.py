@@ -77,6 +77,7 @@ class CreateSessionOutput(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     session_id: str
+    alias: str
     template_id: str
     created_at: str
 
@@ -195,6 +196,7 @@ class SessionSummary(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     session_id: str
+    alias: Optional[str] = None  # Friendly name for the session
     template_id: str
     group: str
     fragment_count: int

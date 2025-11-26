@@ -6,6 +6,16 @@
 # - Points to test data directories
 # - Starts servers if needed for integration tests
 # - Runs pytest with proper configuration
+#
+# Usage:
+#   ./scripts/run_tests.sh                          # Run all tests
+#   ./scripts/run_tests.sh test/sessions/           # Run specific test directory
+#   ./scripts/run_tests.sh test/mcp/test_*.py       # Run with pattern
+#   ./scripts/run_tests.sh -k "alias"               # Run tests matching keyword
+#   ./scripts/run_tests.sh -v test/sessions/        # Run with verbose output
+#   ./scripts/run_tests.sh --no-servers test/unit/  # Run without starting servers
+#   ./scripts/run_tests.sh --stop                   # Stop servers only
+#   ./scripts/run_tests.sh --cleanup-only           # Clean environment only
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
@@ -127,36 +137,13 @@ stop_servers() {
     fi
 }
 
-# Function to check for stale log files
-check_log_freshness() {
-    local log_file=$1
-    local server_name=$2
-    
-    if [ -f "${log_file}" ]; then
-        local log_age_seconds=$(( $(date +%s) - $(stat -c %Y "${log_file}" 2>/dev/null || stat -f %m "${log_file}" 2>/dev/null || echo 0) ))
-        local log_age_hours=$(( log_age_seconds / 3600 ))
-        
-        if [ ${log_age_hours} -gt 1 ]; then
-            echo -e "${RED}ERROR: ${server_name} log file is ${log_age_hours} hours old!${NC}"
-            echo -e "${RED}This indicates stale server processes may be running.${NC}"
-            echo -e "${YELLOW}First 5 lines of old log:${NC}"
-            head -5 "${log_file}"
-            echo -e "${YELLOW}Run: ./scripts/run_tests.sh --stop-servers${NC}"
-            return 1
-        fi
-    fi
-    return 0
-}
-
 # Function to start MCP server for integration tests
 start_mcp_server() {
     local log_file="/tmp/mcp_server_test.log"
     echo -e "${YELLOW}Starting MCP server on port ${DOCO_MCP_PORT}...${NC}"
     
-    # Check for stale log before starting
-    if ! check_log_freshness "${log_file}" "MCP server"; then
-        return 1
-    fi
+    # Remove old test log if exists
+    rm -f "${log_file}"
     
     free_port "${DOCO_MCP_PORT}"
     
@@ -201,10 +188,8 @@ start_web_server() {
     local log_file="/tmp/web_server_test.log"
     echo -e "${YELLOW}Starting web server on port ${DOCO_WEB_PORT}...${NC}"
     
-    # Check for stale log before starting
-    if ! check_log_freshness "${log_file}" "Web server"; then
-        return 1
-    fi
+    # Remove old test log if exists
+    rm -f "${log_file}"
     
     free_port "${DOCO_WEB_PORT}"
     

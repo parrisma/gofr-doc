@@ -60,6 +60,7 @@ class CreateDocumentSessionInput(BaseModel):
 
     Args:
         template_id: Template identifier to use for the new session
+        alias: Friendly name for the session (3-64 chars: alphanumeric, hyphens, underscores)
         group: Group context (injected from JWT token, determines session isolation boundary)
         token: Optional JWT bearer token (required for authentication)
     """
@@ -67,6 +68,7 @@ class CreateDocumentSessionInput(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     template_id: str
+    alias: str
     group: str = "public"
     token: Optional[str] = None
 

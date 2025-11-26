@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ email_subject }}</title>
+    <style>
+        {{ css }}
+    </style>
+</head>
+<body>
+    <!-- Email Header -->
+    <div style="margin-bottom: 20px;">
+        <h1>{{ heading_title }}</h1>
+        {% if heading_subtitle %}<p>{{ heading_subtitle }}</p>{% endif %}
+    </div>
+
+    <!-- Fragments (news stories and disclaimer) -->
+    {% for fragment in fragments %}
+        {{ fragment.html|safe }}
+    {% endfor %}
+</body>
+</html>

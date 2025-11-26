@@ -38,7 +38,7 @@ The Web API (port 8012) provides standard REST endpoints that work reliably with
 
 ### Complete Workflow Example
 
-#### Step 1: Create Document Session
+#### Step 1: Create Document Session with Alias
 
 ```json
 POST http://localhost:8010/sessions
@@ -49,21 +49,28 @@ Headers:
 
 Body:
 {
-  "template_id": "basic_report"
+  "template_id": "basic_report",
+  "alias": "q4-report"
 }
 
 Response:
 {
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "alias": "q4-report",
   "template_id": "basic_report",
   "status": "active"
 }
 ```
 
+💡 **Tip**: Use `alias` (e.g., "q4-report") instead of UUIDs in subsequent requests!
+```
+
 #### Step 2: Set Global Parameters
 
+Use the alias from Step 1:
+
 ```json
-POST http://localhost:8012/sessions/{session_id}/parameters
+POST http://localhost:8012/sessions/q4-report/parameters
 
 Headers:
   Content-Type: application/json
@@ -87,7 +94,7 @@ Response:
 
 **Text Fragment:**
 ```json
-POST http://localhost:8012/sessions/{session_id}/fragments
+POST http://localhost:8012/sessions/q4-report/fragments
 
 Headers:
   Content-Type: application/json
@@ -104,7 +111,7 @@ Body:
 
 **Table Fragment:**
 ```json
-POST http://localhost:8012/sessions/{session_id}/fragments
+POST http://localhost:8012/sessions/q4-report/fragments
 
 Body:
 {
@@ -128,7 +135,7 @@ Body:
 
 **Image Fragment:**
 ```json
-POST http://localhost:8012/sessions/{session_id}/fragments/images
+POST http://localhost:8012/sessions/q4-report/fragments/images
 
 Body:
 {
@@ -142,7 +149,7 @@ Body:
 #### Step 4: Render Document
 
 ```json
-POST http://localhost:8012/sessions/{session_id}/render
+POST http://localhost:8012/sessions/q4-report/render
 
 Headers:
   Content-Type: application/json
