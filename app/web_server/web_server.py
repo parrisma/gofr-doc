@@ -1,4 +1,4 @@
-"""Doco Web Server - REST API for document discovery and rendering.
+"""GofrDoc Web Server - REST API for document discovery and rendering.
 
 Minimal web server that exposes:
 - Discovery endpoints (templates, fragments, styles metadata)
@@ -23,7 +23,7 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 
 
-class DocoWebServer:
+class GofrDocWebServer:
     """FastAPI web server for document discovery and rendering only."""
 
     def __init__(
@@ -36,7 +36,7 @@ class DocoWebServer:
         auth_service: Optional[Any] = None,
     ):
         """
-        Initialize the Doco web server.
+        Initialize the GofrDoc web server.
 
         Args:
             templates_dir: Templates directory path
@@ -55,10 +55,12 @@ class DocoWebServer:
             GET /styles - List styles
             POST /render/{session_id} - Render finalized session or proxy document
         """
-        self.app = FastAPI(title="doco", description="Document discovery and rendering REST API")
+        self.app = FastAPI(
+            title="gofr-doc", description="Document discovery and rendering REST API"
+        )
 
         # Set up registries
-        project_root = Path(__file__).parent.parent
+        project_root = Path(__file__).parent.parent.parent
         self.templates_dir = templates_dir or str(project_root / "data" / "docs" / "templates")
         self.fragments_dir = fragments_dir or str(project_root / "data" / "docs" / "fragments")
         self.styles_dir = styles_dir or str(project_root / "data" / "docs" / "styles")
@@ -92,7 +94,7 @@ class DocoWebServer:
         self.logger: Logger = session_logger
 
         self.logger.info(
-            "Doco web server initialized",
+            "GofrDoc web server initialized",
             templates_dir=self.templates_dir,
             fragments_dir=self.fragments_dir,
             styles_dir=self.styles_dir,
@@ -187,12 +189,12 @@ class DocoWebServer:
             Health check endpoint.
 
             Returns:
-                {status: "ok", timestamp: ISO8601, service: "doco"}
+                {status: "ok", timestamp: ISO8601, service: "gofr-doc"}
             """
             current_time = datetime.now().isoformat()
             self.logger.info("GET /ping", timestamp=current_time)
             result = JSONResponse(
-                content={"status": "ok", "timestamp": current_time, "service": "doco"}
+                content={"status": "ok", "timestamp": current_time, "service": "gofr-doc"}
             )
             self.logger.info("/ping completed", status=200)
             return result

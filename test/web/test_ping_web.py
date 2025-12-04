@@ -12,19 +12,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
-from app.web_server.web_server import DocoWebServer
+from app.web_server.web_server import GofrDocWebServer
 
 
 @pytest.fixture
-def client():
-    """Create a test client for the web server"""
+def client(test_data_dir):
+    """Create a TestClient for the web server."""
     from app.auth import AuthService
 
-    auth_service = AuthService(
-        secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
-        token_store_path="/tmp/doco_test_tokens.json",
-    )
-    server = DocoWebServer(auth_service=auth_service)
+    auth_service = AuthService(secret_key="test-secret")
+    server = GofrDocWebServer(auth_service=auth_service)
     return TestClient(server.app)
 
 
@@ -59,4 +56,4 @@ def test_ping_endpoint_returns_service_name(client):
     data = response.json()
 
     assert "service" in data
-    assert data["service"] == "doco"
+    assert data["service"] == "gofr-doc"

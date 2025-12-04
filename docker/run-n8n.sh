@@ -2,7 +2,7 @@
 
 # Usage: ./run-n8n.sh [-r] [-p PORT]
 # Options:
-#   -r         Recreate doco_volume (drop and recreate if it exists)
+#   -r         Recreate gofr-doc-volume (drop and recreate if it exists)
 #   -p PORT    Port to expose n8n on (default: 5678)
 # Example: ./run-n8n.sh -p 9000 -r
 
@@ -19,7 +19,7 @@ while getopts "rp:" opt; do
             ;;
         \?)
             echo "Usage: $0 [-r] [-p PORT]"
-            echo "  -r         Recreate doco_volume (drop and recreate if it exists)"
+            echo "  -r         Recreate gofr-doc-volume (drop and recreate if it exists)"
             echo "  -p PORT    Port to expose n8n on (default: 5678)"
             exit 1
             ;;
@@ -49,27 +49,27 @@ else
     echo "Network ai-net already exists"
 fi
 
-# Handle doco_volume creation/recreation
+# Handle gofr-doc-volume creation/recreation
 if [ "$RECREATE_VOLUME" = true ]; then
     echo "Recreate flag (-r) detected"
-    if docker volume inspect doco_volume >/dev/null 2>&1; then
-        echo "Removing existing doco_volume..."
-        docker volume rm doco_volume 2>/dev/null || {
-            echo "ERROR: Failed to remove doco_volume. It may be in use."
+    if docker volume inspect gofr-doc-volume >/dev/null 2>&1; then
+        echo "Removing existing gofr-doc-volume..."
+        docker volume rm gofr-doc-volume 2>/dev/null || {
+            echo "ERROR: Failed to remove gofr-doc-volume. It may be in use."
             echo "Stop all containers using the volume first."
             exit 1
         }
     fi
-    echo "Creating doco_volume..."
-    docker volume create doco_volume
+    echo "Creating gofr-doc-volume..."
+    docker volume create gofr-doc-volume
 else
-    # Create doco_volume if it doesn't exist
-    echo "Checking for doco_volume..."
-    if ! docker volume inspect doco_volume >/dev/null 2>&1; then
-        echo "Creating doco_volume..."
-        docker volume create doco_volume
+    # Create gofr-doc-volume if it doesn't exist
+    echo "Checking for gofr-doc-volume..."
+    if ! docker volume inspect gofr-doc-volume >/dev/null 2>&1; then
+        echo "Creating gofr-doc-volume..."
+        docker volume create gofr-doc-volume
     else
-        echo "Volume doco_volume already exists"
+        echo "Volume gofr-doc-volume already exists"
     fi
 fi
 
@@ -93,7 +93,7 @@ docker run -d \
   -e N8N_LOG_LEVEL=debug \
   -e N8N_LOG_OUTPUT=console \
   -e NODE_FUNCTION_ALLOW_EXTERNAL= \
-    -v doco_volume:/home/node/.n8n \
+    -v gofr-doc-volume:/home/node/.n8n \
   -v "${N8N_SHARE_DIR}":/data/n8n_share \
   docker.n8n.io/n8nio/n8n
 
@@ -108,7 +108,7 @@ if docker ps -q -f name=n8n | grep -q .; then
     echo "  n8n API:       http://n8n:5678"
     echo ""
     echo "Data & Storage:"
-    echo "  Volume:        doco_volume"
+    echo "  Volume:        gofr-doc-volume"
     echo "  Shared Dir:    ${N8N_SHARE_DIR} -> /data/n8n_share"
     echo ""
     echo "Management:"

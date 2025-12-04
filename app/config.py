@@ -27,23 +27,23 @@ class Config:
         Get the data directory for persistent storage
 
         Returns:
-            Path to data directory (configurable via DOCO_DATA_DIR environment variable)
+            Path to data directory (configurable via GOFR_DOC_DATA_DIR environment variable)
 
         Default locations:
-            - Production: /home/{user}/devroot/doco/data
+            - Production: /home/{user}/devroot/gofr-doc/data
             - Testing: Temporary directory set by tests
-            - Docker: Can be overridden via DOCO_DATA_DIR env var
+            - Docker: Can be overridden via GOFR_DOC_DATA_DIR env var
         """
         if cls._test_mode and cls._test_data_dir:
             return cls._test_data_dir
 
         # Check environment variable for data directory
-        env_data_dir = os.environ.get("DOCO_DATA_DIR")
+        env_data_dir = os.environ.get("GOFR_DOC_DATA_DIR")
         if env_data_dir:
             return Path(env_data_dir)
 
         # Default to project data directory
-        # This assumes we're running from /home/{user}/devroot/doco
+        # This assumes we're running from /home/{user}/devroot/gofr-doc
         project_root = Path(__file__).parent.parent
         return project_root / "data"
 

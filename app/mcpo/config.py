@@ -90,14 +90,14 @@ def create_default_config(
 
     # Add authenticated server
     config.add_server(
-        name="doco-auth",
+        name="gofr_doc-auth",
         url=f"http://localhost:{mcp_auth_port}/mcp",
         auth_token=auth_token,
     )
 
     # Add public server (no auth)
     config.add_server(
-        name="doco-public",
+        name="gofr_doc-public",
         url=f"http://localhost:{mcp_public_port}/mcp",
     )
 
@@ -116,7 +116,7 @@ def create_public_only_config(mcp_port: int = 8010) -> MCPOConfig:
     """
     config = MCPOConfig()
     config.add_server(
-        name="doco",
+        name="gofr_doc",
         url=f"http://localhost:{mcp_port}/mcp",
     )
     return config

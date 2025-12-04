@@ -1,4 +1,4 @@
-FROM doco_base:latest
+FROM gofr-doc-base:latest
 
 # Install Git, GitHub CLI, SSH daemon, and network/debug utilities
 RUN apt-get update && apt-get install -y \
@@ -27,33 +27,33 @@ RUN apt-get update && apt-get install -y \
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-# Add Unix group 'doco' with configurable GID
-RUN groupadd --system --gid ${USER_GID} doco
+# Add Unix group 'gofr-doc' with configurable GID
+RUN groupadd --system --gid ${USER_GID} gofr-doc
 
-# Add user 'doco' with configurable UID and assign to group 'doco'
-RUN useradd --system --uid ${USER_UID} --gid ${USER_GID} --home-dir /home/doco --create-home doco
+# Add user 'gofr-doc' with configurable UID and assign to group 'gofr-doc'
+RUN useradd --system --uid ${USER_UID} --gid ${USER_GID} --home-dir /home/gofr-doc --create-home gofr-doc
 
-# Create project directory and data directory, set ownership to doco
-RUN mkdir -p /home/doco/devroot/doco /home/doco/devroot/doco/data && \
-    chown -R doco:doco /home/doco/devroot
+# Create project directory and data directory, set ownership to gofr-doc
+RUN mkdir -p /home/gofr-doc/devroot/gofr-doc /home/gofr-doc/devroot/gofr-doc/data && \
+    chown -R gofr-doc:gofr-doc /home/gofr-doc/devroot
 
 # Copy entrypoint script as root before switching users
 COPY docker/entrypoint-dev.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Switch to doco user
-USER doco
-WORKDIR /home/doco/devroot/doco
+# Switch to gofr-doc user
+USER gofr-doc
+WORKDIR /home/gofr-doc/devroot/gofr-doc
 
-# Configure SSH for user doco only (no exposed port, uses ~/.ssh)
-RUN mkdir -p /home/doco/.ssh && chmod 700 /home/doco/.ssh
+# Configure SSH for user gofr-doc only (no exposed port, uses ~/.ssh)
+RUN mkdir -p /home/gofr-doc/.ssh && chmod 700 /home/gofr-doc/.ssh
 
 # Create a UV virtual environment for development in the project directory
-RUN uv venv /home/doco/devroot/doco/.venv --python=python3.11
+RUN uv venv /home/gofr-doc/devroot/gofr-doc/.venv --python=python3.11
 
 # Set environment variables to use the project venv
-ENV VIRTUAL_ENV=/home/doco/devroot/doco/.venv
-ENV PATH="/home/doco/devroot/doco/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/home/gofr-doc/devroot/gofr-doc/.venv
+ENV PATH="/home/gofr-doc/devroot/gofr-doc/.venv/bin:$PATH"
 
 # Use entrypoint to handle initialization
 ENTRYPOINT ["/entrypoint.sh"]

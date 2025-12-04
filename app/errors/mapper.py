@@ -1,12 +1,12 @@
 """Error response mapping for MCP and web interfaces.
 
-Converts structured DocoError exceptions into standardized error responses
+Converts structured GofrDocError exceptions into standardized error responses
 with machine-readable error codes and recovery strategies.
 """
 
 from typing import Dict, Any
 from app.exceptions import (
-    DocoError,
+    GofrDocError,
     ValidationError,
     ResourceNotFoundError,
     SecurityError,
@@ -58,8 +58,8 @@ def map_exception_to_response(error: Exception) -> ErrorResponse:
     Returns:
         ErrorResponse with structured error information
     """
-    if isinstance(error, DocoError):
-        # Structured DOCO error with code, message, details
+    if isinstance(error, GofrDocError):
+        # Structured GOFR_DOC error with code, message, details
         return ErrorResponse(
             error_code=error.code,
             message=error.message,
@@ -146,7 +146,7 @@ def get_http_status_for_error(error: Exception) -> int:
         return 403
     elif isinstance(error, ValidationError):
         return 400
-    elif isinstance(error, DocoError):
+    elif isinstance(error, GofrDocError):
         return 400
     else:
         return 500

@@ -3,17 +3,17 @@
 # Uses test JWT secret and token store that matches conftest.py configuration
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/doco.env"
-cd "$DOCO_ROOT"
+source "$SCRIPT_DIR/gofr_doc.env"
+cd "$GOFR_DOC_ROOT"
 
 # Configuration (matches conftest.py TEST_JWT_SECRET and TEST_TOKEN_STORE_PATH)
-export DOCO_ENV=TEST
+export GOFR_DOC_ENV=TEST
 JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
-TOKEN_STORE="$DOCO_TOKEN_STORE"
-TEMPLATES_DIR="$DOCO_TEMPLATES"
-STYLES_DIR="$DOCO_STYLES"
-PORT="$DOCO_MCP_PORT"
-LOG_FILE="$DOCO_LOGS/mcp_test_server.log"
+TOKEN_STORE="$GOFR_DOC_TOKEN_STORE"
+TEMPLATES_DIR="$GOFR_DOC_TEMPLATES"
+STYLES_DIR="$GOFR_DOC_STYLES"
+PORT="$GOFR_DOC_MCP_PORT"
+LOG_FILE="$GOFR_DOC_LOGS/mcp_test_server.log"
 
 # Kill any existing MCP server on this port
 echo "Stopping any existing MCP server on port $PORT..."

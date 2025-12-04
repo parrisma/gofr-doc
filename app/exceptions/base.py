@@ -1,6 +1,6 @@
-"""Base exception classes for DOCO application.
+"""Base exception classes for GOFR_DOC application.
 
-All DOCO exceptions include structured error information:
+All GOFR_DOC exceptions include structured error information:
 - code: Machine-readable error identifier
 - message: Human-readable error description
 - details: Additional context for debugging/recovery
@@ -9,8 +9,8 @@ All DOCO exceptions include structured error information:
 from typing import Dict, Optional, Any
 
 
-class DocoError(Exception):
-    """Base exception for all DOCO errors.
+class GofrDocError(Exception):
+    """Base exception for all GOFR_DOC errors.
 
     Provides structured error information for consistent handling
     across MCP and web interfaces.
@@ -36,7 +36,7 @@ class DocoError(Exception):
         return f"{self.code}: {self.message}"
 
 
-class ValidationError(DocoError):
+class ValidationError(GofrDocError):
     """Base for all validation errors.
 
     Used when input data fails validation rules.
@@ -45,7 +45,7 @@ class ValidationError(DocoError):
     pass
 
 
-class ResourceNotFoundError(DocoError):
+class ResourceNotFoundError(GofrDocError):
     """Base for resource not found errors.
 
     Used when a requested resource (template, session, style, etc.) doesn't exist.
@@ -54,7 +54,7 @@ class ResourceNotFoundError(DocoError):
     pass
 
 
-class SecurityError(DocoError):
+class SecurityError(GofrDocError):
     """Base for security and authorization errors.
 
     Used when access is denied due to group mismatch or authentication failure.
@@ -63,7 +63,7 @@ class SecurityError(DocoError):
     pass
 
 
-class ConfigurationError(DocoError):
+class ConfigurationError(GofrDocError):
     """Base for configuration and setup errors.
 
     Used when system configuration is invalid or incomplete.
@@ -72,7 +72,7 @@ class ConfigurationError(DocoError):
     pass
 
 
-class RegistryError(DocoError):
+class RegistryError(GofrDocError):
     """Base exception for registry operations.
 
     Maintains backward compatibility while adding structured error info.

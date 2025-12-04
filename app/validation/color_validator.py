@@ -119,7 +119,7 @@ def get_css_color(color: str) -> str:
 
     # Theme color - return CSS variable
     if color_lower in THEME_COLORS:
-        return f"var(--doco-{color_lower}, #{color_lower})"
+        return f"var(--gofr-doc-{color_lower}, #{color_lower})"
 
     # Hex color - return as-is
     if color.startswith("#"):

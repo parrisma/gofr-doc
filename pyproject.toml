@@ -1,5 +1,5 @@
 [project]
-name = "doco"
+name = "gofr-doc"
 version = "1.0.0"
 description = "Document generation service with MCP server support"
 readme = "README.md"

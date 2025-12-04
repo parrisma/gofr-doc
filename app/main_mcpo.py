@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""MCPO wrapper entry point for doco MCP server
+"""MCPO wrapper entry point for gofr_doc MCP server
 
-This script starts an MCPO proxy that exposes the doco MCP server
+This script starts an MCPO proxy that exposes the gofr_doc MCP server
 as OpenAPI-compatible HTTP endpoints for Open WebUI integration.
 """
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="doco MCPO Wrapper - Expose MCP server as OpenAPI endpoints"
+        description="gofr_doc MCPO Wrapper - Expose MCP server as OpenAPI endpoints"
     )
     parser.add_argument(
         "--mcp-host",
@@ -40,31 +40,31 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mcp-port",
         type=int,
-        default=int(os.environ.get("DOCO_MCP_PORT", "8010")),
+        default=int(os.environ.get("GOFR_DOC_MCP_PORT", "8010")),
         help="Port where MCP server is listening (default: 8010)",
     )
     parser.add_argument(
         "--mcpo-port",
         type=int,
-        default=int(os.environ.get("DOCO_MCPO_PORT", "8011")),
+        default=int(os.environ.get("GOFR_DOC_MCPO_PORT", "8011")),
         help="Port for MCPO proxy to listen on (default: 8011)",
     )
     parser.add_argument(
         "--api-key",
         type=str,
         default=None,
-        help="API key for Open WebUI -> MCPO authentication (default: from DOCO_MCPO_API_KEY env or 'changeme')",
+        help="API key for Open WebUI -> MCPO authentication (default: from GOFR_DOC_MCPO_API_KEY env or 'changeme')",
     )
     parser.add_argument(
         "--auth-token",
         type=str,
         default=None,
-        help="JWT token for MCPO -> MCP authentication (default: from DOCO_JWT_TOKEN env)",
+        help="JWT token for MCPO -> MCP authentication (default: from GOFR_DOC_JWT_TOKEN env)",
     )
     parser.add_argument(
         "--auth",
         action="store_true",
-        help="Enable authenticated mode (requires --auth-token or DOCO_JWT_TOKEN)",
+        help="Enable authenticated mode (requires --auth-token or GOFR_DOC_JWT_TOKEN)",
     )
     parser.add_argument(
         "--no-auth",
@@ -82,20 +82,20 @@ if __name__ == "__main__":
         use_auth = False
     else:
         # Check environment variable
-        mode = os.environ.get("DOCO_MCPO_MODE", "public").lower()
+        mode = os.environ.get("GOFR_DOC_MCPO_MODE", "public").lower()
         use_auth = mode == "auth"
 
     # Validate auth requirements
-    auth_token = args.auth_token or os.environ.get("DOCO_JWT_TOKEN")
+    auth_token = args.auth_token or os.environ.get("GOFR_DOC_JWT_TOKEN")
     if use_auth and not auth_token:
-        logger.error("ERROR: --auth-token or DOCO_JWT_TOKEN required for authenticated mode")
+        logger.error("ERROR: --auth-token or GOFR_DOC_JWT_TOKEN required for authenticated mode")
         sys.exit(1)
 
     mode_str = "AUTHENTICATED" if use_auth else "PUBLIC (NO AUTH)"
 
     # Startup banner
     logger.info("=" * 70)
-    logger.info("STARTING DOCO MCPO WRAPPER (OpenAPI Proxy)")
+    logger.info("STARTING GOFR_DOC MCPO WRAPPER (OpenAPI Proxy)")
     logger.info("=" * 70)
     logger.info(
         "Configuration",

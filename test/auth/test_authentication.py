@@ -28,7 +28,7 @@ def auth_service():
     Auth tests need isolated token stores to verify token counts, listing, etc.
     without interference from other tests using the shared store.
     """
-    with tempfile.TemporaryDirectory(prefix="doco_auth_test_") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="gofr_doc_auth_test_") as temp_dir:
         token_store = f"{temp_dir}/tokens.json"
         service = AuthService(
             secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
@@ -121,7 +121,7 @@ class TestAuthTokenCreation:
 
         TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
 
-        with tempfile.TemporaryDirectory(prefix="doco_persist_test_") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="gofr_doc_persist_test_") as temp_dir:
             token_store = f"{temp_dir}/tokens.json"
 
             # Create first service and token

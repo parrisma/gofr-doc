@@ -19,56 +19,56 @@ else
 fi
 
 # Create docker volume for persistent data if it doesn't exist
-echo "Checking for doco_data_dev volume..."
-if ! docker volume inspect doco_data_dev >/dev/null 2>&1; then
-    echo "Creating doco_data_dev volume..."
-    docker volume create doco_data_dev
+echo "Checking for gofr-doc-data-dev volume..."
+if ! docker volume inspect gofr-doc-data-dev >/dev/null 2>&1; then
+    echo "Creating gofr-doc-data-dev volume..."
+    docker volume create gofr-doc-data-dev
     VOLUME_CREATED=true
 else
-    echo "Volume doco_data_dev already exists"
+    echo "Volume gofr-doc-data-dev already exists"
     VOLUME_CREATED=false
 fi
 
 # Stop and remove existing container if it exists
-echo "Stopping existing doco_dev container..."
-docker stop doco_dev 2>/dev/null || true
+echo "Stopping existing gofr-doc-dev container..."
+docker stop gofr-doc-dev 2>/dev/null || true
 
-echo "Removing existing doco_dev container..."
-docker rm doco_dev 2>/dev/null || true
+echo "Removing existing gofr-doc-dev container..."
+docker rm gofr-doc-dev 2>/dev/null || true
 
-echo "Starting new doco_dev container..."
-echo "Mounting $HOME/devroot/doco to /home/doco/devroot/doco in container"
-echo "Mounting $HOME/.ssh to /home/doco/.ssh (read-only) in container"
-echo "Mounting doco_data_dev volume to /home/doco/devroot/doco/data in container"
+echo "Starting new gofr-doc-dev container..."
+echo "Mounting $HOME/devroot/gofr-doc to /home/gofr-doc/devroot/gofr-doc in container"
+echo "Mounting $HOME/.ssh to /home/gofr-doc/.ssh (read-only) in container"
+echo "Mounting gofr-doc-data-dev volume to /home/gofr-doc/devroot/gofr-doc/data in container"
 echo "Web port: $WEB_PORT, MCP port: $MCP_PORT, MCPO port: $MCPO_PORT"
 
 docker run -d \
---name doco_dev \
+--name gofr-doc-dev \
 --network ai-net \
 --user $(id -u):$(id -g) \
--v "$HOME/devroot/doco":/home/doco/devroot/doco \
--v "$HOME/.ssh:/home/doco/.ssh:ro" \
--v doco_data_dev:/home/doco/devroot/doco/data \
+-v "$HOME/devroot/gofr-doc":/home/gofr-doc/devroot/gofr-doc \
+-v "$HOME/.ssh:/home/gofr-doc/.ssh:ro" \
+-v gofr-doc-data-dev:/home/gofr-doc/devroot/gofr-doc/data \
 -p $MCP_PORT:8010 \
 -p $MCPO_PORT:8011 \
 -p $WEB_PORT:8012 \
-doco_dev:latest
+gofr-doc-dev:latest
 
-if docker ps -q -f name=doco_dev | grep -q .; then
-    echo "Container doco_dev is now running"
+if docker ps -q -f name=gofr-doc-dev | grep -q .; then
+    echo "Container gofr-doc-dev is now running"
     
     # Fix volume permissions if it was just created
     if [ "$VOLUME_CREATED" = true ]; then
         echo "Fixing permissions on newly created volume..."
-        docker exec -u root doco_dev chown -R doco:doco /home/doco/devroot/doco/data
+        docker exec -u root gofr-doc-dev chown -R gofr-doc:gofr-doc /home/gofr-doc/devroot/gofr-doc/data
         echo "Volume permissions fixed"
     fi
     
     echo ""
     echo "==================================================================="
     echo "Development Container Access:"
-    echo "  Shell:         docker exec -it doco_dev /bin/bash"
-    echo "  VS Code:       Attach to container 'doco_dev'"
+    echo "  Shell:         docker exec -it gofr-doc-dev /bin/bash"
+    echo "  VS Code:       Attach to container 'gofr-doc-dev'"
     echo ""
     echo "Access from Host Machine:"
     echo "  Web Server:    http://localhost:$WEB_PORT"
@@ -76,16 +76,16 @@ if docker ps -q -f name=doco_dev | grep -q .; then
     echo "  MCPO Proxy:    http://localhost:$MCPO_PORT"
     echo ""
     echo "Access from ai-net (other containers):"
-    echo "  Web Server:    http://doco_dev:8012"
-    echo "  MCP Server:    http://doco_dev:8010/mcp"
-    echo "  MCPO Proxy:    http://doco_dev:8011"
+    echo "  Web Server:    http://gofr-doc-dev:8012"
+    echo "  MCP Server:    http://gofr-doc-dev:8010/mcp"
+    echo "  MCPO Proxy:    http://gofr-doc-dev:8011"
     echo ""
     echo "Data & Storage:"
-    echo "  Volume:        doco_data_dev"
-    echo "  Source Mount:  $HOME/devroot/doco (live-reload)"
+    echo "  Volume:        gofr-doc-data-dev"
+    echo "  Source Mount:  $HOME/devroot/gofr-doc (live-reload)"
     echo "==================================================================="
     echo ""
 else
-    echo "ERROR: Container doco_dev failed to start"
+    echo "ERROR: Container gofr-doc-dev failed to start"
     exit 1
 fi

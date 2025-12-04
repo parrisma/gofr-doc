@@ -26,7 +26,7 @@ from app.auth import AuthService
 from app.logger import Logger, session_logger
 
 # Port configuration via environment variables (defaults to production port)
-MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8010")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 # Test constants
@@ -105,7 +105,8 @@ async def create_session_for_group(
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.call_tool(
-                "create_document_session", arguments={"template_id": template_id, "alias": "test_mcp_group_security-5"}
+                "create_document_session",
+                arguments={"template_id": template_id, "alias": "test_mcp_group_security-5"},
             )
             response = _parse_json_response(result)
             if response["status"] != "success":
@@ -257,7 +258,8 @@ async def test_mcp_server_extracts_group_from_bearer_token(auth_service, logger)
 
             # Create a session - this will tag the session with the group from JWT
             result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "news_email", "alias": "test_mcp_group_security-6"}
+                "create_document_session",
+                arguments={"template_id": "news_email", "alias": "test_mcp_group_security-6"},
             )
             response = _parse_json_response(result)
 

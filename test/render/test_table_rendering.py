@@ -31,7 +31,7 @@ class TestBasicTableRendering:
         )
 
         # Verify table structure
-        assert 'class="doco-table"' in html
+        assert 'class="gofr-doc-table"' in html
         assert "<thead>" in html
         assert "<tbody>" in html
 
@@ -54,7 +54,7 @@ class TestBasicTableRendering:
         )
 
         # Verify table structure
-        assert 'class="doco-table"' in html
+        assert 'class="gofr-doc-table"' in html
         assert "<thead>" not in html
         assert "<tbody>" in html
         assert "Alice" in html
@@ -119,7 +119,7 @@ class TestBasicTableRendering:
         )
 
         # Verify proper structure
-        assert 'class="doco-table"' in html
+        assert 'class="gofr-doc-table"' in html
         assert "<thead>" in html
         assert "<tbody>" in html
         assert "<th" in html
@@ -209,20 +209,20 @@ class TestBorderStyles:
             return Template(f.read())
 
     def test_table_uses_css_class(self, table_template):
-        """Test table uses doco-table class for styling."""
+        """Test table uses gofr-doc-table class for styling."""
         html = table_template.render(
             rows=[["A", "B"], ["1", "2"]],
             has_header=True,
         )
 
         # Borders now handled by CSS class, not inline styles
-        assert 'class="doco-table"' in html
+        assert 'class="gofr-doc-table"' in html
         # Should NOT have inline border styles
         assert "border: 1px solid" not in html
 
 
 class TestZebraStriping:
-    """Tests for zebra striping - now CSS-driven via .doco-table styles."""
+    """Tests for zebra striping - now CSS-driven via .gofr-doc-table styles."""
 
     @pytest.fixture
     def table_template(self):
@@ -242,7 +242,7 @@ class TestZebraStriping:
 
         # Zebra stripe class no longer generated - CSS handles it
         assert "zebra-stripe" not in html
-        assert "--doco-zebra-bg" not in html
+        assert "--gofr-doc-zebra-bg" not in html
 
 
 class TestCompactMode:
@@ -266,7 +266,7 @@ class TestCompactMode:
         )
 
         # Compact mode adds class, CSS handles padding
-        assert 'class="doco-table compact"' in html
+        assert 'class="gofr-doc-table compact"' in html
         # Should NOT have inline padding
         assert "padding: 4px;" not in html
 
@@ -278,7 +278,7 @@ class TestCompactMode:
             compact=False,
         )
 
-        assert 'class="doco-table"' in html
+        assert 'class="gofr-doc-table"' in html
         assert "compact" not in html
         # Should NOT have inline padding
         assert "padding: 8px;" not in html
@@ -451,7 +451,7 @@ class TestColorRendering:
         # No inline background colors
         assert "background-color:" not in html
         # But classes should be present
-        assert "doco-table" in html
+        assert "gofr-doc-table" in html
 
 
 class TestSorting:

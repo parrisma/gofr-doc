@@ -17,12 +17,12 @@ python -m app.main_web
 ### Production Mode (JWT Authentication)
 ```bash
 # Set JWT secret
-export DOCO_JWT_SECRET="your-secure-secret-key"
-export DOCO_TOKEN_STORE="/path/to/tokens.json"
+export GOFR_DOC_JWT_SECRET="your-secure-secret-key"
+export GOFR_DOC_TOKEN_STORE="/path/to/tokens.json"
 
 # Run with authentication enabled
-python -m app.main_mcp --jwt-secret "$DOCO_JWT_SECRET" --token-store "$DOCO_TOKEN_STORE"
-python -m app.main_web --jwt-secret "$DOCO_JWT_SECRET" --token-store "$DOCO_TOKEN_STORE"
+python -m app.main_mcp --jwt-secret "$GOFR_DOC_JWT_SECRET" --token-store "$GOFR_DOC_TOKEN_STORE"
+python -m app.main_web --jwt-secret "$GOFR_DOC_JWT_SECRET" --token-store "$GOFR_DOC_TOKEN_STORE"
 ```
 
 ## Authentication Methods
@@ -351,7 +351,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8012/sessions
 5. **Monitoring**: Log authentication failures
    ```bash
    # Check server logs for auth errors
-   tail -f /var/log/doco/mcp_server.log | grep AUTH_FAILED
+   tail -f /var/log/gofr-doc/mcp_server.log | grep AUTH_FAILED
    ```
 
 ### Docker Deployment
@@ -361,12 +361,12 @@ See [Docker Guide](DOCKER.md) for complete container setup with authentication.
 ```yaml
 # docker-compose.yml
 services:
-  doco-mcp:
+  gofr-doc-mcp:
     environment:
-      - DOCO_JWT_SECRET=${DOCO_JWT_SECRET}
-      - DOCO_TOKEN_STORE=/data/auth/tokens.json
+      - GOFR_DOC_JWT_SECRET=${GOFR_DOC_JWT_SECRET}
+      - GOFR_DOC_TOKEN_STORE=/data/auth/tokens.json
     volumes:
-      - doco-data:/data
+      - gofr-doc-data:/data
     secrets:
       - jwt_secret
 

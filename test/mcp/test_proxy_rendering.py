@@ -27,7 +27,7 @@ from app.validation.document_models import OutputFormat
 @pytest.fixture
 def temp_sessions_dir():
     """Create temporary sessions directory."""
-    temp_dir = tempfile.mkdtemp(prefix="doco_proxy_test_")
+    temp_dir = tempfile.mkdtemp(prefix="gofr_doc_proxy_test_")
     yield temp_dir
     shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -35,7 +35,7 @@ def temp_sessions_dir():
 @pytest.fixture
 def temp_proxy_dir():
     """Create temporary proxy storage directory."""
-    temp_dir = tempfile.mkdtemp(prefix="doco_proxy_storage_")
+    temp_dir = tempfile.mkdtemp(prefix="gofr_doc_proxy_storage_")
     yield temp_dir
     shutil.rmtree(temp_dir, ignore_errors=True)
 

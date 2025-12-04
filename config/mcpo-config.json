@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "doco-document-service": {
+    "gofr-doc-document-service": {
       "type": "streamable-http",
       "url": "http://localhost:8011/mcp",
-      "description": "doco document generation service with templates, fragments, and rendering"
+      "description": "gofr-doc document generation service with templates, fragments, and rendering"
     }
   }
 }

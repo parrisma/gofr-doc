@@ -38,8 +38,8 @@ def resolve_templates_dir(cli_dir: Optional[str], data_root: Optional[str] = Non
     if cli_dir:
         return cli_dir
 
-    # Priority 3: DOCO_DATA environment variable
-    doco_data = os.environ.get("DOCO_DATA")
+    # Priority 3: GOFR_DOC_DATA environment variable
+    doco_data = os.environ.get("GOFR_DOC_DATA")
     if doco_data:
         return str(Path(doco_data) / "docs" / "templates")
 
@@ -66,8 +66,8 @@ def resolve_fragments_dir(cli_dir: Optional[str], data_root: Optional[str] = Non
     if cli_dir:
         return cli_dir
 
-    # Priority 3: DOCO_DATA environment variable
-    doco_data = os.environ.get("DOCO_DATA")
+    # Priority 3: GOFR_DOC_DATA environment variable
+    doco_data = os.environ.get("GOFR_DOC_DATA")
     if doco_data:
         return str(Path(doco_data) / "docs" / "fragments")
 
@@ -94,8 +94,8 @@ def resolve_styles_dir(cli_dir: Optional[str], data_root: Optional[str] = None) 
     if cli_dir:
         return cli_dir
 
-    # Priority 3: DOCO_DATA environment variable
-    doco_data = os.environ.get("DOCO_DATA")
+    # Priority 3: GOFR_DOC_DATA environment variable
+    doco_data = os.environ.get("GOFR_DOC_DATA")
     if doco_data:
         return str(Path(doco_data) / "docs" / "styles")
 
@@ -588,23 +588,23 @@ Examples:
   python -m app.management.render_manager --doco-env TEST fragments list
 
 Environment Variables:
-    DOCO_ENV            Environment mode (TEST or PROD)
-    DOCO_DATA           Data root directory (contains docs/)
+    GOFR_DOC_ENV            Environment mode (TEST or PROD)
+    GOFR_DOC_DATA           Data root directory (contains docs/)
         """,
     )
 
     # Global arguments
     parser.add_argument(
-        "--doco-env",
+        "--gofr-doc-env",
         type=str,
-        default=os.environ.get("DOCO_ENV", "TEST"),
+        default=os.environ.get("GOFR_DOC_ENV", "TEST"),
         choices=["TEST", "PROD"],
-        help="Environment mode (TEST or PROD, default: from DOCO_ENV or TEST)",
+        help="Environment mode (TEST or PROD, default: from GOFR_DOC_ENV or TEST)",
     )
     parser.add_argument(
         "--data-root",
         type=str,
-        default=os.environ.get("DOCO_DATA"),
+        default=os.environ.get("GOFR_DOC_DATA"),
         help="Data root directory (contains docs/ with templates, fragments, styles)",
     )
 

@@ -2,15 +2,15 @@
 # Run MCP server without authentication (no-auth mode)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/doco.env"
-cd "$DOCO_ROOT"
+source "$SCRIPT_DIR/gofr_doc.env"
+cd "$GOFR_DOC_ROOT"
 
 # Configuration for no-auth mode
-export DOCO_ENV=TEST
-TEMPLATES_DIR="$DOCO_TEMPLATES"
-STYLES_DIR="$DOCO_STYLES"
-PORT="$DOCO_MCP_PORT"
-LOG_FILE="$DOCO_LOGS/mcp_server.log"
+export GOFR_DOC_ENV=TEST
+TEMPLATES_DIR="$GOFR_DOC_TEMPLATES"
+STYLES_DIR="$GOFR_DOC_STYLES"
+PORT="$GOFR_DOC_MCP_PORT"
+LOG_FILE="$GOFR_DOC_LOGS/mcp_server.log"
 
 # Kill any existing MCP server on this port
 echo "Stopping any existing MCP server on port $PORT..."

@@ -407,27 +407,27 @@ Examples:
 
   # Using with environment variables
   python -m app.management.storage_manager --doco-env PROD --data-root /path/to/data storage stats
-  python -m app.management.storage_manager --doco-env TEST sessions list --verbose
+  python -m app.management.storage_manager --gofr-doc-env TEST sessions list --verbose
 
 Environment Variables:
-    DOCO_ENV           Environment mode (TEST or PROD)
-    DOCO_DATA          Data root directory (contains storage/ and sessions/)
-    DOCO_TOKEN_STORE   Token store path
+    GOFR_DOC_ENV           Environment mode (TEST or PROD)
+    GOFR_DOC_DATA          Data root directory (contains storage/ and sessions/)
+    GOFR_DOC_TOKEN_STORE   Token store path
         """,
     )
 
     # Global arguments
     parser.add_argument(
-        "--doco-env",
+        "--gofr-doc-env",
         type=str,
-        default=os.environ.get("DOCO_ENV", "TEST"),
+        default=os.environ.get("GOFR_DOC_ENV", "TEST"),
         choices=["TEST", "PROD"],
-        help="Environment mode (TEST or PROD, default: from DOCO_ENV or TEST)",
+        help="Environment mode (TEST or PROD, default: from GOFR_DOC_ENV or TEST)",
     )
     parser.add_argument(
         "--data-root",
         type=str,
-        default=os.environ.get("DOCO_DATA"),
+        default=os.environ.get("GOFR_DOC_DATA"),
         help="Data root directory (contains storage/ and sessions/)",
     )
     parser.add_argument(

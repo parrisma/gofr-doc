@@ -5,7 +5,7 @@ enabling intelligent error recovery and decision-making.
 """
 
 from app.exceptions.base import (
-    DocoError,
+    GofrDocError,
     ValidationError,
     ResourceNotFoundError,
     SecurityError,
@@ -26,7 +26,7 @@ from app.exceptions.session import (
 
 __all__ = [
     # Base exceptions
-    "DocoError",
+    "GofrDocError",
     "ValidationError",
     "ResourceNotFoundError",
     "SecurityError",

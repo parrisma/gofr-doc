@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
-from app.web_server.web_server import DocoWebServer
+from app.web_server.web_server import GofrDocWebServer
 from app.sessions import SessionManager, SessionStore
 from app.templates.registry import TemplateRegistry
 from app.auth import AuthService
@@ -48,16 +48,13 @@ def auth_service(temp_token_store):
 @pytest.fixture
 def client_with_auth(auth_service):
     """Create a test client for the web server with authentication enabled"""
-    templates_dir = str(Path(__file__).parent.parent / "data" / "docs" / "templates")
-    fragments_dir = str(Path(__file__).parent.parent / "data" / "docs" / "fragments")
-    styles_dir = str(Path(__file__).parent.parent / "data" / "docs" / "styles")
-
-    server = DocoWebServer(
-        templates_dir=templates_dir,
-        fragments_dir=fragments_dir,
-        styles_dir=styles_dir,
+    test_data_dir = Path(__file__).parent.parent / "data" / "docs"
+    server = GofrDocWebServer(
         require_auth=True,
         auth_service=auth_service,
+        templates_dir=str(test_data_dir / "templates"),
+        fragments_dir=str(test_data_dir / "fragments"),
+        styles_dir=str(test_data_dir / "styles"),
     )
     return TestClient(server.app)
 
@@ -87,7 +84,9 @@ class TestProxyGroupAccessControl:
         marketing_token = auth_service.create_token(group="marketing", expires_in_seconds=3600)
 
         # Create and render document in 'finance' group
-        result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-1", group="finance")
+        result = await session_manager.create_session(
+            template_id="news_email", alias="test_proxy_auth_security-1", group="finance"
+        )
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -137,7 +136,9 @@ class TestProxyGroupAccessControl:
     async def test_no_auth_token_with_auth_required(self, client_with_auth, session_manager):
         """Test that accessing proxy without auth token is denied when auth is required"""
         # Create document in public group
-        result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-2", group="public")
+        result = await session_manager.create_session(
+            template_id="news_email", alias="test_proxy_auth_security-2", group="public"
+        )
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -168,7 +169,9 @@ class TestProxyGroupAccessControl:
         sales_token = auth_service.create_token(group="sales", expires_in_seconds=3600)
 
         # Create document in 'sales' group
-        result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-3", group="sales")
+        result = await session_manager.create_session(
+            template_id="news_email", alias="test_proxy_auth_security-3", group="sales"
+        )
         session_id = result.session_id
 
         await session_manager.set_global_parameters(
@@ -222,7 +225,9 @@ class TestProxyGroupAccessControl:
         proxy_guids = {}
 
         for group, token in [("alpha", alpha_token), ("beta", beta_token)]:
-            result = await session_manager.create_session(template_id="news_email", alias="test_proxy_auth_security-4", group=group)
+            result = await session_manager.create_session(
+                template_id="news_email", alias="test_proxy_auth_security-4", group=group
+            )
             session_id = result.session_id
 
             await session_manager.set_global_parameters(

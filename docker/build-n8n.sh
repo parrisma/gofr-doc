@@ -6,7 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-IMAGE_NAME="doco-n8n"
+IMAGE_NAME="gofr-doc-n8n"
 IMAGE_TAG="latest"
 
 echo "Building n8n Docker image..."

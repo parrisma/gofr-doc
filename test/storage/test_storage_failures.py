@@ -18,7 +18,7 @@ from app.logger import Logger, session_logger
 @pytest.fixture
 def temp_storage_dir():
     """Create a temporary storage directory for tests"""
-    temp_dir = tempfile.mkdtemp(prefix="doco_storage_test_")
+    temp_dir = tempfile.mkdtemp(prefix="gofr_doc_storage_test_")
     yield temp_dir
     # Cleanup
     shutil.rmtree(temp_dir, ignore_errors=True)

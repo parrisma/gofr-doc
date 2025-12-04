@@ -19,13 +19,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
-from app.web_server.web_server import DocoWebServer
+from app.web_server.web_server import GofrDocWebServer
 
 
 @pytest.fixture
-def client():
-    """Create a test client for the web server"""
-    server = DocoWebServer(require_auth=False, auth_service=None)  # Disable auth for tests
+def client(test_data_dir):
+    """Create a TestClient for the web server."""
+    server = GofrDocWebServer(require_auth=False, auth_service=None)  # Disable auth for tests
     return TestClient(server.app)
 
 
@@ -61,7 +61,7 @@ class TestPingEndpoint:
         data = response.json()
 
         assert "service" in data
-        assert data["service"] == "doco"
+        assert data["service"] == "gofr-doc"
 
 
 class TestTemplateListEndpoint:
@@ -413,9 +413,9 @@ class TestAuthenticationHeaders:
 
         auth_service = AuthService(
             secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
-            token_store_path="/tmp/doco_test_tokens.json",
+            token_store_path="/tmp/gofr_doc_test_tokens.json",
         )
-        server = DocoWebServer(require_auth=True, auth_service=auth_service)
+        server = GofrDocWebServer(require_auth=True, auth_service=auth_service)
         client = TestClient(server.app)
 
         # Discovery endpoints should still work without auth

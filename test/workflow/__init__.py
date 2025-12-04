@@ -1,1 +1,1 @@
-"""Workflow integration tests for doco document generation system."""
+"""Workflow integration tests for gofr-doc document generation system."""

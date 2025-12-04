@@ -1,5 +1,5 @@
 {# Table fragment template - CSS-driven styling #}
-{# Styling is controlled by .doco-table classes in style.css #}
+{# Styling is controlled by .gofr-doc-table classes in style.css #}
 {# Use 'compact' parameter for tighter spacing #}
 
 {# Set default values #}
@@ -22,7 +22,7 @@
 <div class="table-title">{{ title }}</div>
 {% endif %}
 
-<table class="doco-table{% if compact %} compact{% endif %}"{% if width and width != 'auto' %} style="width: {% if width == 'full' %}100%{% else %}{{ width }}{% endif %};"{% endif %}>
+<table class="gofr-doc-table{% if compact %} compact{% endif %}"{% if width and width != 'auto' %} style="width: {% if width == 'full' %}100%{% else %}{{ width }}{% endif %};"{% endif %}>
   {# Column widths (if specified) #}
   {% if column_widths %}
   <colgroup>

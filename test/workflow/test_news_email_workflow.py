@@ -40,8 +40,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Note: auth_service and mcp_headers fixtures are provided by conftest.py
 
 # Port configuration via environment variables (defaults to production ports)
-MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
-WEB_PORT = os.environ.get("DOCO_WEB_PORT", "8010")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8011")
+WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8010")
 
 # Use 127.0.0.1 for better Docker container compatibility
 MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
@@ -243,7 +243,7 @@ class TestNewsEmailWorkflow:
                 assert "Global equity markets rallied" in mcp_html, "MCP HTML missing story 1"
                 assert "Technology sector shows" in mcp_html, "MCP HTML missing story 2"
                 assert (
-                    "bizdark" in mcp_html.lower() or "doco-bg" in mcp_html
+                    "bizdark" in mcp_html.lower() or "gofr-doc-bg" in mcp_html
                 ), "MCP HTML missing style"
 
         # ================================================================

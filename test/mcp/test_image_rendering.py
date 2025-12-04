@@ -20,7 +20,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
 # MCP server configuration
-MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8010")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8010")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 
@@ -76,7 +76,8 @@ async def test_image_fragment_appears_in_rendered_html(logger, mcp_headers, imag
 
             # Step 1: Create a document session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_rendering-12"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_rendering-12"},
             )
             create_response = _parse_json_response(create_result)
             assert create_response["status"] == "success", "Failed to create session"
@@ -173,7 +174,8 @@ async def test_image_fragment_appears_in_rendered_pdf(logger, mcp_headers, image
 
             # Step 1: Create a document session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_rendering-13"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_rendering-13"},
             )
             create_response = _parse_json_response(create_result)
             assert create_response["status"] == "success"
@@ -310,7 +312,8 @@ async def test_multiple_images_in_document(logger, mcp_headers, image_server):
 
             # Create session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_rendering-14"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_rendering-14"},
             )
             create_response = _parse_json_response(create_result)
             session_id = create_response["data"]["session_id"]

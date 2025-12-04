@@ -40,8 +40,8 @@ from mcp.types import TextContent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Port configuration
-MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
-WEB_PORT = os.environ.get("DOCO_WEB_PORT", "8010")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8011")
+WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8010")
 
 # Use 127.0.0.1 for better Docker container compatibility
 MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
@@ -81,7 +81,11 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-22"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-22",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 assert response.get("status") == "success"
@@ -142,7 +146,11 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-23"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-23",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -165,16 +173,12 @@ class TestFinancialTableWorkflow:
                             "title": "Product Performance Analysis",
                             "width": "100%",
                             "column_alignments": ["left", "right", "center", "center"],
-                            "border_style": "full",
-                            "zebra_stripe": True,
                             "compact": False,
                             "number_format": {
                                 "1": "currency:USD",
                                 "2": "percent",
                                 "3": "decimal:1",
                             },
-                            "header_color": "primary",
-                            "stripe_color": "light",
                             "highlight_rows": {0: "warning"},
                             "sort_by": {"column": "Sales", "order": "desc"},
                             "column_widths": {
@@ -224,7 +228,11 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-24"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-24",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -278,7 +286,11 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-25"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-25",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -350,7 +362,11 @@ class TestFinancialTableWorkflow:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-26"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-26",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -426,7 +442,11 @@ class TestTablePerformance:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-27"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-27",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -453,7 +473,6 @@ class TestTablePerformance:
                         "parameters": {
                             "rows": rows,
                             "has_header": True,
-                            "zebra_stripe": True,
                             "number_format": {"2": "currency:USD"},
                         },
                     },
@@ -492,7 +511,11 @@ class TestTablePerformance:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-28"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-28",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")
@@ -542,7 +565,11 @@ class TestTablePerformance:
 
                 # 1. Create session
                 result = await session.call_tool(
-                    "create_document_session", arguments={"template_id": "basic_report", "alias": "test_financial_table_workflow-29"}
+                    "create_document_session",
+                    arguments={
+                        "template_id": "basic_report",
+                        "alias": "test_financial_table_workflow-29",
+                    },
                 )
                 response = _safe_json_parse(_extract_text(result))
                 session_id = response.get("data", {}).get("session_id")

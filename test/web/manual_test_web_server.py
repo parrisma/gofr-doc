@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from httpx import AsyncClient, ASGITransport
 from app.logger import Logger, session_logger
-from app.web_server.web_server import DocoWebServer
+from app.web_server.web_server import GofrDocWebServer
 from app.auth.service import AuthService
 
 
@@ -23,7 +23,7 @@ async def test_web_server():
     logger: Logger = session_logger
 
     # Create server instance with auth
-    server = DocoWebServer(
+    server = GofrDocWebServer(
         auth_service=None,
         require_auth=False,
     )

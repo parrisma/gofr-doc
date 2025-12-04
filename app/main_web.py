@@ -1,7 +1,7 @@
 import uvicorn
 import argparse
 import os
-from app.web_server.web_server import DocoWebServer
+from app.web_server.web_server import GofrDocWebServer
 from app.auth import AuthService
 from app.logger import Logger, session_logger
 import app.startup.validation
@@ -19,7 +19,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="doco Web Server - Document rendering REST API")
+    parser = argparse.ArgumentParser(
+        description="gofr-doc Web Server - Document rendering REST API"
+    )
     parser.add_argument(
         "--host",
         type=str,
@@ -29,14 +31,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.environ.get("DOCO_WEB_PORT", "8012")),
-        help="Port number to listen on (default: 8012, or DOCO_WEB_PORT env var)",
+        default=int(os.environ.get("GOFR_DOC_WEB_PORT", "8012")),
+        help="Port number to listen on (default: 8012, or GOFR_DOC_WEB_PORT env var)",
     )
     parser.add_argument(
         "--jwt-secret",
         type=str,
         default=None,
-        help="JWT secret key (default: from DOCO_JWT_SECRET env var or auto-generated)",
+        help="JWT secret key (default: from GOFR_DOC_JWT_SECRET env var or auto-generated)",
     )
     parser.add_argument(
         "--token-store",
@@ -94,7 +96,8 @@ if __name__ == "__main__":
 
     # Initialize server
     # Note: AuthService is injected for token verification
-    server = DocoWebServer(
+    # Create web server instance
+    server = GofrDocWebServer(
         templates_dir=args.templates_dir,
         fragments_dir=args.fragments_dir,
         styles_dir=args.styles_dir,
@@ -104,7 +107,7 @@ if __name__ == "__main__":
 
     try:
         logger.info("=" * 70)
-        logger.info("STARTING DOCO WEB SERVER (REST API)")
+        logger.info("STARTING GOFR_DOC WEB SERVER (REST API)")
         logger.info("=" * 70)
         logger.info(
             "Configuration",

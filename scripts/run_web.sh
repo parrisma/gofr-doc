@@ -2,16 +2,16 @@
 # Run Web server without authentication (no-auth mode)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/doco.env"
-cd "$DOCO_ROOT"
+source "$SCRIPT_DIR/gofr_doc.env"
+cd "$GOFR_DOC_ROOT"
 
 # Configuration for no-auth mode
-export DOCO_ENV=TEST
-TEMPLATES_DIR="$DOCO_TEMPLATES"
-FRAGMENTS_DIR="$DOCO_FRAGMENTS"
-STYLES_DIR="$DOCO_STYLES"
-PORT="$DOCO_WEB_PORT"
-LOG_FILE="$DOCO_LOGS/web_server.log"
+export GOFR_DOC_ENV=TEST
+TEMPLATES_DIR="$GOFR_DOC_TEMPLATES"
+FRAGMENTS_DIR="$GOFR_DOC_FRAGMENTS"
+STYLES_DIR="$GOFR_DOC_STYLES"
+PORT="$GOFR_DOC_WEB_PORT"
+LOG_FILE="$GOFR_DOC_LOGS/web_server.log"
 
 # Kill any existing web server on this port
 echo "Stopping any existing web server on port $PORT..."

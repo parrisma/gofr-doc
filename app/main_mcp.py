@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="doco MCP Server - Document rendering via Model Context Protocol"
+        description="gofr-doc MCP Server - Document rendering via Model Context Protocol"
     )
     parser.add_argument(
         "--host",
@@ -30,14 +30,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=int(os.environ.get("DOCO_MCP_PORT", "8010")),
-        help="Port number to listen on (default: 8010, or DOCO_MCP_PORT env var)",
+        default=int(os.environ.get("GOFR_DOC_MCP_PORT", "8010")),
+        help="Port number to listen on (default: 8010, or GOFR_DOC_MCP_PORT env var)",
     )
     parser.add_argument(
         "--jwt-secret",
         type=str,
         default=None,
-        help="JWT secret key (default: from DOCO_JWT_SECRET env var or auto-generated)",
+        help="JWT secret key (default: from GOFR_DOC_JWT_SECRET env var or auto-generated)",
     )
     parser.add_argument(
         "--token-store",

@@ -1,4 +1,4 @@
-"""MCPO wrapper implementation for doco MCP server
+"""MCPO wrapper implementation for gofr_doc MCP server
 
 Provides both authenticated and non-authenticated MCPO proxy modes.
 """
@@ -160,7 +160,7 @@ def start_mcpo_wrapper(
     use_auth: bool = False,
 ) -> MCPOWrapper:
     """
-    Start MCPO wrapper for doco MCP server
+    Start MCPO wrapper for gofr_doc MCP server
 
     Args:
         mcp_host: Host where MCP server is running (default: localhost)
@@ -174,20 +174,20 @@ def start_mcpo_wrapper(
         MCPOWrapper instance
 
     Environment Variables:
-        DOCO_MCPO_API_KEY: API key for MCPO authentication (if not set, no API key required)
-        DOCO_JWT_TOKEN: JWT token for MCP server authentication
-        DOCO_MCPO_MODE: 'auth' or 'public' (overrides use_auth parameter)
+        GOFR_DOC_MCPO_API_KEY: API key for MCPO authentication (if not set, no API key required)
+        GOFR_DOC_JWT_TOKEN: JWT token for MCP server authentication
+        GOFR_DOC_MCPO_MODE: 'auth' or 'public' (overrides use_auth parameter)
     """
     # Resolve API key from environment if not explicitly provided
     if mcpo_api_key is None:
-        mcpo_api_key = os.environ.get("DOCO_MCPO_API_KEY")
+        mcpo_api_key = os.environ.get("GOFR_DOC_MCPO_API_KEY")
 
     # Resolve auth token
     if auth_token is None:
-        auth_token = os.environ.get("DOCO_JWT_TOKEN")
+        auth_token = os.environ.get("GOFR_DOC_JWT_TOKEN")
 
     # Resolve auth mode from environment
-    mode = os.environ.get("DOCO_MCPO_MODE", "").lower()
+    mode = os.environ.get("GOFR_DOC_MCPO_MODE", "").lower()
     if mode == "auth":
         use_auth = True
     elif mode == "public":

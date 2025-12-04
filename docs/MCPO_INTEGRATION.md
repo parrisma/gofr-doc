@@ -1,6 +1,6 @@
-# MCPO Integration for doco
+# MCPO Integration for gofr-doc
 
-MCPO (MCP-to-OpenAPI) wrapper for exposing doco MCP server as OpenAPI endpoints for Open WebUI integration.
+MCPO (MCP-to-OpenAPI) wrapper for exposing gofr-doc MCP server as OpenAPI endpoints for Open WebUI integration.
 
 ## Quick Start - Public Mode (No Authentication)
 
@@ -19,14 +19,14 @@ open http://localhost:8011/docs
 
 ```bash
 # Start MCP server with authentication
-export DOCO_JWT_SECRET="your-secret-key"
+export GOFR_DOC_JWT_SECRET="your-secret-key"
 python app/main_mcp.py --port=8010
 
 # Generate a JWT token (or use existing one)
-export DOCO_JWT_TOKEN="your-jwt-token"
+export GOFR_DOC_JWT_TOKEN="your-jwt-token"
 
 # Start MCPO wrapper with auth
-./scripts/mcpo_wrapper.sh --mode auth --jwt-token "$DOCO_JWT_TOKEN"
+./scripts/mcpo_wrapper.sh --mode auth --jwt-token "$GOFR_DOC_JWT_TOKEN"
 
 # Access OpenAPI docs
 open http://localhost:8011/docs
@@ -76,12 +76,29 @@ uv tool run mcpo --port 8011 --api-key "changeme" \
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DOCO_MCPO_MODE` | Auth mode: `auth` or `public` | `public` |
-| `DOCO_MCP_PORT` | MCP server port | `8010` |
-| `DOCO_MCPO_PORT` | MCPO proxy port | `8011` |
-| `DOCO_MCPO_API_KEY` | API key for Open WebUI → MCPO | `changeme` |
-| `DOCO_JWT_TOKEN` | JWT token for MCPO → MCP | (none) |
-| `DOCO_MCP_HOST` | MCP server host | `localhost` |
+| `GOFR_DOC_MCPO_MODE` | Auth mode: `auth` or `public` | `public` |
+| `GOFR_DOC_MCP_PORT` | MCP server port | `8010` |
+| `GOFR_DOC_MCPO_PORT` | MCPO proxy port | `8011` |
+| `GOFR_DOC_MCPO_API_KEY` | API key for Open WebUI → MCPO | `changeme` |
+| `GOFR_DOC_JWT_TOKEN` | JWT token for MCPO → MCP | (none) |
+| `GOFR_DOC_MCP_HOST` | MCP server host | `localhost` |
+
+## Integration with Open WebUI
+
+Once MCPO is running, configure Open WebUI to use the OpenAPI endpoint:
+
+1. Open WebUI Settings → Tools → Add OpenAPI Server
+2. Enter URL: `http://localhost:8011`
+3. Enter API Key: Value of `GOFR_DOC_MCPO_API_KEY` (default: `changeme`)
+4. Click "Add Server"
+
+The gofr-doc tools will now be available in Open WebUI!
+
+## Architecture
+
+```
+Open WebUI → MCPO Proxy → gofr-doc MCP Server
+```
 
 ## Integration with Open WebUI
 

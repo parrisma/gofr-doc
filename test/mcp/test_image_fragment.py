@@ -18,7 +18,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
 # MCP server configuration
-MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8011")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 
@@ -85,7 +85,8 @@ async def test_add_image_fragment_rejects_non_https_url_by_default(logger, mcp_h
 
             # Create session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_fragment-7"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_fragment-7"},
             )
             create_response = _parse_json_response(create_result)
             assert create_response["status"] == "success"
@@ -115,7 +116,8 @@ async def test_add_image_fragment_accepts_http_when_explicitly_allowed(logger, m
 
             # Create session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_fragment-8"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_fragment-8"},
             )
             create_response = _parse_json_response(create_result)
             session_id = create_response["data"]["session_id"]
@@ -147,7 +149,8 @@ async def test_add_image_fragment_rejects_invalid_url(logger, mcp_headers):
 
             # Create session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_fragment-9"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_fragment-9"},
             )
             create_response = _parse_json_response(create_result)
             session_id = create_response["data"]["session_id"]
@@ -175,7 +178,8 @@ async def test_add_image_fragment_success_with_local_server(logger, mcp_headers,
 
             # Create session
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_fragment-10"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_fragment-10"},
             )
             create_response = _parse_json_response(create_result)
             session_id = create_response["data"]["session_id"]
@@ -215,7 +219,8 @@ async def test_add_image_fragment_respects_group_security(logger, auth_service, 
 
             # Create session in group1
             create_result = await session.call_tool(
-                "create_document_session", arguments={"template_id": "basic_report", "alias": "test_image_fragment-11"}
+                "create_document_session",
+                arguments={"template_id": "basic_report", "alias": "test_image_fragment-11"},
             )
             create_response = _parse_json_response(create_result)
             _ = create_response["data"]["session_id"]  # noqa: F841

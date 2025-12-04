@@ -1,6 +1,6 @@
-# doco - Document Generation MCP Service
+# gofr-doc - Document Generation MCP Service
 
-doco delivers a stateful, discoverable document generation API exposed to agentic LLM clients via the Model Context Protocol (MCP). The service combines a FastAPI web interface and a Streamable HTTP MCP server backed by Pydantic schemas, Jinja2 templating, reusable styles, and multi-format rendering (HTML, PDF, Markdown).
+gofr-doc delivers a stateful, discoverable document generation API exposed to agentic LLM clients via the Model Context Protocol (MCP). The service combines a FastAPI web interface and a Streamable HTTP MCP server backed by Pydantic schemas, Jinja2 templating, reusable styles, and multi-format rendering (HTML, PDF, Markdown).
 
 ## Features
 
@@ -228,11 +228,11 @@ See [Features Guide](docs/FEATURES.md#tables) for complete documentation with ex
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `DOCO_JWT_SECRET` | None (auth disabled) | Shared JWT secret for both servers. When set, enables authentication and group-based isolation |
-| `DOCO_TOKEN_STORE` | `<data_dir>/auth/tokens.json` | Path to token store file for token management |
-| `DOCO_DATA_DIR` | `<repo>/data` | Base directory for auth, storage, sessions, and proxy documents |
-| `DOCO_MCP_PORT` | `8011` | Port for MCP server (used by tests) |
-| `DOCO_WEB_PORT` | `8010` | Port for web server (used by tests) |
+| `GOFR_DOC_JWT_SECRET` | None (auth disabled) | Shared JWT secret for both servers. When set, enables authentication and group-based isolation |
+| `GOFR_DOC_TOKEN_STORE` | `<data_dir>/auth/tokens.json` | Path to token store file for token management |
+| `GOFR_DOC_DATA_DIR` | `<repo>/data` | Base directory for auth, storage, sessions, and proxy documents |
+| `GOFR_DOC_MCP_PORT` | `8010` | Port for MCP server (used by tests) |
+| `GOFR_DOC_WEB_PORT` | `8012` | Port for web server (used by tests) |
 
 ### CLI Options
 

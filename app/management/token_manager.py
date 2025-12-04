@@ -210,22 +210,22 @@ Examples:
   python -m app.management.token_manager revoke --token eyJhbGc...
 
   # Using with environment variables
-  python -m app.management.token_manager --doco-env PROD --token-store /path/to/tokens.json create --group research
+  python -m app.management.token_manager --gofr-doc-env PROD --token-store /path/to/tokens.json create --group research
 
 Environment Variables:
-    DOCO_ENV            Environment mode (TEST or PROD)
-    DOCO_JWT_SECRET     JWT secret key for token signing and verification
-    DOCO_TOKEN_STORE    Token store file path
+    GOFR_DOC_ENV            Environment mode (TEST or PROD)
+    GOFR_DOC_JWT_SECRET     JWT secret key for token signing and verification
+    GOFR_DOC_TOKEN_STORE    Token store file path
         """,
     )
 
     # Global arguments
     parser.add_argument(
-        "--doco-env",
+        "--gofr-doc-env",
         type=str,
-        default=os.environ.get("DOCO_ENV", "TEST"),
+        default=os.environ.get("GOFR_DOC_ENV", "TEST"),
         choices=["TEST", "PROD"],
-        help="Environment mode (TEST or PROD, default: from DOCO_ENV or TEST)",
+        help="Environment mode (TEST or PROD, default: from GOFR_DOC_ENV or TEST)",
     )
     parser.add_argument(
         "--secret",

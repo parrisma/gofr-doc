@@ -33,7 +33,7 @@ from app.logger import session_logger
 @pytest.fixture
 def temp_sessions_dir():
     """Create a temporary sessions directory for tests."""
-    temp_dir = tempfile.mkdtemp(prefix="doco_persistence_test_")
+    temp_dir = tempfile.mkdtemp(prefix="gofr_doc_persistence_test_")
     yield temp_dir
     shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -540,8 +540,8 @@ async def test_missing_required_fields_recovery(session_manager, temp_sessions_d
 @pytest.mark.asyncio
 async def test_sessions_isolated_by_directory(template_registry):
     """Test that sessions in different directories don't interfere."""
-    dir1 = tempfile.mkdtemp(prefix="doco_isolation_1_")
-    dir2 = tempfile.mkdtemp(prefix="doco_isolation_2_")
+    dir1 = tempfile.mkdtemp(prefix="gofr_doc_isolation_1_")
+    dir2 = tempfile.mkdtemp(prefix="gofr_doc_isolation_2_")
 
     try:
         store1 = SessionStore(base_dir=dir1, logger=session_logger)
@@ -587,7 +587,7 @@ async def test_sessions_isolated_by_directory(template_registry):
 @pytest.mark.asyncio
 async def test_multiple_concurrent_managers(template_registry):
     """Test multiple SessionManager instances accessing same storage concurrently."""
-    temp_dir = tempfile.mkdtemp(prefix="doco_multi_manager_")
+    temp_dir = tempfile.mkdtemp(prefix="gofr_doc_multi_manager_")
 
     try:
         # Create multiple managers pointing to same storage

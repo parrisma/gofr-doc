@@ -134,3 +134,19 @@ fragments:
         type: object
         description: "Dictionary mapping column indices (0-based) to percentage widths (e.g., {0: '30%', 1: '40%'}). Total must be ≤100%. Unspecified columns auto-distribute remaining width."
         required: false
+      - name: zebra_stripe
+        type: boolean
+        description: "If true, applies alternating row colors"
+        required: false
+      - name: border_style
+        type: string
+        description: "Border style: 'full', 'horizontal', 'minimal', 'none'"
+        required: false
+      - name: header_color
+        type: string
+        description: "Background color for header row (theme color name or hex)"
+        required: false
+      - name: stripe_color
+        type: string
+        description: "Background color for striped rows (theme color name or hex)"
+        required: false

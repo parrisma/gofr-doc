@@ -1,5 +1,5 @@
 #!/bin/bash
-# Restart all Doco servers in correct order: MCP → MCPO → Web
+# Restart all GofrDoc servers in correct order: MCP → MCPO → Web
 # Usage: ./restart_servers.sh [--kill-all] [--env PROD|TEST]
 # Default: TEST environment using test/data
 
@@ -8,14 +8,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source centralized configuration (defaults to TEST)
-export DOCO_ENV="${DOCO_ENV:-PROD}"  # Default to PROD for this script
-source "$SCRIPT_DIR/doco.env"
+export GOFR_DOC_ENV="${GOFR_DOC_ENV:-PROD}"  # Default to PROD for this script
+source "$SCRIPT_DIR/gofr_doc.env"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --env)
-            export DOCO_ENV="$2"
+            export GOFR_DOC_ENV="$2"
             shift 2
             ;;
         --kill-all)
@@ -29,21 +29,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Re-source after DOCO_ENV may have changed
-source "$SCRIPT_DIR/doco.env"
+# Re-source after GOFR_DOC_ENV may have changed
+source "$SCRIPT_DIR/gofr_doc.env"
 
-# Use variables from doco.env
-MCP_PORT="$DOCO_MCP_PORT"
-MCPO_PORT="$DOCO_MCPO_PORT"
-WEB_PORT="$DOCO_WEB_PORT"
-TEMPLATES_DIR="$DOCO_TEMPLATES"
-FRAGMENTS_DIR="$DOCO_FRAGMENTS"
-STYLES_DIR="$DOCO_STYLES"
+# Use variables from gofr_doc.env
+MCP_PORT="$GOFR_DOC_MCP_PORT"
+MCPO_PORT="$GOFR_DOC_MCPO_PORT"
+WEB_PORT="$GOFR_DOC_WEB_PORT"
+TEMPLATES_DIR="$GOFR_DOC_TEMPLATES"
+FRAGMENTS_DIR="$GOFR_DOC_FRAGMENTS"
+STYLES_DIR="$GOFR_DOC_STYLES"
 
 echo "======================================================================="
-echo "Doco Server Restart Script"
-echo "Environment: $DOCO_ENV"
-echo "Data Root: $DOCO_DATA"
+echo "GofrDoc Server Restart Script"
+echo "Environment: $GOFR_DOC_ENV"
+echo "Data Root: $GOFR_DOC_DATA"
 echo "======================================================================="
 
 # Kill existing processes

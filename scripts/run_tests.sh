@@ -25,17 +25,17 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 
 # Source centralized configuration
-export DOCO_ENV=TEST
-source "$SCRIPT_DIR/doco.env"
+export GOFR_DOC_ENV=TEST
+source "$SCRIPT_DIR/gofr-doc.env"
 
 # Test configuration constants
-export DOCO_JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
+export GOFR_DOC_JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
 
-# Use variables from doco.env
-TEMPLATES_DIR="$DOCO_TEMPLATES"
-FRAGMENTS_DIR="$DOCO_FRAGMENTS"
-STYLES_DIR="$DOCO_STYLES"
-STORAGE_DIR="$DOCO_STORAGE"
+# Use variables from gofr-doc.env
+TEMPLATES_DIR="$GOFR_DOC_TEMPLATES"
+FRAGMENTS_DIR="$GOFR_DOC_FRAGMENTS"
+STYLES_DIR="$GOFR_DOC_STYLES"
+STORAGE_DIR="$GOFR_DOC_STORAGE"
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,12 +44,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== DOCO Test Runner ===${NC}"
+echo -e "${GREEN}=== Gofr-Doc Test Runner ===${NC}"
 echo "Project root: ${PROJECT_ROOT}"
-echo "Data root: ${DOCO_DATA}"
-echo "JWT Secret: ${DOCO_JWT_SECRET:0:20}..."
-echo "MCP Port: ${DOCO_MCP_PORT}"
-echo "Web Port: ${DOCO_WEB_PORT}"
+echo "Data root: ${GOFR_DOC_DATA}"
+echo "JWT Secret: ${GOFR_DOC_JWT_SECRET:0:20}..."
+echo "MCP Port: ${GOFR_DOC_MCP_PORT}"
+echo "Web Port: ${GOFR_DOC_WEB_PORT}"
 echo "Templates: ${TEMPLATES_DIR}"
 echo "Fragments: ${FRAGMENTS_DIR}"
 echo "Styles: ${STYLES_DIR}"
@@ -65,8 +65,8 @@ sleep 1
 echo -e "${YELLOW}Purging token store and transient data...${NC}"
 
 # Empty token store (create empty JSON object)
-echo "{}" > "${DOCO_TOKEN_STORE}" 2>/dev/null || true
-echo "Token store emptied: ${DOCO_TOKEN_STORE}"
+echo "{}" > "${GOFR_DOC_TOKEN_STORE}" 2>/dev/null || true
+echo "Token store emptied: ${GOFR_DOC_TOKEN_STORE}"
 
 # Clear all sessions in data/sessions directory
 if [ -d "data/sessions" ]; then
@@ -140,20 +140,20 @@ stop_servers() {
 # Function to start MCP server for integration tests
 start_mcp_server() {
     local log_file="/tmp/mcp_server_test.log"
-    echo -e "${YELLOW}Starting MCP server on port ${DOCO_MCP_PORT}...${NC}"
+    echo -e "${YELLOW}Starting MCP server on port ${GOFR_DOC_MCP_PORT}...${NC}"
     
     # Remove old test log if exists
     rm -f "${log_file}"
     
-    free_port "${DOCO_MCP_PORT}"
+    free_port "${GOFR_DOC_MCP_PORT}"
     
     nohup uv run python app/main_mcp.py \
-        --port="${DOCO_MCP_PORT}" \
-        --jwt-secret="${DOCO_JWT_SECRET}" \
-        --token-store="${DOCO_TOKEN_STORE}" \
+        --port="${GOFR_DOC_MCP_PORT}" \
+        --jwt-secret="${GOFR_DOC_JWT_SECRET}" \
+        --token-store="${GOFR_DOC_TOKEN_STORE}" \
         --templates-dir="${TEMPLATES_DIR}" \
         --styles-dir="${STYLES_DIR}" \
-        --web-url="http://localhost:${DOCO_WEB_PORT}" \
+        --web-url="http://localhost:${GOFR_DOC_WEB_PORT}" \
         > "${log_file}" 2>&1 &
     
     MCP_PID=$!
@@ -168,7 +168,7 @@ start_mcp_server() {
             tail -20 "${log_file}"
             return 1
         fi
-        if port_in_use "${DOCO_MCP_PORT}"; then
+        if port_in_use "${GOFR_DOC_MCP_PORT}"; then
             echo -e " ${GREEN}✓${NC}"
             return 0
         fi
@@ -186,17 +186,17 @@ start_mcp_server() {
 # Function to start web server for integration tests
 start_web_server() {
     local log_file="/tmp/web_server_test.log"
-    echo -e "${YELLOW}Starting web server on port ${DOCO_WEB_PORT}...${NC}"
+    echo -e "${YELLOW}Starting web server on port ${GOFR_DOC_WEB_PORT}...${NC}"
     
     # Remove old test log if exists
     rm -f "${log_file}"
     
-    free_port "${DOCO_WEB_PORT}"
+    free_port "${GOFR_DOC_WEB_PORT}"
     
     nohup uv run python app/main_web.py \
-        --port="${DOCO_WEB_PORT}" \
-        --jwt-secret="${DOCO_JWT_SECRET}" \
-        --token-store="${DOCO_TOKEN_STORE}" \
+        --port="${GOFR_DOC_WEB_PORT}" \
+        --jwt-secret="${GOFR_DOC_JWT_SECRET}" \
+        --token-store="${GOFR_DOC_TOKEN_STORE}" \
         --templates-dir="${TEMPLATES_DIR}" \
         --fragments-dir="${FRAGMENTS_DIR}" \
         --styles-dir="${STYLES_DIR}" \
@@ -214,7 +214,7 @@ start_web_server() {
             tail -20 "${log_file}"
             return 1
         fi
-        if port_in_use "${DOCO_WEB_PORT}"; then
+        if port_in_use "${GOFR_DOC_WEB_PORT}"; then
             echo -e " ${GREEN}✓${NC}"
             return 0
         fi
@@ -320,7 +320,7 @@ fi
 
 # Clean up token store after tests
 echo -e "${YELLOW}Cleaning up token store...${NC}"
-echo "{}" > "${DOCO_TOKEN_STORE}" 2>/dev/null || true
+echo "{}" > "${GOFR_DOC_TOKEN_STORE}" 2>/dev/null || true
 echo "Token store emptied"
 
 # Report results

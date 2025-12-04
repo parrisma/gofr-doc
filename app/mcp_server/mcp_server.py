@@ -46,7 +46,7 @@ sys.path.insert(0, str(SysPath(__file__).parent.parent))
 from app.auth import AuthService  # noqa: E402
 from app.config import get_default_sessions_dir  # noqa: E402
 from app.errors import map_error_for_mcp  # noqa: E402
-from app.exceptions import DocoError  # noqa: E402
+from app.exceptions import GofrDocError  # noqa: E402
 from app.logger import Logger, session_logger  # noqa: E402
 from app.rendering import RenderingEngine  # noqa: E402
 from app.sessions import SessionManager, SessionStore  # noqa: E402
@@ -74,7 +74,7 @@ from app.validation.document_models import (  # noqa: E402
 ToolResponse = List[Union[TextContent, ImageContent, EmbeddedResource]]
 ToolHandler = Callable[[Dict[str, Any]], Awaitable[ToolResponse]]
 
-app = Server("doco-document-service")
+app = Server("gofr-doc-document-service")
 logger: Logger = session_logger
 
 # Optional directory overrides (set by main_mcp.py for testing)
@@ -1559,7 +1559,7 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
     from app.validation.document_models import HelpOutput
 
     output = HelpOutput(
-        service_name="doco-document-service",
+        service_name="gofr-doc-document-service",
         version="1.21.0",
         workflow_overview=(
             "WORKFLOW: DISCOVERY → SESSION → CONFIG → BUILD → RENDER\n"
@@ -1743,7 +1743,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> ToolResponse
             errors=[{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()],
         )
         return _handle_validation_error(exc)
-    except DocoError as exc:
+    except GofrDocError as exc:
         # Use the error mapper to convert structured domain exceptions
         logger.error(
             "Domain error",

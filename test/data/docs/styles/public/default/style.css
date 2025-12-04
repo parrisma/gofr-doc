@@ -54,7 +54,7 @@ p {
 
 /* ===== TABLE STYLES - PROFESSIONAL FINANCIAL FORMAT ===== */
 
-.doco-table {
+.gofr-doc-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9em;
@@ -64,12 +64,12 @@ p {
   border-bottom: 1px solid #333;
 }
 
-.doco-table thead {
+.gofr-doc-table thead {
   border-bottom: 1px solid #333;
   background-color: transparent;
 }
 
-.doco-table thead th {
+.gofr-doc-table thead th {
   padding: 2px 8px;
   text-align: right;
   font-weight: 600;
@@ -83,11 +83,11 @@ p {
   white-space: nowrap;
 }
 
-.doco-table thead th:first-child {
+.gofr-doc-table thead th:first-child {
   text-align: left;
 }
 
-.doco-table tbody td {
+.gofr-doc-table tbody td {
   padding: 2px 8px;
   border: none;
   border-bottom: 1px solid #DDD;
@@ -95,75 +95,75 @@ p {
   white-space: nowrap;
 }
 
-.doco-table tbody td:first-child {
+.gofr-doc-table tbody td:first-child {
   text-align: left;
   font-weight: 400;
   color: #333;
 }
 
-.doco-table tbody tr {
+.gofr-doc-table tbody tr {
   background-color: transparent;
 }
 
-.doco-table tbody tr:hover {
+.gofr-doc-table tbody tr:hover {
   background-color: #F8F8F8;
 }
 
-.doco-table tbody tr.total,
-.doco-table tbody tr.summary {
+.gofr-doc-table tbody tr.total,
+.gofr-doc-table tbody tr.summary {
   font-weight: 600;
   border-top: 1px solid #333;
 }
 
-.doco-table tbody tr.total td,
-.doco-table tbody tr.summary td {
+.gofr-doc-table tbody tr.total td,
+.gofr-doc-table tbody tr.summary td {
   border-bottom: none;
   padding-top: 4px;
 }
 
-.doco-table tbody tr.subtotal {
+.gofr-doc-table tbody tr.subtotal {
   font-weight: 500;
 }
 
-.doco-table tbody tr.subtotal td {
+.gofr-doc-table tbody tr.subtotal td {
   border-top: 1px solid #999;
 }
 
-.doco-table tbody tr.highlight {
+.gofr-doc-table tbody tr.highlight {
   background-color: #FFFDE7;
 }
 
-.doco-table tbody tr.highlight td {
+.gofr-doc-table tbody tr.highlight td {
   font-weight: 500;
 }
 
-.doco-table td.negative {
+.gofr-doc-table td.negative {
   color: #C62828;
 }
 
-.doco-table td.positive {
+.gofr-doc-table td.positive {
   color: #2E7D32;
 }
 
-.doco-table td.change-up::before {
+.gofr-doc-table td.change-up::before {
   content: "▲ ";
   color: #2E7D32;
   font-size: 0.7em;
 }
 
-.doco-table td.change-down::before {
+.gofr-doc-table td.change-down::before {
   content: "▼ ";
   color: #C62828;
   font-size: 0.7em;
 }
 
-.doco-table tbody td.highlight-column {
+.gofr-doc-table tbody td.highlight-column {
   background-color: #F5F5F5;
   font-weight: 500;
 }
 
-.doco-table.compact thead th,
-.doco-table.compact tbody td {
+.gofr-doc-table.compact thead th,
+.gofr-doc-table.compact tbody td {
   padding: 1px 6px;
   font-size: 0.85em;
 }

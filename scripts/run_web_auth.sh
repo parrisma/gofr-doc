@@ -3,18 +3,18 @@
 # Uses test JWT secret and token store that matches conftest.py configuration
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/doco.env"
-cd "$DOCO_ROOT"
+source "$SCRIPT_DIR/gofr_doc.env"
+cd "$GOFR_DOC_ROOT"
 
 # Configuration (matches conftest.py TEST_JWT_SECRET and TEST_TOKEN_STORE_PATH)
-export DOCO_ENV=TEST
+export GOFR_DOC_ENV=TEST
 JWT_SECRET="test-secret-key-for-secure-testing-do-not-use-in-production"
-TOKEN_STORE="$DOCO_TOKEN_STORE"
-TEMPLATES_DIR="$DOCO_TEMPLATES"
-FRAGMENTS_DIR="$DOCO_FRAGMENTS"
-STYLES_DIR="$DOCO_STYLES"
-PORT="$DOCO_WEB_PORT"
-LOG_FILE="$DOCO_LOGS/web_test_server.log"
+TOKEN_STORE="$GOFR_DOC_TOKEN_STORE"
+TEMPLATES_DIR="$GOFR_DOC_TEMPLATES"
+FRAGMENTS_DIR="$GOFR_DOC_FRAGMENTS"
+STYLES_DIR="$GOFR_DOC_STYLES"
+PORT="$GOFR_DOC_WEB_PORT"
+LOG_FILE="$GOFR_DOC_LOGS/web_test_server.log"
 
 # Kill any existing web server on this port
 echo "Stopping any existing web server on port $PORT..."

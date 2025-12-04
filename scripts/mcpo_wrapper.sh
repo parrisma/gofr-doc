@@ -5,18 +5,18 @@
 set -e
 
 # Default configuration
-MODE="${DOCO_MCPO_MODE:-public}"
-MCP_PORT="${DOCO_MCP_PORT:-8010}"
-MCPO_PORT="${DOCO_MCPO_PORT:-8011}"
-MCPO_API_KEY="${DOCO_MCPO_API_KEY:-changeme}"
-MCP_HOST="${DOCO_MCP_HOST:-localhost}"
+MODE="${GOFR_DOC_MCPO_MODE:-public}"
+MCP_PORT="${GOFR_DOC_MCP_PORT:-8010}"
+MCPO_PORT="${GOFR_DOC_MCPO_PORT:-8011}"
+MCPO_API_KEY="${GOFR_DOC_MCPO_API_KEY:-changeme}"
+MCP_HOST="${GOFR_DOC_MCP_HOST:-localhost}"
 
 # Help message
 show_help() {
     cat << EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Start MCPO proxy for doco MCP server
+Start MCPO proxy for gofr_doc MCP server
 
 OPTIONS:
     --mode MODE          Authentication mode: 'auth' or 'public' (default: public)
@@ -27,12 +27,12 @@ OPTIONS:
     --help               Show this help message
 
 ENVIRONMENT VARIABLES:
-    DOCO_MCPO_MODE       Authentication mode: 'auth' or 'public'
-    DOCO_MCP_PORT        MCP server port
-    DOCO_MCPO_PORT       MCPO proxy port
-    DOCO_MCPO_API_KEY    MCPO API key
-    DOCO_JWT_TOKEN       JWT token for authenticated mode
-    DOCO_MCP_HOST        MCP server host (default: localhost)
+    GOFR_DOC_MCPO_MODE       Authentication mode: 'auth' or 'public'
+    GOFR_DOC_MCP_PORT        MCP server port
+    GOFR_DOC_MCPO_PORT       MCPO proxy port
+    GOFR_DOC_MCPO_API_KEY    MCPO API key
+    GOFR_DOC_JWT_TOKEN       JWT token for authenticated mode
+    GOFR_DOC_MCP_HOST        MCP server host (default: localhost)
 
 EXAMPLES:
     # Start in public mode (no authentication)

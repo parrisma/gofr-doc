@@ -27,14 +27,14 @@ from app.storage import get_storage, reset_storage
 TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
 
 # Get token store path from environment or use default based on project root
-if "DOCO_TOKEN_STORE" not in os.environ:
-    # Calculate from doco.env pattern
+if "GOFR_DOC_TOKEN_STORE" not in os.environ:
+    # Calculate from gofr-doc.env pattern
     project_root = Path(__file__).parent.parent
     logs_dir = project_root / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
-    TEST_TOKEN_STORE_PATH = str(logs_dir / "doco_tokens.json")
+    TEST_TOKEN_STORE_PATH = str(logs_dir / "gofr-doc_tokens.json")
 else:
-    TEST_TOKEN_STORE_PATH = os.environ["DOCO_TOKEN_STORE"]
+    TEST_TOKEN_STORE_PATH = os.environ["GOFR_DOC_TOKEN_STORE"]
 
 TEST_GROUP = "test_group"
 
@@ -52,7 +52,7 @@ def test_data_dir(tmp_path):
     - Purges all images from storage after test
     """
     # Set up test mode with temporary directory
-    test_dir = tmp_path / "doco_test_data"
+    test_dir = tmp_path / "gofr-doc_test_data"
     test_dir.mkdir(parents=True, exist_ok=True)
 
     # Create subdirectories
@@ -115,11 +115,11 @@ def test_auth_service():
 
     Test servers must be launched with:
       --jwt-secret "test-secret-key-for-secure-testing-do-not-use-in-production"
-      --token-store "/tmp/doco_test_tokens.json"
+      --token-store "/tmp/gofr-doc_test_tokens.json"
 
     Or via environment variables:
-      DOCO_JWT_SECRET=test-secret-key-for-secure-testing-do-not-use-in-production
-      DOCO_TOKEN_STORE=/tmp/doco_test_tokens.json
+      GOFR_DOC_JWT_SECRET=test-secret-key-for-secure-testing-do-not-use-in-production
+      GOFR_DOC_TOKEN_STORE=/tmp/gofr-doc_test_tokens.json
 
     Returns:
         AuthService: Configured auth service with shared secret and token store
@@ -227,8 +227,8 @@ def configure_test_auth_environment():
     This ensures test MCP/web servers use the same JWT secret and token store
     as the test fixtures. Auto-runs before all tests.
     """
-    os.environ["DOCO_JWT_SECRET"] = TEST_JWT_SECRET
-    os.environ["DOCO_TOKEN_STORE"] = TEST_TOKEN_STORE_PATH
+    os.environ["GOFR_DOC_JWT_SECRET"] = TEST_JWT_SECRET
+    os.environ["GOFR_DOC_TOKEN_STORE"] = TEST_TOKEN_STORE_PATH
 
     # Ensure token store directory exists
     token_store_dir = Path(TEST_TOKEN_STORE_PATH).parent
@@ -237,8 +237,8 @@ def configure_test_auth_environment():
     yield
 
     # Cleanup: optional - clear environment after tests
-    os.environ.pop("DOCO_JWT_SECRET", None)
-    os.environ.pop("DOCO_TOKEN_STORE", None)
+    os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+    os.environ.pop("GOFR_DOC_TOKEN_STORE", None)
 
 
 # ============================================================================

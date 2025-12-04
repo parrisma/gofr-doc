@@ -7,7 +7,7 @@
 
 ## Overview
 
-Doco integrates with n8n for automated document generation workflows. Two integration methods are available:
+Gofr-Doc integrates with n8n for automated document generation workflows. Two integration methods are available:
 
 - **[HTTP REST API](#http-rest-api-recommended)** - Standard HTTP requests (recommended for n8n)
 - **[MCP Protocol](#mcp-protocol)** - Model Context Protocol for AI assistants
@@ -16,7 +16,7 @@ Doco integrates with n8n for automated document generation workflows. Two integr
 
 ### Prerequisites
 
-- ✅ Doco server running (MCP on `localhost:8010`, Web on `localhost:8012`)
+- ✅ Gofr-Doc server running (MCP on `localhost:8010`, Web on `localhost:8012`)
 - ✅ n8n instance running
 - ✅ Bearer token for authentication (if auth enabled)
 
@@ -493,17 +493,69 @@ Expected: SSE stream with tools list
 
 **Solution**: Verify JWT secret matches:
 ```bash
-echo $DOCO_JWT_SECRET
+echo $GOFR_DOC_JWT_SECRET
+```
+
+### 2. Network Issues
+
+If n8n is in Docker and can't reach gofr-doc:
+
+- Use `host.docker.internal` (Mac/Windows)
+- Use `172.17.0.1` (Linux)
+- Or put both in same network:
+
+```bash
+# Run gofr-doc on host
+./scripts/run_dev.sh
+
+# Run n8n in docker with host network
+docker run --network host n8n/n8n
+```
+
+Or with docker-compose:
+
+```yaml
+services:
+  gofr-doc-web:
+    container_name: gofr-doc-web
+    networks:
+      - ai-net
+  
+  n8n:
+    networks:
+      - ai-net
+```
+
+Then use: `http://gofr-doc-web:8012` from n8n.
+
+### 3. Debugging
+
+Check connectivity:
+```bash
+# From n8n container
+docker exec -it n8n sh
+
+# Try to reach gofr-doc
+ping gofr-doc-web
+curl http://gofr-doc-web:8012/health
+```
+
+Check logs:
+```bash
+# Gofr-Doc logs
+docker logs gofr-doc-web -f
+docker logs gofr-doc-mcp -f
+```
 ./scripts/token_manager.sh verify --token <token>
 ```
 
 ### Docker Networking
 
-If n8n is in Docker and can't reach doco:
+If n8n is in Docker and can't reach gofr-doc:
 
 #### Option 1: Use Host Network
 ```bash
-# Run doco on host
+# Run gofr-doc on host
 python -m app.main_web --host 0.0.0.0
 
 # From n8n container, use host.docker.internal
@@ -513,8 +565,8 @@ curl http://host.docker.internal:8012/templates
 #### Option 2: Docker Compose Network
 ```yaml
 services:
-  doco-web:
-    container_name: doco_web
+  gofr-doc-web:
+    container_name: gofr-doc-web
     networks:
       - n8n_network
   
@@ -526,15 +578,15 @@ networks:
   n8n_network:
 ```
 
-Then use: `http://doco_web:8012` from n8n.
+Then use: `http://gofr-doc-web:8012` from n8n.
 
 ### Diagnostic Commands
 
 #### Check Connectivity
 ```bash
 # From n8n container
-ping doco_web
-curl http://doco_web:8012/health
+ping gofr-doc-web
+curl http://gofr-doc-web:8012/health
 ```
 
 #### List Active Sessions
@@ -551,8 +603,8 @@ curl http://localhost:8012/sessions \
 #### Check Server Logs
 ```bash
 # Docker
-docker logs doco_web -f
-docker logs doco_mcp -f
+docker logs gofr-doc-web -f
+docker logs gofr-doc-mcp -f
 
 # Direct
 # Check terminal output where servers are running
@@ -599,7 +651,7 @@ docker logs doco_mcp -f
 **Steps**:
 1. Fetch data from database
 2. Transform data to table format
-3. Create doco session
+3. Create gofr-doc session
 4. Add title parameters
 5. Add table fragments
 6. Render PDF
@@ -612,7 +664,7 @@ docker logs doco_mcp -f
 **Steps**:
 1. Receive metrics data
 2. Format as chart parameters
-3. Create doco session
+3. Create gofr-doc session
 4. Add chart image
 5. Render HTML
 6. Post to Slack/Teams

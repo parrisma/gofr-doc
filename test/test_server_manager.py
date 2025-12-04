@@ -87,7 +87,7 @@ class ServerManager:
             # Start server
             self.mcp_process = subprocess.Popen(
                 cmd,
-                cwd="/home/doco/devroot/doco",
+                cwd="/home/gofr-doc/devroot/gofr-doc",
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -148,7 +148,7 @@ class ServerManager:
             # Start server
             self.web_process = subprocess.Popen(
                 cmd,
-                cwd="/home/doco/devroot/doco",
+                cwd="/home/gofr-doc/devroot/gofr-doc",
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

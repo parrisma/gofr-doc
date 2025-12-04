@@ -165,13 +165,13 @@ class TestCSSColorGeneration:
     def test_theme_color_to_css(self):
         """Test theme color converts to CSS variable."""
         result = get_css_color("blue")
-        assert "var(--doco-blue" in result
+        assert "var(--gofr-doc-blue" in result
 
     def test_all_theme_colors_to_css(self):
         """Test all theme colors convert to CSS."""
         for color in THEME_COLORS:
             result = get_css_color(color)
-            assert "var(--doco-" in result
+            assert "var(--gofr-doc-" in result
             assert color in result
 
     def test_hex_color_to_css(self):
@@ -200,6 +200,6 @@ class TestCSSColorGeneration:
     def test_css_variable_fallback(self):
         """Test CSS variable includes fallback."""
         result = get_css_color("blue")
-        assert "var(--doco-blue" in result
+        assert "var(--gofr-doc-blue" in result
         # Should have fallback value after comma
         assert "," in result

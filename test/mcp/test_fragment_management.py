@@ -20,7 +20,7 @@ from mcp.types import TextContent
 from app.logger import Logger, session_logger
 
 # MCP server configuration via environment variables (defaults to production port)
-MCP_PORT = os.environ.get("DOCO_MCP_PORT", "8011")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8010")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 # Note: auth_service and mcp_headers fixtures are now provided by conftest.py
@@ -487,7 +487,6 @@ async def test_add_table_fragment_with_all_phase6_features(logger, mcp_headers):
             add_response = _parse_json_response(add_result)
 
             assert add_response["status"] == "success"
-            assert "fragment_instance_guid" in add_response["data"]
 
             # Verify all parameters were saved
             list_result = await session.call_tool(

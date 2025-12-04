@@ -15,30 +15,30 @@ and their environment variable mappings.
 #
 # Application Ports
 # -----------------
-# DOCO_MCP_PORT: MCP server port (default: 8010)
-# DOCO_WEB_PORT: Web server port (default: 8012)
-# DOCO_MCPO_PORT: MCPO wrapper port (default: 8011)
+# GOFR_DOC_MCP_PORT: MCP server port (default: 8010)
+# GOFR_DOC_WEB_PORT: Web server port (default: 8012)
+# GOFR_DOC_MCPO_PORT: MCPO wrapper port (default: 8011)
 #
-# DOCO_WEB_SERVER_URL: Base URL for web server (default: http://localhost:8012)
+# GOFR_DOC_WEB_SERVER_URL: Base URL for web server (default: http://localhost:8012)
 #   Used for: proxy document download URLs
 #
 # Authentication & Security
 # -------------------------
-# DOCO_JWT_SECRET: Secret key for JWT token signing/verification (required for auth mode)
-# DOCO_TOKEN_STORE: Path to token store file (default: {DATA_DIR}/auth/tokens.json)
-# DOCO_JWT_TOKEN: Bearer token for API authentication
+# GOFR_DOC_JWT_SECRET: Secret key for JWT token signing/verification (required for auth mode)
+# GOFR_DOC_TOKEN_STORE: Path to token store file (default: {DATA_DIR}/auth/tokens.json)
+# GOFR_DOC_JWT_TOKEN: Bearer token for API authentication
 #
 # MCPO Configuration
 # ------------------
-# DOCO_MCPO_MODE: MCPO operation mode (default: "public")
+# GOFR_DOC_MCPO_MODE: MCPO operation mode (default: "public")
 #   Values: "auth" (requires JWT), "public" (no auth)
 #
-# DOCO_MCPO_API_KEY: API key for MCPO wrapper access
+# GOFR_DOC_MCPO_API_KEY: API key for MCPO wrapper access
 #
 # Development & Testing
 # ---------------------
-# DOCO_TEST_MODE: Enable test mode (set by test framework)
-# DOCO_LOG_LEVEL: Logging verbosity (default: INFO)
+# GOFR_DOC_TEST_MODE: Enable test mode (set by test framework)
+# GOFR_DOC_LOG_LEVEL: Logging verbosity (default: INFO)
 #   Values: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # =============================================================================
@@ -82,13 +82,13 @@ def get_config_summary() -> dict:
         "auth_dir": str(Config.get_auth_dir()),
         "proxy_dir": str(Config.get_proxy_dir()),
         "test_mode": Config.is_test_mode(),
-        "mcp_port": int(os.getenv("DOCO_MCP_PORT", DEFAULT_MCP_PORT)),
-        "web_port": int(os.getenv("DOCO_WEB_PORT", DEFAULT_WEB_PORT)),
-        "mcpo_port": int(os.getenv("DOCO_MCPO_PORT", DEFAULT_MCPO_PORT)),
-        "web_server_url": os.getenv("DOCO_WEB_SERVER_URL", DEFAULT_WEB_SERVER_URL),
-        "mcpo_mode": os.getenv("DOCO_MCPO_MODE", DEFAULT_MCPO_MODE),
-        "jwt_secret_set": bool(os.getenv("DOCO_JWT_SECRET")),
-        "log_level": os.getenv("DOCO_LOG_LEVEL", DEFAULT_LOG_LEVEL),
+        "mcp_port": int(os.getenv("GOFR_DOC_MCP_PORT", DEFAULT_MCP_PORT)),
+        "web_port": int(os.getenv("GOFR_DOC_WEB_PORT", DEFAULT_WEB_PORT)),
+        "mcpo_port": int(os.getenv("GOFR_DOC_MCPO_PORT", DEFAULT_MCPO_PORT)),
+        "web_server_url": os.getenv("GOFR_DOC_WEB_SERVER_URL", DEFAULT_WEB_SERVER_URL),
+        "mcpo_mode": os.getenv("GOFR_DOC_MCPO_MODE", DEFAULT_MCPO_MODE),
+        "jwt_secret_set": bool(os.getenv("GOFR_DOC_JWT_SECRET")),
+        "log_level": os.getenv("GOFR_DOC_LOG_LEVEL", DEFAULT_LOG_LEVEL),
     }
 
 
@@ -115,16 +115,16 @@ def validate_configuration() -> tuple[bool, list[str]]:
         errors.append(f"Cannot access data directory: {e}")
 
     # Check auth configuration if mode is "auth"
-    mcpo_mode = os.getenv("DOCO_MCPO_MODE", DEFAULT_MCPO_MODE)
+    mcpo_mode = os.getenv("GOFR_DOC_MCPO_MODE", DEFAULT_MCPO_MODE)
     if mcpo_mode == "auth":
-        if not os.getenv("DOCO_JWT_SECRET"):
-            errors.append("DOCO_JWT_SECRET required when DOCO_MCPO_MODE='auth' but not set")
+        if not os.getenv("GOFR_DOC_JWT_SECRET"):
+            errors.append("GOFR_DOC_JWT_SECRET required when GOFR_DOC_MCPO_MODE='auth' but not set")
 
     # Check port numbers are valid
     for port_var, default in [
-        ("DOCO_MCP_PORT", DEFAULT_MCP_PORT),
-        ("DOCO_WEB_PORT", DEFAULT_WEB_PORT),
-        ("DOCO_MCPO_PORT", DEFAULT_MCPO_PORT),
+        ("GOFR_DOC_MCP_PORT", DEFAULT_MCP_PORT),
+        ("GOFR_DOC_WEB_PORT", DEFAULT_WEB_PORT),
+        ("GOFR_DOC_MCPO_PORT", DEFAULT_MCPO_PORT),
     ]:
         port_str = os.getenv(port_var, str(default))
         try:
@@ -148,43 +148,43 @@ ENVIRONMENT VARIABLES
 ═════════════════════
 
 📁 DATA & STORAGE
-  DOCO_DATA_DIR           Base directory for all persistent data
+  GOFR_DOC_DATA_DIR       Base directory for all persistent data
                           Default: ./data
                           Used for: sessions, storage, auth, proxy docs
 
 🔌 APPLICATION PORTS
-  DOCO_MCP_PORT           MCP server port
-                          Default: 8011
-  
-  DOCO_WEB_PORT           Web server port
+  GOFR_DOC_MCP_PORT       MCP server port
                           Default: 8010
   
-  DOCO_MCPO_PORT          MCPO wrapper port
-                          Default: 8000
+  GOFR_DOC_WEB_PORT       Web server port
+                          Default: 8012
   
-  DOCO_WEB_SERVER_URL     Web server base URL for proxy downloads
-                          Default: http://localhost:8010
+  GOFR_DOC_MCPO_PORT      MCPO wrapper port
+                          Default: 8011
+  
+  GOFR_DOC_WEB_SERVER_URL Web server base URL for proxy downloads
+                          Default: http://localhost:8012
 
 🔐 AUTHENTICATION & SECURITY
-  DOCO_JWT_SECRET         Secret key for JWT signing/verification
+  GOFR_DOC_JWT_SECRET     Secret key for JWT signing/verification
                           Required: When using auth mode
                           Format: Any secure random string
   
-  DOCO_TOKEN_STORE        Path to token store file
+  GOFR_DOC_TOKEN_STORE    Path to token store file
                           Default: {DATA_DIR}/auth/tokens.json
   
-  DOCO_JWT_TOKEN          Bearer token for API authentication
+  GOFR_DOC_JWT_TOKEN      Bearer token for API authentication
                           Format: JWT token string
 
 🎛️  MCPO CONFIGURATION
-  DOCO_MCPO_MODE          Operation mode
+  GOFR_DOC_MCPO_MODE      Operation mode
                           Values: "auth" | "public"
                           Default: "public"
   
-  DOCO_MCPO_API_KEY       API key for MCPO wrapper access
+  GOFR_DOC_MCPO_API_KEY   API key for MCPO wrapper access
 
 🧪 DEVELOPMENT & TESTING
-  DOCO_LOG_LEVEL          Logging verbosity
+  GOFR_DOC_LOG_LEVEL      Logging verbosity
                           Values: DEBUG | INFO | WARNING | ERROR | CRITICAL
                           Default: INFO
 
@@ -195,19 +195,19 @@ CONFIGURATION MODES
 
 Production (Authenticated)
 --------------------------
-export DOCO_MCPO_MODE=auth
-export DOCO_JWT_SECRET="your-secret-key-here"
-export DOCO_DATA_DIR="/var/doco/data"
+export GOFR_DOC_MCPO_MODE=auth
+export GOFR_DOC_JWT_SECRET="your-secret-key-here"
+export GOFR_DOC_DATA_DIR="/var/gofr_doc/data"
 
 Development (Public Access)
 ---------------------------
-export DOCO_MCPO_MODE=public
+export GOFR_DOC_MCPO_MODE=public
 # No JWT_SECRET needed
 
 Testing
 -------
 # Set by test framework automatically
-export DOCO_DATA_DIR="/tmp/doco-test-XXXXX"
+export GOFR_DOC_DATA_DIR="/tmp/gofr_doc-test-XXXXX"
 
 ═════════════════════════════════════════════════════════════════════════════
 
@@ -215,8 +215,8 @@ QUICK START
 ═══════════
 
 1. Minimal Setup (Development)
-   export DOCO_MCP_PORT=8010
-   export DOCO_WEB_PORT=8012
+   export GOFR_DOC_MCP_PORT=8010
+   export GOFR_DOC_WEB_PORT=8012
    python app/main_mcp.py
 
 2. Authenticated Setup (Production)

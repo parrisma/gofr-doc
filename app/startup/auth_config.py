@@ -36,12 +36,12 @@ def resolve_auth_config(
         return None, None
 
     # Resolve JWT secret from CLI arg or environment
-    jwt_secret = jwt_secret_arg or os.environ.get("DOCO_JWT_SECRET")
+    jwt_secret = jwt_secret_arg or os.environ.get("GOFR_DOC_JWT_SECRET")
 
     if not jwt_secret:
         logger.error(
             "FATAL: Authentication enabled but no JWT secret provided",
-            suggestion="Set DOCO_JWT_SECRET environment variable, use --jwt-secret flag, or use --no-auth to disable authentication",
+            suggestion="Set GOFR_DOC_JWT_SECRET environment variable, use --jwt-secret flag, or use --no-auth to disable authentication",
         )
         sys.exit(1)
 
@@ -49,7 +49,7 @@ def resolve_auth_config(
     token_store_path = token_store_arg
     if not token_store_path:
         # Try environment variable
-        token_store_path = os.environ.get("DOCO_TOKEN_STORE")
+        token_store_path = os.environ.get("GOFR_DOC_TOKEN_STORE")
     if not token_store_path:
         # Fall back to configured default
         token_store_path = get_default_token_store_path()
@@ -80,12 +80,12 @@ def resolve_jwt_secret_for_cli(
     Raises:
         SystemExit: If no secret can be resolved
     """
-    secret = cli_secret or os.environ.get("DOCO_JWT_SECRET")
+    secret = cli_secret or os.environ.get("GOFR_DOC_JWT_SECRET")
 
     if not secret:
         logger.error(
             "FATAL: No JWT secret provided",
-            suggestion="Set DOCO_JWT_SECRET environment variable or use --secret flag",
+            suggestion="Set GOFR_DOC_JWT_SECRET environment variable or use --secret flag",
         )
         sys.exit(1)
 

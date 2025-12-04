@@ -1,28 +1,28 @@
-FROM doco_base:latest
+FROM gofr-doc-base:latest
 
-# Add Unix group 'doco' with auto-allocated GID
-RUN groupadd --system doco
+# Add Unix group 'gofr-doc' with auto-allocated GID
+RUN groupadd --system gofr-doc
 
-# Add user 'doco' with auto-allocated UID and assign to group 'doco'
-RUN useradd --system --gid doco --home-dir /home/doco --create-home doco
+# Add user 'gofr-doc' with auto-allocated UID and assign to group 'gofr-doc'
+RUN useradd --system --gid gofr-doc --home-dir /home/gofr-doc --create-home gofr-doc
 
 # Create application directory
-RUN mkdir -p /home/doco/app
+RUN mkdir -p /home/gofr-doc/app
 
 # Copy project files
-COPY --chown=doco:doco pyproject.toml /home/doco/
-COPY --chown=doco:doco app/ /home/doco/app/
+COPY --chown=gofr-doc:gofr-doc pyproject.toml /home/gofr-doc/
+COPY --chown=gofr-doc:gofr-doc app/ /home/gofr-doc/app/
 
-# Switch to doco user
-USER doco
-WORKDIR /home/doco
+# Switch to gofr-doc user
+USER gofr-doc
+WORKDIR /home/gofr-doc
 
 # Create a UV virtual environment for production
-RUN uv venv /home/doco/.venv --python=python3.11
+RUN uv venv /home/gofr-doc/.venv --python=python3.11
 
 # Set environment variables to use the venv
-ENV VIRTUAL_ENV=/home/doco/.venv
-ENV PATH="/home/doco/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/home/gofr-doc/.venv
+ENV PATH="/home/gofr-doc/.venv/bin:$PATH"
 
 # Install dependencies using UV and pyproject.toml
 RUN uv pip install -e .

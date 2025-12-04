@@ -39,8 +39,8 @@ class TestResolveAuthConfig:
         env_secret = "env-provided-secret"
 
         # Set environment variable
-        original_env = os.environ.get("DOCO_JWT_SECRET")
-        os.environ["DOCO_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
+        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
 
         try:
             jwt_secret, _ = resolve_auth_config(
@@ -54,9 +54,9 @@ class TestResolveAuthConfig:
         finally:
             # Restore original environment
             if original_env:
-                os.environ["DOCO_JWT_SECRET"] = original_env
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
     def test_uses_environment_when_cli_arg_none(self):
         """Should use environment variable when CLI arg is None."""
@@ -64,8 +64,8 @@ class TestResolveAuthConfig:
         env_secret = "env-provided-secret"
 
         # Set environment variable
-        original_env = os.environ.get("DOCO_JWT_SECRET")
-        os.environ["DOCO_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
+        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
 
         try:
             jwt_secret, _ = resolve_auth_config(
@@ -79,17 +79,17 @@ class TestResolveAuthConfig:
         finally:
             # Restore original environment
             if original_env:
-                os.environ["DOCO_JWT_SECRET"] = original_env
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
     def test_exits_when_secret_required_but_missing(self):
         """Should call sys.exit(1) when auth required but no secret provided."""
         logger: Logger = session_logger
 
         # Clear environment variable
-        original_env = os.environ.get("DOCO_JWT_SECRET")
-        os.environ.pop("DOCO_JWT_SECRET", None)
+        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
+        os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
         try:
             with pytest.raises(SystemExit) as exc_info:
@@ -104,7 +104,7 @@ class TestResolveAuthConfig:
         finally:
             # Restore original environment
             if original_env:
-                os.environ["DOCO_JWT_SECRET"] = original_env
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
 
     def test_prefers_cli_token_store_over_environment(self):
         """CLI token store argument should take precedence."""
@@ -113,10 +113,10 @@ class TestResolveAuthConfig:
         env_store = "/env/token/store.json"
 
         # Set environment variables
-        original_secret = os.environ.get("DOCO_JWT_SECRET")
-        original_store = os.environ.get("DOCO_TOKEN_STORE")
-        os.environ["DOCO_JWT_SECRET"] = "test-secret"
-        os.environ["DOCO_TOKEN_STORE"] = env_store
+        original_secret = os.environ.get("GOFR_DOC_JWT_SECRET")
+        original_store = os.environ.get("GOFR_DOC_TOKEN_STORE")
+        os.environ["GOFR_DOC_JWT_SECRET"] = "test-secret"
+        os.environ["GOFR_DOC_TOKEN_STORE"] = env_store
 
         try:
             _, token_store = resolve_auth_config(
@@ -130,14 +130,14 @@ class TestResolveAuthConfig:
         finally:
             # Restore original environment
             if original_secret:
-                os.environ["DOCO_JWT_SECRET"] = original_secret
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_secret
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
             if original_store:
-                os.environ["DOCO_TOKEN_STORE"] = original_store
+                os.environ["GOFR_DOC_TOKEN_STORE"] = original_store
             else:
-                os.environ.pop("DOCO_TOKEN_STORE", None)
+                os.environ.pop("GOFR_DOC_TOKEN_STORE", None)
 
     def test_uses_environment_token_store_when_cli_none(self):
         """Should use environment variable for token store when CLI arg is None."""
@@ -145,10 +145,10 @@ class TestResolveAuthConfig:
         env_store = "/env/token/store.json"
 
         # Set environment variables
-        original_secret = os.environ.get("DOCO_JWT_SECRET")
-        original_store = os.environ.get("DOCO_TOKEN_STORE")
-        os.environ["DOCO_JWT_SECRET"] = "test-secret"
-        os.environ["DOCO_TOKEN_STORE"] = env_store
+        original_secret = os.environ.get("GOFR_DOC_JWT_SECRET")
+        original_store = os.environ.get("GOFR_DOC_TOKEN_STORE")
+        os.environ["GOFR_DOC_JWT_SECRET"] = "test-secret"
+        os.environ["GOFR_DOC_TOKEN_STORE"] = env_store
 
         try:
             _, token_store = resolve_auth_config(
@@ -162,24 +162,24 @@ class TestResolveAuthConfig:
         finally:
             # Restore original environment
             if original_secret:
-                os.environ["DOCO_JWT_SECRET"] = original_secret
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_secret
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
             if original_store:
-                os.environ["DOCO_TOKEN_STORE"] = original_store
+                os.environ["GOFR_DOC_TOKEN_STORE"] = original_store
             else:
-                os.environ.pop("DOCO_TOKEN_STORE", None)
+                os.environ.pop("GOFR_DOC_TOKEN_STORE", None)
 
     def test_uses_default_token_store_when_not_specified(self):
         """Should use default token store from config when neither CLI nor env specified."""
         logger: Logger = session_logger
 
         # Set environment variables
-        original_secret = os.environ.get("DOCO_JWT_SECRET")
-        original_store = os.environ.get("DOCO_TOKEN_STORE")
-        os.environ["DOCO_JWT_SECRET"] = "test-secret"
-        os.environ.pop("DOCO_TOKEN_STORE", None)  # Ensure env var not set
+        original_secret = os.environ.get("GOFR_DOC_JWT_SECRET")
+        original_store = os.environ.get("GOFR_DOC_TOKEN_STORE")
+        os.environ["GOFR_DOC_JWT_SECRET"] = "test-secret"
+        os.environ.pop("GOFR_DOC_TOKEN_STORE", None)  # Ensure env var not set
 
         try:
             _, token_store = resolve_auth_config(
@@ -196,12 +196,12 @@ class TestResolveAuthConfig:
         finally:
             # Restore original environment
             if original_secret:
-                os.environ["DOCO_JWT_SECRET"] = original_secret
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_secret
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
             if original_store:
-                os.environ["DOCO_TOKEN_STORE"] = original_store
+                os.environ["GOFR_DOC_TOKEN_STORE"] = original_store
 
 
 class TestResolveJwtSecretForCli:
@@ -214,8 +214,8 @@ class TestResolveJwtSecretForCli:
         env_secret = "env-provided-secret"
 
         # Set environment variable
-        original_env = os.environ.get("DOCO_JWT_SECRET")
-        os.environ["DOCO_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
+        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
 
         try:
             result = resolve_jwt_secret_for_cli(
@@ -227,9 +227,9 @@ class TestResolveJwtSecretForCli:
         finally:
             # Restore original environment
             if original_env:
-                os.environ["DOCO_JWT_SECRET"] = original_env
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
     def test_uses_environment_when_cli_none(self):
         """Should use environment variable when CLI arg is None."""
@@ -237,8 +237,8 @@ class TestResolveJwtSecretForCli:
         env_secret = "env-provided-secret"
 
         # Set environment variable
-        original_env = os.environ.get("DOCO_JWT_SECRET")
-        os.environ["DOCO_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
+        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
 
         try:
             result = resolve_jwt_secret_for_cli(
@@ -250,17 +250,17 @@ class TestResolveJwtSecretForCli:
         finally:
             # Restore original environment
             if original_env:
-                os.environ["DOCO_JWT_SECRET"] = original_env
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("DOCO_JWT_SECRET", None)
+                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
     def test_exits_when_no_secret_provided(self):
         """Should call sys.exit(1) when no secret can be resolved."""
         logger: Logger = session_logger
 
         # Clear environment variable
-        original_env = os.environ.get("DOCO_JWT_SECRET")
-        os.environ.pop("DOCO_JWT_SECRET", None)
+        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
+        os.environ.pop("GOFR_DOC_JWT_SECRET", None)
 
         try:
             with pytest.raises(SystemExit) as exc_info:
@@ -273,7 +273,7 @@ class TestResolveJwtSecretForCli:
         finally:
             # Restore original environment
             if original_env:
-                os.environ["DOCO_JWT_SECRET"] = original_env
+                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
 
 
 class TestIntegrationWithEntryPoints:
