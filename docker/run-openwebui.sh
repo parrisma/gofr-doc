@@ -1,14 +1,16 @@
 #!/bin/sh
 
-# Usage: ./run-openwebui.sh [-r] [-p PORT]
+# Usage: ./run-openwebui.sh [-r] [-p PORT] [-n NETWORK]
 # Options:
-#   -r         Recreate openwebui_volume (drop and recreate if it exists)
-#   -p PORT    Port to expose Open WebUI on (default: 8080)
-# Example: ./run-openwebui.sh -p 8090 -r
+#   -r           Recreate openwebui_volume (drop and recreate if it exists)
+#   -p PORT      Port to expose Open WebUI on (default: 9090)
+#   -n NETWORK   Docker network to attach to (default: gofr-net or GOFR_DOC_NETWORK env var)
+# Example: ./run-openwebui.sh -p 8090 -r -n my-network
 
 RECREATE_VOLUME=false
 WEBUI_PORT=9090
-while getopts "rp:" opt; do
+NETWORK=${GOFR_DOC_NETWORK:-gofr-net}
+while getopts "rp:n:" opt; do
     case $opt in
         r)
             RECREATE_VOLUME=true
@@ -16,10 +18,14 @@ while getopts "rp:" opt; do
         p)
             WEBUI_PORT=$OPTARG
             ;;
+        n)
+            NETWORK=$OPTARG
+            ;;
         \?)
-            echo "Usage: $0 [-r] [-p PORT]"
-            echo "  -r         Recreate openwebui_volume (drop and recreate if it exists)"
-            echo "  -p PORT    Port to expose Open WebUI on (default: 9090)"
+            echo "Usage: $0 [-r] [-p PORT] [-n NETWORK]"
+            echo "  -r           Recreate openwebui_volume (drop and recreate if it exists)"
+            echo "  -p PORT      Port to expose Open WebUI on (default: 9090)"
+            echo "  -n NETWORK   Docker network to attach to (default: gofr-net)"
             exit 1
             ;;
     esac
@@ -42,11 +48,11 @@ else
 fi
 
 # Create docker network if it doesn't exist
-if ! docker network inspect ai-net >/dev/null 2>&1; then
-    echo "Creating ai-net network..."
-    docker network create ai-net
+if ! docker network inspect $NETWORK >/dev/null 2>&1; then
+    echo "Creating $NETWORK network..."
+    docker network create $NETWORK
 else
-    echo "Network ai-net already exists"
+    echo "Network $NETWORK already exists"
 fi
 
 # Handle openwebui_volume creation/recreation
@@ -84,7 +90,7 @@ echo "Port: $WEBUI_PORT"
 # Build docker run command with optional OpenRouter API key
 DOCKER_CMD="docker run -d \
     --name openwebui \
-    --network ai-net \
+    --network $NETWORK \
     -p 0.0.0.0:$WEBUI_PORT:8080 \
     -e TZ=\"$TIMEZONE\" \
     -e WEBUI_AUTH=false"
@@ -133,23 +139,23 @@ if docker ps -q -f name=openwebui | grep -q .; then
     echo "From WSL2 Host (Windows):"
     echo "  👉 http://\$(ip addr show eth0 | grep 'inet ' | awk '{print \$2}' | cut -d/ -f1):$WEBUI_PORT"
     echo ""
-    echo "From Containers on ai-net:"
+    echo "From Containers on $NETWORK:"
     echo "  http://openwebui:8080"
     echo ""
     echo "-------------------------------------------------------------------"
     echo "🔌 MCPO INTEGRATION (for Open WebUI settings):"
     echo ""
     echo "In Open WebUI Settings → Tools → Add OpenAPI Server:"
-    echo "  URL:      http://\$(docker ps --filter 'name=.*dev' --format '{{.Names}}' | head -1):8011"
+    echo "  URL:      http://\$(docker ps --filter 'name=.*dev' --format '{{.Names}}' | head -1):8001"
     echo "  API Key:  changeme"
     echo ""
     echo "Or use dev container hostname directly (run 'hostname' in dev container)"
-    echo "  Example:  http://a8a8d018bc69:8011"
+    echo "  Example:  http://a8a8d018bc69:8001"
     echo ""
     echo "-------------------------------------------------------------------"
     echo "🔧 DIRECT ACCESS (from host machine):"
-    echo "  MCPO Docs:     http://localhost:8011/docs"
-    echo "  MCP Server:    http://localhost:8010/mcp"
+    echo "  MCPO Docs:     http://localhost:8001/docs"
+    echo "  MCP Server:    http://localhost:8000/mcp"
     echo ""
     echo "Data & Storage:"
     echo "  Volume:        openwebui_volume"

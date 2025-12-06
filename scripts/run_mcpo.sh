@@ -1,18 +1,61 @@
 #!/bin/bash
 # Run MCPO wrapper without authentication (no-auth/public mode)
+# All configuration comes from gofr-doc.env with command-line overrides
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/gofr-doc.env"
 
-# Configuration for no-auth mode
-MCP_PORT=8010
-MCPO_PORT=8011
-MCP_HOST="localhost"
-LOG_DIR="/tmp/mcpo_logs"
-LOG_FILE="$LOG_DIR/mcpo_main.log"
+# Parse command line arguments for overrides
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --port)
+            GOFR_DOC_MCPO_PORT="$2"
+            shift 2
+            ;;
+        --host)
+            GOFR_DOC_MCPO_HOST="$2"
+            shift 2
+            ;;
+        --mcp-port)
+            GOFR_DOC_MCP_PORT="$2"
+            shift 2
+            ;;
+        --mcp-host)
+            GOFR_DOC_MCP_HOST="$2"
+            shift 2
+            ;;
+        --env)
+            export GOFR_DOC_ENV="$2"
+            source "$SCRIPT_DIR/gofr-doc.env"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: $(basename "$0") [OPTIONS]"
+            echo ""
+            echo "OPTIONS:"
+            echo "    --port PORT       MCPO server port (default: $GOFR_DOC_MCPO_PORT)"
+            echo "    --host HOST       MCPO server host (default: $GOFR_DOC_MCPO_HOST)"
+            echo "    --mcp-port PORT   MCP server port (default: $GOFR_DOC_MCP_PORT)"
+            echo "    --mcp-host HOST   MCP server host (default: $GOFR_DOC_MCP_HOST)"
+            echo "    --env ENV         Environment: PROD or TEST (default: $GOFR_DOC_ENV)"
+            echo "    --help            Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
 
-# Create log directory
-mkdir -p "$LOG_DIR"
+cd "$GOFR_DOC_ROOT"
+
+# Configuration from env vars (with possible overrides)
+MCPO_PORT="$GOFR_DOC_MCPO_PORT"
+MCPO_HOST="$GOFR_DOC_MCPO_HOST"
+MCP_PORT="$GOFR_DOC_MCP_PORT"
+MCP_HOST="${GOFR_DOC_MCP_HOST:-localhost}"
+LOG_FILE="$GOFR_DOC_LOGS/mcpo_server.log"
 
 # Wait for MCP server to be available
 echo "Checking if MCP server is ready at http://${MCP_HOST}:${MCP_PORT}..."
@@ -37,8 +80,11 @@ sleep 1
 
 # Start MCPO server in no-auth mode
 echo "Starting MCPO server in no-auth mode..."
+echo "  Host: $MCPO_HOST"
+echo "  Port: $MCPO_PORT"
 MCP_URL="http://${MCP_HOST}:${MCP_PORT}/mcp"
 uv tool run mcpo \
+    --host "$MCPO_HOST" \
     --port "$MCPO_PORT" \
     --server-type "streamable-http" \
     -- "$MCP_URL" \
@@ -51,7 +97,7 @@ echo "Waiting for MCPO server to start (PID: $MCPO_PID)..."
 for i in {1..20}; do
     if curl -s http://localhost:$MCPO_PORT/openapi.json > /dev/null 2>&1; then
         echo ""
-        echo "✓ MCPO server is ready on port $MCPO_PORT (no-auth mode)"
+        echo "✓ MCPO server is ready on $MCPO_HOST:$MCPO_PORT (no-auth mode)"
         echo "  Log file: $LOG_FILE"
         echo "  PID: $MCPO_PID"
         echo ""

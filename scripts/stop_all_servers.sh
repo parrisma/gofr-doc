@@ -15,12 +15,12 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-MCP_PORT=8010
-MCPO_PORT=8011
-WEB_PORT=8012
+MCP_PORT=8000
+MCPO_PORT=8001
+WEB_PORT=8002
 
 # Logging
-LOG_FILE="/tmp/doco_stop_servers.log"
+LOG_FILE="/tmp/gofr-doc_stop_servers.log"
 echo "=== Stopping DOCO Servers at $(date) ===" > "$LOG_FILE"
 
 # Helper functions
@@ -254,7 +254,7 @@ else
     echo "Manual cleanup commands:"
     echo "  Kill processes:    pkill -9 -f 'main_mcp.py|main_web.py|mcpo'"
     echo "  Stop containers:   docker stop n8n openwebui && docker rm n8n openwebui"
-    echo "  Check ports:       lsof -i :8010 -i :8011 -i :8012 -i :5678 -i :9090"
+    echo "  Check ports:       lsof -i :8000 -i :8001 -i :8002 -i :5678 -i :9090"
     echo "================================================================"
     echo ""
     exit 1

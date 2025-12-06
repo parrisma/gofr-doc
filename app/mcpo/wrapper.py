@@ -20,6 +20,7 @@ class MCPOWrapper:
         self,
         mcp_host: str = "localhost",
         mcp_port: int = 8010,
+        mcpo_host: str = "0.0.0.0",
         mcpo_port: int = 8011,
         mcpo_api_key: Optional[str] = None,
         auth_token: Optional[str] = None,
@@ -31,6 +32,7 @@ class MCPOWrapper:
         Args:
             mcp_host: Host where MCP server is running
             mcp_port: Port where MCP server is listening
+            mcpo_host: Host for MCPO proxy to bind to
             mcpo_port: Port for MCPO proxy to listen on
             mcpo_api_key: API key for Open WebUI -> MCPO authentication (None = no API key)
             auth_token: JWT token for MCPO -> MCP authentication (if use_auth=True)
@@ -38,6 +40,7 @@ class MCPOWrapper:
         """
         self.mcp_host = mcp_host
         self.mcp_port = mcp_port
+        self.mcpo_host = mcpo_host
         self.mcpo_port = mcpo_port
         self.mcpo_api_key = mcpo_api_key
         self.auth_token = auth_token
@@ -54,6 +57,8 @@ class MCPOWrapper:
             "tool",
             "run",
             "mcpo",
+            "--host",
+            self.mcpo_host,
             "--port",
             str(self.mcpo_port),
             "--server-type",
@@ -154,6 +159,7 @@ class MCPOWrapper:
 def start_mcpo_wrapper(
     mcp_host: str = "localhost",
     mcp_port: int = 8010,
+    mcpo_host: str = "0.0.0.0",
     mcpo_port: int = 8011,
     mcpo_api_key: Optional[str] = None,
     auth_token: Optional[str] = None,
@@ -165,6 +171,7 @@ def start_mcpo_wrapper(
     Args:
         mcp_host: Host where MCP server is running (default: localhost)
         mcp_port: Port where MCP server is listening (default: 8010)
+        mcpo_host: Host for MCPO proxy to bind to (default: 0.0.0.0)
         mcpo_port: Port for MCPO proxy to listen on (default: 8011)
         mcpo_api_key: API key for Open WebUI -> MCPO (default: from env or None for no auth)
         auth_token: JWT token for MCPO -> MCP (default: from env or None)
@@ -196,6 +203,7 @@ def start_mcpo_wrapper(
     wrapper = MCPOWrapper(
         mcp_host=mcp_host,
         mcp_port=mcp_port,
+        mcpo_host=mcpo_host,
         mcpo_port=mcpo_port,
         mcpo_api_key=mcpo_api_key,
         auth_token=auth_token,

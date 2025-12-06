@@ -1,20 +1,21 @@
 #!/bin/sh
 
-# Usage: ./run-prod.sh [WEB_PORT] [MCP_PORT]
-# Defaults: WEB_PORT=8012, MCP_PORT=8010
-# Example: ./run-prod.sh 9012 9010
+# Usage: ./run-prod.sh [WEB_PORT] [MCP_PORT] [NETWORK]
+# Defaults: WEB_PORT=8002, MCP_PORT=8000, NETWORK=gofr-net
+# Example: ./run-prod.sh 9012 9010 my-network
 
 # Parse command line arguments
-WEB_PORT=${1:-8012}
-MCP_PORT=${2:-8010}
+WEB_PORT=${1:-8002}
+MCP_PORT=${2:-8000}
+NETWORK=${3:-${GOFR_DOC_NETWORK:-gofr-net}}
 
 # Create docker network if it doesn't exist
-echo "Checking for ai-net network..."
-if ! docker network inspect ai-net >/dev/null 2>&1; then
-    echo "Creating ai-net network..."
-    docker network create ai-net
+echo "Checking for $NETWORK network..."
+if ! docker network inspect $NETWORK >/dev/null 2>&1; then
+    echo "Creating $NETWORK network..."
+    docker network create $NETWORK
 else
-    echo "Network ai-net already exists"
+    echo "Network $NETWORK already exists"
 fi
 
 # Create docker volume for persistent data if it doesn't exist
@@ -41,10 +42,10 @@ echo "Web port: $WEB_PORT, MCP port: $MCP_PORT"
 
 docker run -d \
 --name gofr-doc-prod \
---network ai-net \
+--network $NETWORK \
 -v gofr-doc-data:/home/gofr-doc/data \
--p $WEB_PORT:8012 \
--p $MCP_PORT:8010 \
+-p $WEB_PORT:8002 \
+-p $MCP_PORT:8000 \
 gofr-doc-prod:latest
 
 if docker ps -q -f name=gofr-doc-prod | grep -q .; then
@@ -63,9 +64,9 @@ if docker ps -q -f name=gofr-doc-prod | grep -q .; then
     echo "  Web Server:    http://localhost:$WEB_PORT"
     echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
     echo ""
-    echo "Access from ai-net (other containers):"
-    echo "  Web Server:    http://gofr-doc-prod:8012"
-    echo "  MCP Server:    http://gofr-doc-prod:8010/mcp"
+    echo "Access from $NETWORK (other containers):"
+    echo "  Web Server:    http://gofr-doc-prod:8002"
+    echo "  MCP Server:    http://gofr-doc-prod:8000/mcp"
     echo ""
     echo "Data & Storage:"
     echo "  Volume:        gofr-doc-data"

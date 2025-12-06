@@ -1,21 +1,22 @@
 #!/bin/sh
 
-# Usage: ./run-dev.sh [WEB_PORT] [MCP_PORT] [MCPO_PORT]
-# Defaults: WEB_PORT=8012, MCP_PORT=8010, MCPO_PORT=8011
-# Example: ./run-dev.sh 9012 9010 9011
+# Usage: ./run-dev.sh [WEB_PORT] [MCP_PORT] [MCPO_PORT] [NETWORK]
+# Defaults: WEB_PORT=8002, MCP_PORT=8000, MCPO_PORT=8001, NETWORK=gofr-net
+# Example: ./run-dev.sh 9012 9010 9011 my-network
 
 # Parse command line arguments
-WEB_PORT=${1:-8012}
-MCP_PORT=${2:-8010}
-MCPO_PORT=${3:-8011}
+WEB_PORT=${1:-8002}
+MCP_PORT=${2:-8000}
+MCPO_PORT=${3:-8001}
+NETWORK=${4:-${GOFR_DOC_NETWORK:-gofr-net}}
 
 # Create docker network if it doesn't exist
-echo "Checking for ai-net network..."
-if ! docker network inspect ai-net >/dev/null 2>&1; then
-    echo "Creating ai-net network..."
-    docker network create ai-net
+echo "Checking for $NETWORK network..."
+if ! docker network inspect $NETWORK >/dev/null 2>&1; then
+    echo "Creating $NETWORK network..."
+    docker network create $NETWORK
 else
-    echo "Network ai-net already exists"
+    echo "Network $NETWORK already exists"
 fi
 
 # Create docker volume for persistent data if it doesn't exist
@@ -44,14 +45,14 @@ echo "Web port: $WEB_PORT, MCP port: $MCP_PORT, MCPO port: $MCPO_PORT"
 
 docker run -d \
 --name gofr-doc-dev \
---network ai-net \
+--network $NETWORK \
 --user $(id -u):$(id -g) \
 -v "$HOME/devroot/gofr-doc":/home/gofr-doc/devroot/gofr-doc \
 -v "$HOME/.ssh:/home/gofr-doc/.ssh:ro" \
 -v gofr-doc-data-dev:/home/gofr-doc/devroot/gofr-doc/data \
--p $MCP_PORT:8010 \
--p $MCPO_PORT:8011 \
--p $WEB_PORT:8012 \
+-p $MCP_PORT:8000 \
+-p $MCPO_PORT:8001 \
+-p $WEB_PORT:8002 \
 gofr-doc-dev:latest
 
 if docker ps -q -f name=gofr-doc-dev | grep -q .; then
@@ -75,10 +76,10 @@ if docker ps -q -f name=gofr-doc-dev | grep -q .; then
     echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
     echo "  MCPO Proxy:    http://localhost:$MCPO_PORT"
     echo ""
-    echo "Access from ai-net (other containers):"
-    echo "  Web Server:    http://gofr-doc-dev:8012"
-    echo "  MCP Server:    http://gofr-doc-dev:8010/mcp"
-    echo "  MCPO Proxy:    http://gofr-doc-dev:8011"
+    echo "Access from $NETWORK (other containers):"
+    echo "  Web Server:    http://gofr-doc-dev:8002"
+    echo "  MCP Server:    http://gofr-doc-dev:8000/mcp"
+    echo "  MCPO Proxy:    http://gofr-doc-dev:8001"
     echo ""
     echo "Data & Storage:"
     echo "  Volume:        gofr-doc-data-dev"

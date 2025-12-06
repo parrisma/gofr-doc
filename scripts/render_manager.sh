@@ -15,13 +15,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source centralized configuration (defaults to TEST)
-source "$SCRIPT_DIR/doco.env"
+source "$SCRIPT_DIR/gofr-doc.env"
 
 # Parse --env flag if provided as first argument
 while [[ $# -gt 0 ]]; do
     case $1 in
         --env)
-            export DOCO_ENV="$2"
+            export GOFR_DOC_ENV="$2"
             shift 2
             ;;
         *)
@@ -30,12 +30,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Re-source doco.env with potentially updated DOCO_ENV to pick up correct paths
-source "$SCRIPT_DIR/doco.env"
+# Re-source gofr-doc.env with potentially updated GOFR_DOC_ENV to pick up correct paths
+source "$SCRIPT_DIR/gofr-doc.env"
 
 # Call Python module with environment variables as CLI args
-cd "$DOCO_ROOT"
+cd "$GOFR_DOC_ROOT"
 uv run python -m app.management.render_manager \
-    --doco-env "$DOCO_ENV" \
-    --data-root "$DOCO_DATA" \
+    --gofr-doc-env "$GOFR_DOC_ENV" \
+    --data-root "$GOFR_DOC_DATA" \
     "$@"

@@ -50,6 +50,12 @@ if __name__ == "__main__":
         help="Port for MCPO proxy to listen on (default: 8011)",
     )
     parser.add_argument(
+        "--mcpo-host",
+        type=str,
+        default=os.environ.get("GOFR_DOC_MCPO_HOST", "0.0.0.0"),
+        help="Host for MCPO proxy to bind to (default: 0.0.0.0)",
+    )
+    parser.add_argument(
         "--api-key",
         type=str,
         default=None,
@@ -101,6 +107,7 @@ if __name__ == "__main__":
         "Configuration",
         mode=mode_str,
         mcp_endpoint=f"http://{args.mcp_host}:{args.mcp_port}/mcp",
+        mcpo_host=args.mcpo_host,
         mcpo_port=args.mcpo_port,
         has_auth_token=bool(auth_token),
         has_api_key=bool(args.api_key),
@@ -116,6 +123,7 @@ if __name__ == "__main__":
         wrapper = start_mcpo_wrapper(
             mcp_host=args.mcp_host,
             mcp_port=args.mcp_port,
+            mcpo_host=args.mcpo_host,
             mcpo_port=args.mcpo_port,
             mcpo_api_key=args.api_key,
             auth_token=auth_token,
