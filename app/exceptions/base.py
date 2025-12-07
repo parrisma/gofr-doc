@@ -1,91 +1,30 @@
-"""Base exception classes for GOFR_DOC application.
+"""Project-specific exception classes for GOFR_DOC application.
 
-All GOFR_DOC exceptions include structured error information:
-- code: Machine-readable error identifier
-- message: Human-readable error description
-- details: Additional context for debugging/recovery
+Base exceptions (GofrError, ValidationError, etc.) are provided by gofr_common.
+This module re-exports them for backward compatibility and contains any
+project-specific exceptions.
 """
 
-from typing import Dict, Optional, Any
+# Re-export from gofr_common for backward compatibility
+from gofr_common.exceptions import (
+    GofrError,
+    ValidationError,
+    ResourceNotFoundError,
+    SecurityError,
+    ConfigurationError,
+    RegistryError,
+)
 
+# Project-specific alias for backward compatibility
+GofrDocError = GofrError
 
-class GofrDocError(Exception):
-    """Base exception for all GOFR_DOC errors.
+__all__ = [
+    "GofrError",
+    "GofrDocError",
+    "ValidationError",
+    "ResourceNotFoundError",
+    "SecurityError",
+    "ConfigurationError",
+    "RegistryError",
+]
 
-    Provides structured error information for consistent handling
-    across MCP and web interfaces.
-    """
-
-    def __init__(self, code: str, message: str, details: Optional[Dict[str, Any]] = None):
-        """Initialize error with structured information.
-
-        Args:
-            code: Machine-readable error code (e.g., "INVALID_TABLE_DATA")
-            message: Human-readable error message
-            details: Optional additional context
-        """
-        self.code = code
-        self.message = message
-        self.details = details or {}
-        super().__init__(message)
-
-    def __str__(self) -> str:
-        """Return formatted error string."""
-        if self.details:
-            return f"{self.code}: {self.message} (details: {self.details})"
-        return f"{self.code}: {self.message}"
-
-
-class ValidationError(GofrDocError):
-    """Base for all validation errors.
-
-    Used when input data fails validation rules.
-    """
-
-    pass
-
-
-class ResourceNotFoundError(GofrDocError):
-    """Base for resource not found errors.
-
-    Used when a requested resource (template, session, style, etc.) doesn't exist.
-    """
-
-    pass
-
-
-class SecurityError(GofrDocError):
-    """Base for security and authorization errors.
-
-    Used when access is denied due to group mismatch or authentication failure.
-    """
-
-    pass
-
-
-class ConfigurationError(GofrDocError):
-    """Base for configuration and setup errors.
-
-    Used when system configuration is invalid or incomplete.
-    """
-
-    pass
-
-
-class RegistryError(GofrDocError):
-    """Base exception for registry operations.
-
-    Maintains backward compatibility while adding structured error info.
-    """
-
-    def __init__(
-        self, message: str, code: str = "REGISTRY_ERROR", details: Optional[Dict[str, Any]] = None
-    ):
-        """Initialize registry error.
-
-        Args:
-            message: Error message (for backward compatibility, can be first arg)
-            code: Error code
-            details: Additional context
-        """
-        super().__init__(code=code, message=message, details=details)

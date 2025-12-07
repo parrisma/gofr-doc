@@ -1,8 +1,9 @@
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TextIO
-from .interface import Logger
+
+from gofr_common.logger import Logger
 
 
 class DefaultLogger(Logger):
@@ -29,7 +30,7 @@ class DefaultLogger(Logger):
         parts = []
 
         if self._include_timestamp:
-            timestamp = datetime.utcnow().isoformat() + "Z"
+            timestamp = datetime.now(timezone.utc).isoformat()
             parts.append(timestamp)
 
         parts.append(f"[{level}]")

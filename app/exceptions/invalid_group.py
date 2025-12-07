@@ -1,6 +1,6 @@
 """Invalid group exception."""
 from typing import Optional
-from app.exceptions.base import RegistryError
+from gofr_common.exceptions import RegistryError
 
 
 class InvalidGroupError(RegistryError):

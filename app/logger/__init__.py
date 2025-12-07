@@ -1,8 +1,10 @@
 """
-Logger module for doco
+Logger module for gofr-doc
 
 This module provides a flexible logging interface that allows users to
 drop in their own logger implementations.
+
+Re-exports Logger from gofr_common.logger for backward compatibility.
 
 Usage:
     from app.logger import Logger, DefaultLogger
@@ -18,10 +20,13 @@ Usage:
             pass
 """
 
-from .interface import Logger
+import logging
+
+# Re-export Logger from gofr_common.logger
+from gofr_common.logger import Logger
+
 from .default_logger import DefaultLogger
 from .console_logger import ConsoleLogger
-import logging
 
 # Shared logger instance for modules that just need basic console logging
 session_logger: Logger = ConsoleLogger(level=logging.DEBUG)

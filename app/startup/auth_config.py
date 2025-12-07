@@ -4,7 +4,6 @@ Re-exports resolve_auth_config from gofr_common.auth.config with
 GOFR_DOC-specific defaults.
 """
 
-from pathlib import Path
 from typing import Optional, Tuple
 
 from gofr_common.auth.config import (
@@ -34,24 +33,28 @@ def resolve_auth_config(
     Returns:
         Tuple of (jwt_secret, token_store_path) or (None, None) if auth disabled
     """
-    # Use default token store path if not provided
+    # Get default token store path for fallback
     default_token_store = get_default_token_store_path()
-    effective_token_store = token_store_arg or default_token_store
 
     # GOFR_DOC does NOT allow auto-generation - requires explicit secret
+    # Pass token_store_arg directly (may be None) - let gofr_common check env vars
     jwt_secret, token_store_path, _ = _resolve_auth_config(
         env_prefix="GOFR_DOC",
         jwt_secret_arg=jwt_secret_arg,
-        token_store_arg=effective_token_store,
+        token_store_arg=token_store_arg,
         require_auth=require_auth,
         allow_auto_secret=False,  # GOFR_DOC requires explicit secret
         exit_on_missing=True,
         logger=logger,
     )
 
-    # Convert Path to string for backward compatibility
-    token_store_str = str(token_store_path) if token_store_path else None
-    return jwt_secret, token_store_str
+    # If gofr_common returned the default "data/auth/tokens.json", use our default
+    if token_store_path and str(token_store_path) == "data/auth/tokens.json":
+        token_store_path_str = default_token_store
+    else:
+        token_store_path_str = str(token_store_path) if token_store_path else None
+    
+    return jwt_secret, token_store_path_str
 
 
 def resolve_jwt_secret_for_cli(

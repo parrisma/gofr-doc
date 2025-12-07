@@ -1,6 +1,6 @@
 """Fragment not found exception."""
 from typing import Optional, List
-from app.exceptions.base import RegistryError
+from gofr_common.exceptions import RegistryError
 
 
 class FragmentNotFoundError(RegistryError):

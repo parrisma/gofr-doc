@@ -1,5 +1,5 @@
 """Group mismatch exception."""
-from app.exceptions.base import RegistryError
+from gofr_common.exceptions import RegistryError
 
 
 class GroupMismatchError(RegistryError):

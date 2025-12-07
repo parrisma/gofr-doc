@@ -1,13 +1,14 @@
 """Session-related exceptions."""
 
 from typing import Optional, Dict, Any
-from app.exceptions.base import ValidationError, ResourceNotFoundError
+from gofr_common.exceptions import ValidationError, ResourceNotFoundError
 
 
 class SessionError(ValidationError):
     """Base exception for session-related errors."""
 
     pass
+
 
 
 class SessionNotFoundError(ResourceNotFoundError):

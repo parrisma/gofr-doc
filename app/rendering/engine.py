@@ -17,7 +17,7 @@ from app.validation.document_models import (
 )
 from app.templates.registry import TemplateRegistry
 from app.styles.registry import StyleRegistry
-from app.logger.interface import Logger
+from app.logger import Logger
 from app.config import get_default_proxy_dir
 from app.formatting.number_formatter import format_number
 from app.formatting.table_sorter import sort_table_rows

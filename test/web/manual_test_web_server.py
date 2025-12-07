@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from httpx import AsyncClient, ASGITransport
 from app.logger import Logger, session_logger
 from app.web_server.web_server import GofrDocWebServer
-from app.auth.service import AuthService
+from app.auth import AuthService
 
 
 async def test_web_server():
