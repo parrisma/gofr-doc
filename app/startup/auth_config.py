@@ -1,12 +1,18 @@
-"""Shared authentication configuration for server and CLI entry points.
+"""Authentication configuration utilities for GOFR-DOC server.
 
-Provides consistent resolution and validation of JWT secrets and token store paths.
+Re-exports resolve_auth_config from gofr_common.auth.config with
+GOFR_DOC-specific defaults.
 """
 
-import os
-import sys
+from pathlib import Path
 from typing import Optional, Tuple
-from app.logger import Logger
+
+from gofr_common.auth.config import (
+    resolve_auth_config as _resolve_auth_config,
+    resolve_jwt_secret_for_cli as _resolve_jwt_secret_for_cli,
+)
+from gofr_common.logger import Logger
+
 from app.config import get_default_token_store_path
 
 
@@ -27,40 +33,25 @@ def resolve_auth_config(
 
     Returns:
         Tuple of (jwt_secret, token_store_path) or (None, None) if auth disabled
-
-    Raises:
-        SystemExit: If auth is required but secret is missing
     """
-    if not require_auth:
-        logger.info("Authentication disabled via --no-auth flag")
-        return None, None
+    # Use default token store path if not provided
+    default_token_store = get_default_token_store_path()
+    effective_token_store = token_store_arg or default_token_store
 
-    # Resolve JWT secret from CLI arg or environment
-    jwt_secret = jwt_secret_arg or os.environ.get("GOFR_DOC_JWT_SECRET")
-
-    if not jwt_secret:
-        logger.error(
-            "FATAL: Authentication enabled but no JWT secret provided",
-            suggestion="Set GOFR_DOC_JWT_SECRET environment variable, use --jwt-secret flag, or use --no-auth to disable authentication",
-        )
-        sys.exit(1)
-
-    # Resolve token store path
-    token_store_path = token_store_arg
-    if not token_store_path:
-        # Try environment variable
-        token_store_path = os.environ.get("GOFR_DOC_TOKEN_STORE")
-    if not token_store_path:
-        # Fall back to configured default
-        token_store_path = get_default_token_store_path()
-
-    logger.info(
-        "Authentication configuration resolved",
-        jwt_secret_source="CLI" if jwt_secret_arg else "environment",
-        token_store=token_store_path,
+    # GOFR_DOC does NOT allow auto-generation - requires explicit secret
+    jwt_secret, token_store_path, _ = _resolve_auth_config(
+        env_prefix="GOFR_DOC",
+        jwt_secret_arg=jwt_secret_arg,
+        token_store_arg=effective_token_store,
+        require_auth=require_auth,
+        allow_auto_secret=False,  # GOFR_DOC requires explicit secret
+        exit_on_missing=True,
+        logger=logger,
     )
 
-    return jwt_secret, token_store_path
+    # Convert Path to string for backward compatibility
+    token_store_str = str(token_store_path) if token_store_path else None
+    return jwt_secret, token_store_str
 
 
 def resolve_jwt_secret_for_cli(
@@ -80,18 +71,9 @@ def resolve_jwt_secret_for_cli(
     Raises:
         SystemExit: If no secret can be resolved
     """
-    secret = cli_secret or os.environ.get("GOFR_DOC_JWT_SECRET")
-
-    if not secret:
-        logger.error(
-            "FATAL: No JWT secret provided",
-            suggestion="Set GOFR_DOC_JWT_SECRET environment variable or use --secret flag",
-        )
-        sys.exit(1)
-
-    logger.info(
-        "JWT secret resolved",
-        source="CLI" if cli_secret else "environment",
+    return _resolve_jwt_secret_for_cli(
+        env_prefix="GOFR_DOC",
+        cli_secret=cli_secret,
+        exit_on_missing=True,
+        logger=logger,
     )
-
-    return secret
