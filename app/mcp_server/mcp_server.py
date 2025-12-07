@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import os
 import sys
 from contextvars import ContextVar
@@ -36,6 +35,13 @@ from mcp.server import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 from pydantic import ValidationError as PydanticValidationError
+
+from gofr_common.mcp import (
+    json_text as _common_json_text,
+    success_response as _common_success,
+    error_response as _common_error,
+    format_validation_error as _common_validation_error,
+)
 
 # For header extraction in context using contextvars (thread-safe)
 _auth_header_context: ContextVar[Optional[str]] = ContextVar("auth_header", default=None)
@@ -116,10 +122,8 @@ def _json_serializer(obj: Any) -> Any:
 
 
 def _json_text(payload: Dict[str, Any]) -> TextContent:
-    return TextContent(
-        type="text",
-        text=json.dumps(payload, indent=2, ensure_ascii=True, default=_json_serializer),
-    )
+    """Create JSON text content - uses gofr_common with custom serializer."""
+    return _common_json_text(payload, serializer=_json_serializer)
 
 
 def _success(data: Any, message: Optional[str] = None) -> ToolResponse:
