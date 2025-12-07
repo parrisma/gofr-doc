@@ -1,20 +1,26 @@
 #!/bin/bash
-# Token Manager CLI Wrapper
-# Provides environment-aware access to JWT token management
+# GOFR-DOC Token Manager
+# Wrapper for the shared token_manager.sh script
 #
-# Usage:
-#   ./token_manager.sh [--env PROD|TEST] <command> [options]
+# Usage: ./token_manager.sh [--env PROD|TEST] <command> [options]
 #
-# Examples:
-#   ./token_manager.sh create --group research --expires 3600  # Uses current env
-#   ./token_manager.sh --env PROD list                         # Force PROD environment
-#   ./token_manager.sh --env TEST verify --token <token>       # Force TEST environment
+# Commands:
+#   create    Create a new token
+#   list      List all tokens
+#   verify    Verify a token
+#   revoke    Revoke a token
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_SCRIPTS="$SCRIPT_DIR/../../gofr-common/scripts"
 
-# Source centralized configuration (defaults to TEST)
+# Check for lib/gofr-common location first (inside container)
+if [ -d "$SCRIPT_DIR/../lib/gofr-common/scripts" ]; then
+    COMMON_SCRIPTS="$SCRIPT_DIR/../lib/gofr-common/scripts"
+fi
+
+# Source centralized configuration
 source "$SCRIPT_DIR/gofr-doc.env"
 
 # Parse --env flag if provided as first argument
@@ -30,12 +36,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Re-source gofr-doc.env with potentially updated GOFR_DOC_ENV to pick up correct paths
+# Re-source gofr-doc.env with potentially updated GOFR_DOC_ENV
 source "$SCRIPT_DIR/gofr-doc.env"
 
-# Call Python module with environment variables as CLI args
-cd "$GOFR_DOC_ROOT"
-uv run python -m app.management.token_manager \
-    --gofr-doc-env "$GOFR_DOC_ENV" \
-    --token-store "$GOFR_DOC_TOKEN_STORE" \
-    "$@"
+# Map project-specific vars to common vars
+export GOFR_PROJECT_NAME="gofr-doc"
+export GOFR_PROJECT_ROOT="$GOFR_DOC_ROOT"
+export GOFR_TOKEN_STORE="$GOFR_DOC_TOKEN_STORE"
+export GOFR_ENV="$GOFR_DOC_ENV"
+export GOFR_ENV_VAR_PREFIX="GOFR_DOC"
+export GOFR_TOKEN_MODULE="app.management.token_manager"
+
+# Call shared script
+source "$COMMON_SCRIPTS/token_manager.sh" "$@"
