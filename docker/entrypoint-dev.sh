@@ -1,28 +1,67 @@
 #!/bin/bash
 set -e
 
+# Standard GOFR user paths - all projects use 'gofr' user
+GOFR_USER="gofr"
+PROJECT_DIR="/home/${GOFR_USER}/devroot/gofr-doc"
+# gofr-common is now a git submodule in lib/gofr-common
+COMMON_DIR="$PROJECT_DIR/lib/gofr-common"
+VENV_DIR="$PROJECT_DIR/.venv"
+
+echo "======================================================================="
+echo "GOFR-DOC Container Entrypoint"
+echo "======================================================================="
+
 # Fix data directory permissions if mounted as volume
-if [ -d "/home/gofr-doc/devroot/gofr-doc/data" ]; then
-    # Check if we can write to data directory
-    if [ ! -w "/home/gofr-doc/devroot/gofr-doc/data" ]; then
-        echo "Fixing permissions for /home/gofr-doc/devroot/gofr-doc/data..."
-        # This will work if container is started with appropriate privileges
-        sudo chown -R gofr-doc:gofr-doc /home/gofr-doc/devroot/gofr-doc/data 2>/dev/null || \
+if [ -d "$PROJECT_DIR/data" ]; then
+    if [ ! -w "$PROJECT_DIR/data" ]; then
+        echo "Fixing permissions for $PROJECT_DIR/data..."
+        sudo chown -R ${GOFR_USER}:${GOFR_USER} "$PROJECT_DIR/data" 2>/dev/null || \
             echo "Warning: Could not fix permissions. Run container with --user $(id -u):$(id -g)"
     fi
 fi
 
 # Create subdirectories if they don't exist
-mkdir -p /home/gofr-doc/devroot/gofr-doc/data/storage /home/gofr-doc/devroot/gofr-doc/data/auth
+mkdir -p "$PROJECT_DIR/data/storage" "$PROJECT_DIR/data/auth"
+mkdir -p "$PROJECT_DIR/logs"
 
-# Install/sync Python dependencies if requirements.txt exists
-if [ -f "/home/gofr-doc/devroot/gofr-doc/requirements.txt" ]; then
-    echo "Installing Python dependencies..."
-    cd /home/gofr-doc/devroot/gofr-doc
-    # Use 'uv pip install' instead of 'sync' to ensure transitive dependencies are installed
-    VIRTUAL_ENV=/home/gofr-doc/devroot/gofr-doc/.venv uv pip install -r requirements.txt || \
-        echo "Warning: Could not install dependencies"
+# Ensure virtual environment exists and is valid
+if [ ! -f "$VENV_DIR/bin/python" ] || [ ! -x "$VENV_DIR/bin/python" ]; then
+    echo "Creating Python virtual environment..."
+    cd "$PROJECT_DIR"
+    UV_VENV_CLEAR=1 uv venv "$VENV_DIR" --python=python3.11
+    echo "Virtual environment created at $VENV_DIR"
 fi
 
-# Execute the main command
+# Install gofr-common as editable package
+if [ -d "$COMMON_DIR" ]; then
+    echo "Installing gofr-common (editable)..."
+    cd "$PROJECT_DIR"
+    uv pip install -e "$COMMON_DIR"
+else
+    echo "Warning: gofr-common not found at $COMMON_DIR"
+    echo "Make sure the submodule is initialized: git submodule update --init"
+fi
+
+# Install project dependencies
+if [ -f "$PROJECT_DIR/pyproject.toml" ]; then
+    echo "Installing project dependencies from pyproject.toml..."
+    cd "$PROJECT_DIR"
+    uv pip install -e ".[dev]" || echo "Warning: Could not install project dependencies"
+elif [ -f "$PROJECT_DIR/requirements.txt" ]; then
+    echo "Installing project dependencies from requirements.txt..."
+    cd "$PROJECT_DIR"
+    uv pip install -r requirements.txt || echo "Warning: Could not install project dependencies"
+fi
+
+# Show installed packages
+echo ""
+echo "Environment ready. Installed packages:"
+uv pip list
+
+echo ""
+echo "======================================================================="
+echo "Entrypoint complete. Executing: $@"
+echo "======================================================================="
+
 exec "$@"

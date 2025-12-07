@@ -1,92 +1,109 @@
-#!/bin/sh
+#!/bin/bash
+# Run GOFR-DOC development container
+# Uses gofr-doc-dev:latest image (built from gofr-base:latest)
+# Standard user: gofr (UID 1000, GID 1000)
 
-# Usage: ./run-dev.sh [WEB_PORT] [MCP_PORT] [MCPO_PORT] [NETWORK]
-# Defaults: WEB_PORT=8002, MCP_PORT=8000, MCPO_PORT=8001, NETWORK=gofr-net
-# Example: ./run-dev.sh 9012 9010 9011 my-network
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# gofr-common is now a git submodule at lib/gofr-common, no separate mount needed
+
+# Standard GOFR user - all projects use same user
+GOFR_USER="gofr"
+GOFR_UID=1000
+GOFR_GID=1000
+
+# Container and image names
+CONTAINER_NAME="gofr-doc-dev"
+IMAGE_NAME="gofr-doc-dev:latest"
+
+# Defaults from environment or hardcoded (gofr-doc uses 8040-8042)
+MCP_PORT="${GOFRDOC_MCP_PORT:-8040}"
+MCPO_PORT="${GOFRDOC_MCPO_PORT:-8041}"
+WEB_PORT="${GOFRDOC_WEB_PORT:-8042}"
+DOCKER_NETWORK="${GOFRDOC_DOCKER_NETWORK:-gofr-net}"
 
 # Parse command line arguments
-WEB_PORT=${1:-8002}
-MCP_PORT=${2:-8000}
-MCPO_PORT=${3:-8001}
-NETWORK=${4:-${GOFR_DOC_NETWORK:-gofr-net}}
+while [ $# -gt 0 ]; do
+    case $1 in
+        --mcp-port)
+            MCP_PORT="$2"
+            shift 2
+            ;;
+        --mcpo-port)
+            MCPO_PORT="$2"
+            shift 2
+            ;;
+        --web-port)
+            WEB_PORT="$2"
+            shift 2
+            ;;
+        --network)
+            DOCKER_NETWORK="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--mcp-port PORT] [--mcpo-port PORT] [--web-port PORT] [--network NAME]"
+            exit 1
+            ;;
+    esac
+done
+
+echo "======================================================================="
+echo "Starting GOFR-DOC Development Container"
+echo "======================================================================="
+echo "User: ${GOFR_USER} (UID=${GOFR_UID}, GID=${GOFR_GID})"
+echo "Ports: MCP=$MCP_PORT, MCPO=$MCPO_PORT, Web=$WEB_PORT"
+echo "Network: $DOCKER_NETWORK"
+echo "======================================================================="
 
 # Create docker network if it doesn't exist
-echo "Checking for $NETWORK network..."
-if ! docker network inspect $NETWORK >/dev/null 2>&1; then
-    echo "Creating $NETWORK network..."
-    docker network create $NETWORK
-else
-    echo "Network $NETWORK already exists"
+if ! docker network inspect $DOCKER_NETWORK >/dev/null 2>&1; then
+    echo "Creating network: $DOCKER_NETWORK"
+    docker network create $DOCKER_NETWORK
 fi
 
-# Create docker volume for persistent data if it doesn't exist
-echo "Checking for gofr-doc-data-dev volume..."
-if ! docker volume inspect gofr-doc-data-dev >/dev/null 2>&1; then
-    echo "Creating gofr-doc-data-dev volume..."
-    docker volume create gofr-doc-data-dev
-    VOLUME_CREATED=true
-else
-    echo "Volume gofr-doc-data-dev already exists"
-    VOLUME_CREATED=false
+# Create docker volume for persistent data
+VOLUME_NAME="gofr-doc-data-dev"
+if ! docker volume inspect $VOLUME_NAME >/dev/null 2>&1; then
+    echo "Creating volume: $VOLUME_NAME"
+    docker volume create $VOLUME_NAME
 fi
 
-# Stop and remove existing container if it exists
-echo "Stopping existing gofr-doc-dev container..."
-docker stop gofr-doc-dev 2>/dev/null || true
+# Stop and remove existing container
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "Stopping existing container: $CONTAINER_NAME"
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm "$CONTAINER_NAME" 2>/dev/null || true
+fi
 
-echo "Removing existing gofr-doc-dev container..."
-docker rm gofr-doc-dev 2>/dev/null || true
-
-echo "Starting new gofr-doc-dev container..."
-echo "Mounting $HOME/devroot/gofr-doc to /home/gofr-doc/devroot/gofr-doc in container"
-echo "Mounting $HOME/.ssh to /home/gofr-doc/.ssh (read-only) in container"
-echo "Mounting gofr-doc-data-dev volume to /home/gofr-doc/devroot/gofr-doc/data in container"
-echo "Web port: $WEB_PORT, MCP port: $MCP_PORT, MCPO port: $MCPO_PORT"
-
+# Run container
 docker run -d \
---name gofr-doc-dev \
---network $NETWORK \
---user $(id -u):$(id -g) \
--v "$HOME/devroot/gofr-doc":/home/gofr-doc/devroot/gofr-doc \
--v "$HOME/.ssh:/home/gofr-doc/.ssh:ro" \
--v gofr-doc-data-dev:/home/gofr-doc/devroot/gofr-doc/data \
--p $MCP_PORT:8000 \
--p $MCPO_PORT:8001 \
--p $WEB_PORT:8002 \
-gofr-doc-dev:latest
+    --name "$CONTAINER_NAME" \
+    --network "$DOCKER_NETWORK" \
+    -p ${MCP_PORT}:8040 \
+    -p ${MCPO_PORT}:8041 \
+    -p ${WEB_PORT}:8042 \
+    -v "$PROJECT_ROOT:/home/gofr/devroot/gofr-doc:rw" \
+    -v ${VOLUME_NAME}:/home/gofr/devroot/gofr-doc/data:rw \
+    -e GOFRDOC_ENV=development \
+    -e GOFRDOC_DEBUG=true \
+    -e GOFRDOC_LOG_LEVEL=DEBUG \
+    "$IMAGE_NAME"
 
-if docker ps -q -f name=gofr-doc-dev | grep -q .; then
-    echo "Container gofr-doc-dev is now running"
-    
-    # Fix volume permissions if it was just created
-    if [ "$VOLUME_CREATED" = true ]; then
-        echo "Fixing permissions on newly created volume..."
-        docker exec -u root gofr-doc-dev chown -R gofr-doc:gofr-doc /home/gofr-doc/devroot/gofr-doc/data
-        echo "Volume permissions fixed"
-    fi
-    
-    echo ""
-    echo "==================================================================="
-    echo "Development Container Access:"
-    echo "  Shell:         docker exec -it gofr-doc-dev /bin/bash"
-    echo "  VS Code:       Attach to container 'gofr-doc-dev'"
-    echo ""
-    echo "Access from Host Machine:"
-    echo "  Web Server:    http://localhost:$WEB_PORT"
-    echo "  MCP Server:    http://localhost:$MCP_PORT/mcp"
-    echo "  MCPO Proxy:    http://localhost:$MCPO_PORT"
-    echo ""
-    echo "Access from $NETWORK (other containers):"
-    echo "  Web Server:    http://gofr-doc-dev:8002"
-    echo "  MCP Server:    http://gofr-doc-dev:8000/mcp"
-    echo "  MCPO Proxy:    http://gofr-doc-dev:8001"
-    echo ""
-    echo "Data & Storage:"
-    echo "  Volume:        gofr-doc-data-dev"
-    echo "  Source Mount:  $HOME/devroot/gofr-doc (live-reload)"
-    echo "==================================================================="
-    echo ""
-else
-    echo "ERROR: Container gofr-doc-dev failed to start"
-    exit 1
-fi
+echo ""
+echo "======================================================================="
+echo "Container started: $CONTAINER_NAME"
+echo "======================================================================="
+echo ""
+echo "Ports:"
+echo "  - $MCP_PORT: MCP server"
+echo "  - $MCPO_PORT: MCPO proxy"
+echo "  - $WEB_PORT: Web interface"
+echo ""
+echo "Useful commands:"
+echo "  docker logs -f $CONTAINER_NAME          # Follow logs"
+echo "  docker exec -it $CONTAINER_NAME bash    # Shell access"
+echo "  docker stop $CONTAINER_NAME             # Stop container"

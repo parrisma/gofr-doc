@@ -166,3 +166,4 @@ data/storage/**/*.json
 
 # Windows Zone.Identifier files (NTFS alternate data streams)
 *:Zone.Identifier
+!lib/gofr-common
