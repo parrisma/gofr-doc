@@ -27,7 +27,6 @@ import contextlib
 import json
 import os
 import sys
-from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path as SysPath
 from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional, Union
@@ -36,9 +35,7 @@ from mcp.server import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 from pydantic import ValidationError as PydanticValidationError
-
-# For header extraction in context using contextvars (thread-safe)
-_auth_header_context: ContextVar[Optional[str]] = ContextVar("auth_header", default=None)
+from gofr_common.web import get_auth_header_from_context
 
 # Ensure project root is on the import path when running directly
 sys.path.insert(0, str(SysPath(__file__).parent.parent))
@@ -184,7 +181,7 @@ def _verify_auth(
 
     # If not in arguments, try to extract from context (set by HTTP middleware)
     if not token:
-        auth_header = _auth_header_context.get()
+        auth_header = get_auth_header_from_context()
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header[7:]  # Strip "Bearer " prefix
 
@@ -1807,44 +1804,13 @@ async def lifespan(starlette_app) -> AsyncIterator[None]:
         yield
 
 
-try:
-    from starlette.applications import Starlette
-    from starlette.middleware.cors import CORSMiddleware
-    from starlette.middleware.base import BaseHTTPMiddleware
-    from starlette.routing import Mount
-except ImportError as exc:  # pragma: no cover - import guard
-    raise RuntimeError("Starlette is required for the MCP server") from exc
+from gofr_common.web import create_mcp_starlette_app  # noqa: E402 - must import after MCP setup
 
-
-class AuthHeaderMiddleware(BaseHTTPMiddleware):
-    """Extract Authorization header and store in context var for auth verification."""
-
-    async def dispatch(self, request, call_next):
-        # Extract Authorization header if present and set in context
-        auth_header = request.headers.get("Authorization", "")
-        token = _auth_header_context.set(auth_header)
-        try:
-            response = await call_next(request)
-        finally:
-            # Reset context after request
-            _auth_header_context.reset(token)
-        return response
-
-
-starlette_app = Starlette(
-    debug=False,
-    routes=[Mount("/mcp/", app=handle_streamable_http)],
+starlette_app = create_mcp_starlette_app(
+    mcp_handler=handle_streamable_http,
     lifespan=lifespan,
-)
-
-# Add auth header middleware BEFORE CORS middleware so headers are extracted
-starlette_app.add_middleware(AuthHeaderMiddleware)
-
-starlette_app = CORSMiddleware(
-    starlette_app,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST", "DELETE"],
-    expose_headers=["Mcp-Session-Id"],
+    env_prefix="GOFR_DOC",
+    include_auth_middleware=True,
 )
 
 
