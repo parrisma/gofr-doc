@@ -19,7 +19,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import session_logger
 
 # MCP server configuration via environment variables (defaults to production port)
-MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8011")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 # Note: auth_service and mcp_headers fixtures are now provided by conftest.py

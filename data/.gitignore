@@ -1,7 +1,0 @@
-# Ignore all data files by default
-*
-
-# But track the directory structure
-!.gitignore
-!auth/.gitkeep
-!storage/.gitkeep

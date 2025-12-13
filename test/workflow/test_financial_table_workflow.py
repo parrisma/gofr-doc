@@ -40,7 +40,7 @@ from mcp.types import TextContent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Port configuration
-MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8011")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
 WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8010")
 
 # Use 127.0.0.1 for better Docker container compatibility

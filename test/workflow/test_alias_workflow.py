@@ -35,7 +35,7 @@ from mcp.types import TextContent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Port configuration - use test ports from environment
-MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8010")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
 WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8012")
 MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
 

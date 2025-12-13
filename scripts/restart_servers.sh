@@ -89,8 +89,12 @@ export GOFR_MCPO_HOST="$GOFR_DOC_MCPO_HOST"
 export GOFR_WEB_HOST="$GOFR_DOC_WEB_HOST"
 export GOFR_NETWORK="$GOFR_DOC_NETWORK"
 
+# JWT authentication credentials (if set)
+export GOFR_JWT_SECRET="${GOFR_DOC_JWT_SECRET:-}"
+export GOFR_TOKEN_STORE="${GOFR_DOC_TOKEN_STORE:-}"
+
 # Extra args for MCP server (project-specific)
-export GOFR_MCP_EXTRA_ARGS="--templates-dir $GOFR_DOC_TEMPLATES --fragments-dir $GOFR_DOC_FRAGMENTS --styles-dir $GOFR_DOC_STYLES"
+export GOFR_MCP_EXTRA_ARGS="--templates-dir $GOFR_DOC_TEMPLATES --styles-dir $GOFR_DOC_STYLES"
 
 # Call shared script
 source "$COMMON_SCRIPTS/restart_servers.sh" "${PASSTHROUGH_ARGS[@]}"

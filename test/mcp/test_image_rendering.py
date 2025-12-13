@@ -20,7 +20,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
 # MCP server configuration
-MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8010")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 

@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 import functools
 
 # MCP server configuration via environment variables
-MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8010")
+MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
 MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
 
 # Note: auth_service and mcp_headers fixtures are now provided by conftest.py
