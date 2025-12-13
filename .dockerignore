@@ -10,7 +10,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ - DON'T IGNORE: contains gofr-common submodule needed for build
 lib64/
 parts/
 sdist/

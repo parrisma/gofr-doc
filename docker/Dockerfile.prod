@@ -1,4 +1,7 @@
-FROM gofr-doc-base:latest
+FROM gofr-doc_base:latest
+
+# Switch to root for user/group setup
+USER root
 
 # Add Unix group 'gofr-doc' with auto-allocated GID
 RUN groupadd --system gofr-doc
@@ -6,12 +9,18 @@ RUN groupadd --system gofr-doc
 # Add user 'gofr-doc' with auto-allocated UID and assign to group 'gofr-doc'
 RUN useradd --system --gid gofr-doc --home-dir /home/gofr-doc --create-home gofr-doc
 
-# Create application directory
-RUN mkdir -p /home/gofr-doc/app
+# Create application directory and data directories
+RUN mkdir -p /home/gofr-doc/app \
+    && mkdir -p /home/gofr-doc/data/storage \
+    && mkdir -p /home/gofr-doc/data/auth \
+    && mkdir -p /home/gofr-doc/logs \
+    && chown -R gofr-doc:gofr-doc /home/gofr-doc
 
 # Copy project files
 COPY --chown=gofr-doc:gofr-doc pyproject.toml /home/gofr-doc/
+COPY --chown=gofr-doc:gofr-doc README.md /home/gofr-doc/
 COPY --chown=gofr-doc:gofr-doc app/ /home/gofr-doc/app/
+COPY --chown=gofr-doc:gofr-doc lib/ /home/gofr-doc/lib/
 
 # Switch to gofr-doc user
 USER gofr-doc
@@ -25,12 +34,14 @@ ENV VIRTUAL_ENV=/home/gofr-doc/.venv
 ENV PATH="/home/gofr-doc/.venv/bin:$PATH"
 
 # Install dependencies using UV and pyproject.toml
-RUN uv pip install -e .
+# First install gofr-common from lib/, then the main project
+RUN uv pip install -e ./lib/gofr-common && uv pip install -e .
 
 # Expose ports
-# 8010: MCP SSE Server
-# 8012: HTTP REST API
-EXPOSE 8010 8012
+# 8010: MCP Server
+# 8011: MCPO Server
+# 8012: Web Server
+EXPOSE 8010 8011 8012
 
 # Default command to run the MCP server
 CMD ["python", "-m", "app.main_mcp"]
