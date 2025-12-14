@@ -33,7 +33,7 @@ uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text py
 
 ## 📚 Documentation
 
-### Quick Start
+### Quick Start Summary
 
 | Guide | Description |
 |-------|-------------|
@@ -102,6 +102,7 @@ bash scripts/run_mcp_auth.sh
 ```
 
 **Security Note**: When authentication is enabled:
+
 - Sessions are bound to the group in the JWT token
 - Each group's sessions are isolated (multi-tenant)
 - Cross-group access attempts return generic "SESSION_NOT_FOUND" errors
@@ -148,6 +149,7 @@ curl -X GET "http://localhost:8010/session/$SESSION/render?format=pdf&style_id=d
 Use any MCP-compatible client to call document generation tools:
 
 **Discovery Tools** (no authentication required):
+
 - `ping` — health check and service status
 - `help` — comprehensive workflow documentation and guidance
 - `list_templates` — discover available templates
@@ -157,6 +159,7 @@ Use any MCP-compatible client to call document generation tools:
 - `list_styles` — discover available rendering styles
 
 **Session Tools** (authentication required when enabled):
+
 - `create_document_session` — start a new document session with a friendly alias (bound to authenticated group)
 - `list_active_sessions` — discover all sessions in your group with their aliases
 - `set_global_parameters` — configure session-wide parameters (accepts alias or UUID)
@@ -172,6 +175,7 @@ Use any MCP-compatible client to call document generation tools:
 **💡 Session Aliases**: Every session requires a friendly alias (3-64 chars: alphanumeric, hyphens, underscores). Use memorable names like `invoice-march` or `weekly-report` instead of UUIDs. All session tools accept either the alias or UUID for identification.
 
 **Authentication Flow**:
+
 1. Client sends JWT token in `Authorization: Bearer <token>` header
 2. Server extracts group claim from token
 3. Session is tagged with the authenticated group
@@ -185,6 +189,7 @@ See [docs/DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md) for detailed work
 The table fragment provides rich, formatted tables with 14 configurable parameters:
 
 **Core Features**:
+
 - Number formatting (currency, percent, decimal, integer, accounting)
 - Column alignment (left, center, right)
 - Sorting (single or multi-column, ascending/descending)
@@ -193,6 +198,7 @@ The table fragment provides rich, formatted tables with 14 configurable paramete
 - Column width control (percentages or pixels)
 
 **Quick Example**:
+
 ```python
 {
     "fragment_id": "quarterly_results",
@@ -217,6 +223,7 @@ The table fragment provides rich, formatted tables with 14 configurable paramete
 ```
 
 **Output Formats**:
+
 - HTML/PDF: Full feature support (colors, borders, styling)
 - Markdown: Table structure with alignment markers (colors omitted)
 
@@ -251,11 +258,13 @@ python -m app.main_web \
 ### Security Modes
 
 **No Authentication** (default):
+
 - All sessions operate in `"public"` group
 - No access control between sessions
 - Suitable for single-user development
 
 **With Authentication**:
+
 - Sessions bound to JWT token group claim
 - Multi-tenant isolation enforced
 - Group-based directory structure: `data/docs/{templates,styles,sessions}/{group}/`
@@ -327,6 +336,7 @@ JWT Token → AuthService.verify_token() → TokenInfo.group
 ```
 
 **Key Security Features**:
+
 - JWT tokens contain `{"group": "...", "exp": ..., "iat": ...}` claims
 - Sessions are bound to the authenticated group during creation
 - All session operations verify group ownership before access
@@ -370,6 +380,7 @@ pkill -f "python -m app.main_web"
 ### VS Code Integration
 
 Launch configurations are provided in `.vscode/launch.json`:
+
 - **MCP Server (Dev - No Auth)**: Development without authentication
 - **MCP Server (Test - With Auth)**: Testing with JWT authentication
 - **Web Server (Dev - No Auth)**: Development without authentication  
@@ -379,6 +390,7 @@ Launch configurations are provided in `.vscode/launch.json`:
 ### Test Coverage
 
 The test suite includes:
+
 - **Unit tests**: Core functionality and business logic
 - **Integration tests**: MCP/Web server endpoints
 - **Security tests**: Group isolation and access control (5 comprehensive tests)
@@ -390,5 +402,3 @@ The test suite includes:
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
-
-
