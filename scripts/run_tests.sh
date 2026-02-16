@@ -19,7 +19,6 @@
 #   ./scripts/run_tests.sh -v                       # Run with verbose output
 #   ./scripts/run_tests.sh --coverage               # Run with coverage report
 #   ./scripts/run_tests.sh --coverage-html          # Run with HTML coverage report
-#   ./scripts/run_tests.sh --unit                   # Run unit tests only (no servers)
 #   ./scripts/run_tests.sh --no-vault               # Skip Vault startup (use existing)
 #   ./scripts/run_tests.sh --stop                   # Stop Vault and exit
 #   ./scripts/run_tests.sh --cleanup-only           # Clean environment only
@@ -284,7 +283,6 @@ stop_services() {
 
 COVERAGE=false
 COVERAGE_HTML=false
-RUN_UNIT=false
 RUN_INTEGRATION=false
 RUN_ALL=false
 STOP_ONLY=false
@@ -301,10 +299,6 @@ while [[ $# -gt 0 ]]; do
         --coverage-html)
             COVERAGE=true
             COVERAGE_HTML=true
-            shift
-            ;;
-        --unit)
-            RUN_UNIT=true
             shift
             ;;
         --integration)
@@ -345,7 +339,6 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --coverage       Run with coverage report"
             echo "  --coverage-html  Run with HTML coverage report"
-            echo "  --unit           Run unit tests only"
             echo "  --integration    Run integration tests"
             echo "  --all            Run all test categories"
             echo "  --no-vault       Skip Vault startup (use running instance)"
@@ -413,8 +406,8 @@ if [ "$CLEANUP_ONLY" = true ]; then
     exit 0
 fi
 
-# Start Vault (unless --no-vault or --unit)
-if [ "$SKIP_VAULT" = false ] && [ "$RUN_UNIT" = false ]; then
+# Start Vault (unless --no-vault)
+if [ "$SKIP_VAULT" = false ]; then
     start_vault_test_container
     trap 'stop_services; stop_vault_test_container' EXIT
 else
@@ -430,8 +423,8 @@ else
     trap 'stop_services' EXIT
 fi
 
-# Start test services via Docker Compose (unless --unit)
-if [ "$RUN_UNIT" = false ] && [ "$START_SERVERS" = true ]; then
+# Start test services via Docker Compose
+if [ "$START_SERVERS" = true ]; then
     start_services
 fi
 
@@ -455,12 +448,7 @@ echo -e "${GREEN}=== Running Tests ===${NC}"
 set +e
 TEST_EXIT_CODE=0
 
-if [ "$RUN_UNIT" = true ]; then
-    echo -e "${BLUE}Running unit tests only...${NC}"
-    uv run python -m pytest ${TEST_DIR}/ -v ${COVERAGE_ARGS} -k "not integration"
-    TEST_EXIT_CODE=$?
-
-elif [ "$RUN_INTEGRATION" = true ]; then
+if [ "$RUN_INTEGRATION" = true ]; then
     echo -e "${BLUE}Running integration tests...${NC}"
     uv run python -m pytest ${TEST_DIR}/ -v ${COVERAGE_ARGS} -k "integration"
     TEST_EXIT_CODE=$?

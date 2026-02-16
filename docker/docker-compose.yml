@@ -9,7 +9,8 @@
 # Requirements:
 # - Vault container running on gofr-net as hostname: gofr-vault (port 8201)
 # - Shared secrets volume seeded: gofr-secrets (contains service_creds/gofr-doc.json)
-# - GOFR_JWT_SECRET provided (shared across all GOFR services)
+# - JWT signing secret stored in Vault at secret/gofr/config/jwt-signing-secret
+#   (provisioned by manage_vault.sh bootstrap during platform bootstrap)
 # =============================================================================
 
 services:
@@ -32,11 +33,22 @@ services:
         chown gofr-doc:gofr-doc /run/secrets/vault_creds
         chmod 600 /run/secrets/vault_creds
         chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+        # Read JWT signing secret from Vault via AppRole
+        GOFR_JWT_SECRET=$(/home/gofr-doc/.venv/bin/python -c "
+        import json, os, sys
+        sys.path.insert(0, '/home/gofr-doc')
+        from gofr_common.auth.backends.vault_config import VaultConfig
+        from gofr_common.auth.backends.vault_client import VaultClient
+        creds = json.load(open('/run/secrets/vault_creds'))
+        config = VaultConfig(url=os.environ.get('GOFR_DOC_VAULT_URL','http://gofr-vault:8201'), role_id=creds['role_id'], secret_id=creds['secret_id'])
+        client = VaultClient(config)
+        print(client.read_secret('gofr/config/jwt-signing-secret')['value'])
+        ")
+        export GOFR_JWT_SECRET
         exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_mcp --host 0.0.0.0 --port ${GOFR_DOC_MCP_PORT:-8040} --jwt-secret ${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --styles-dir /home/gofr-doc/data/styles --web-url http://gofr-doc-web:${GOFR_DOC_WEB_PORT:-8042} --proxy-url-mode url'
     environment:
       - GOFR_DOC_ENV=PROD
       - GOFR_DOC_LOG_LEVEL=INFO
-      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:?GOFR_JWT_SECRET is required}
       - GOFR_DOC_AUTH_BACKEND=vault
       - GOFR_DOC_VAULT_URL=http://gofr-vault:8201
       - GOFR_DOC_VAULT_PATH_PREFIX=gofr/doc/auth
@@ -94,11 +106,22 @@ services:
         chown gofr-doc:gofr-doc /run/secrets/vault_creds
         chmod 600 /run/secrets/vault_creds
         chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+        # Read JWT signing secret from Vault via AppRole
+        GOFR_JWT_SECRET=$(/home/gofr-doc/.venv/bin/python -c "
+        import json, os, sys
+        sys.path.insert(0, '/home/gofr-doc')
+        from gofr_common.auth.backends.vault_config import VaultConfig
+        from gofr_common.auth.backends.vault_client import VaultClient
+        creds = json.load(open('/run/secrets/vault_creds'))
+        config = VaultConfig(url=os.environ.get('GOFR_DOC_VAULT_URL','http://gofr-vault:8201'), role_id=creds['role_id'], secret_id=creds['secret_id'])
+        client = VaultClient(config)
+        print(client.read_secret('gofr/config/jwt-signing-secret')['value'])
+        ")
+        export GOFR_JWT_SECRET
         exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_web --host 0.0.0.0 --port ${GOFR_DOC_WEB_PORT:-8042} --jwt-secret ${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --fragments-dir /home/gofr-doc/data/fragments --styles-dir /home/gofr-doc/data/styles'
     environment:
       - GOFR_DOC_ENV=PROD
       - GOFR_DOC_LOG_LEVEL=INFO
-      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:?GOFR_JWT_SECRET is required}
       - GOFR_DOC_AUTH_BACKEND=vault
       - GOFR_DOC_VAULT_URL=http://gofr-vault:8201
       - GOFR_DOC_VAULT_PATH_PREFIX=gofr/doc/auth

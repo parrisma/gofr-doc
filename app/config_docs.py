@@ -24,7 +24,10 @@ and their environment variable mappings.
 #
 # Authentication & Security
 # -------------------------
-# GOFR_JWT_SECRET: Secret key for JWT token signing/verification (required for auth mode)
+# GOFR_JWT_SECRET: Secret key for JWT token signing/verification
+#   Source of truth: Vault at secret/gofr/config/jwt-signing-secret
+#   Provisioned by: manage_vault.sh bootstrap (platform bootstrap)
+#   Read at startup by entrypoint via AppRole login
 # GOFR_DOC_TOKEN_STORE: Path to token store file (default: {DATA_DIR}/auth/tokens.json)
 # GOFR_DOC_JWT_TOKEN: Bearer token for API authentication
 #

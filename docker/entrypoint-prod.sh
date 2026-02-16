@@ -10,7 +10,6 @@ set -e
 export GOFR_DOC_MCP_PORT="${GOFR_DOC_MCP_PORT:-8040}"
 export GOFR_DOC_MCPO_PORT="${GOFR_DOC_MCPO_PORT:-8041}"
 export GOFR_DOC_WEB_PORT="${GOFR_DOC_WEB_PORT:-8042}"
-export GOFR_JWT_SECRET="${GOFR_JWT_SECRET:?GOFR_JWT_SECRET is required}"
 export GOFR_DOC_AUTH_BACKEND="${GOFR_DOC_AUTH_BACKEND:-vault}"
 export GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL:-http://gofr-vault:8201}"
 export GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN:-}"
@@ -41,6 +40,40 @@ mkdir -p "${CREDS_DST_DIR}"
 cp "${CREDS_SRC}" "${CREDS_DST}"
 chmod 600 "${CREDS_DST}"
 chown gofr-doc:gofr-doc "${CREDS_DST}" || true
+
+# -----------------------------------------------------------------------
+# Read JWT signing secret from Vault (source of truth)
+# -----------------------------------------------------------------------
+# The JWT secret is stored at secret/gofr/config/jwt-signing-secret by
+# manage_vault.sh bootstrap (part of platform bootstrap).  We use the
+# AppRole creds we just injected to authenticate and read it.
+if [ -z "${GOFR_JWT_SECRET:-}" ]; then
+	VENV_BIN="/home/gofr-doc/.venv/bin"
+	JWT_FROM_VAULT=$("${VENV_BIN}/python" -c "
+import json, sys, os
+sys.path.insert(0, '/home/gofr-doc')
+from gofr_common.auth.backends.vault_config import VaultConfig
+from gofr_common.auth.backends.vault_client import VaultClient
+
+creds = json.load(open('${CREDS_DST}'))
+vault_url = os.environ.get('GOFR_DOC_VAULT_URL', 'http://gofr-vault:8201')
+config = VaultConfig(url=vault_url, role_id=creds['role_id'], secret_id=creds['secret_id'])
+client = VaultClient(config)
+secret = client.read_secret('gofr/config/jwt-signing-secret')
+print(secret['value'])
+" 2>/dev/null) || true
+
+	if [ -n "${JWT_FROM_VAULT}" ]; then
+		export GOFR_JWT_SECRET="${JWT_FROM_VAULT}"
+		echo "[OK] JWT signing secret loaded from Vault"
+	else
+		echo "[ERR] Failed to read JWT signing secret from Vault (secret/gofr/config/jwt-signing-secret)" >&2
+		echo "[ERR] Ensure platform bootstrap has been run (manage_vault.sh bootstrap)" >&2
+		exit 1
+	fi
+else
+	echo "[OK] GOFR_JWT_SECRET provided via environment (override)"
+fi
 
 # Ensure directories exist
 mkdir -p /home/gofr-doc/data/storage

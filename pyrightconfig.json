@@ -1,0 +1,10 @@
+{
+    "venvPath": ".",
+    "venv": ".venv",
+    "pythonVersion": "3.11",
+    "include": ["app", "test", "scripts"],
+    "exclude": ["**/__pycache__"],
+    "extraPaths": ["lib/gofr-common/src"],
+    "reportMissingImports": "error",
+    "reportAttributeAccessIssue": "none"
+}
