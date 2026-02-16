@@ -11,7 +11,7 @@ from app.logger import ConsoleLogger
 @pytest.fixture
 def test_data_dir():
     """Get the test data directory."""
-    return Path(__file__).parent.parent / "data/docs"
+    return Path(__file__).parent.parent / "data"
 
 
 @pytest.fixture

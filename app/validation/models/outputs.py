@@ -252,3 +252,4 @@ class HelpOutput(BaseModel):
     common_pitfalls: List[str]
     example_workflows: List[dict]
     tool_sequence: List[dict]
+    authoring_guide: List[str] = []

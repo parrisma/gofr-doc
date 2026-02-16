@@ -25,14 +25,14 @@ def resolve_templates_dir(cli_dir: Optional[str], data_root: Optional[str] = Non
     Resolve templates directory with priority chain.
 
     Priority:
-    1. CLI --data-root argument (docs/templates subdirectory)
+    1. CLI --data-root argument (templates subdirectory)
     2. CLI --templates-dir argument (legacy)
     3. DOCO_DATA environment variable
-    4. Project default
+    4. Project default (data/templates)
     """
-    # Priority 1: --data-root points to data directory, docs/templates is subdirectory
+    # Priority 1: --data-root points to data directory
     if data_root:
-        return str(Path(data_root) / "docs" / "templates")
+        return str(Path(data_root) / "templates")
 
     # Priority 2: Legacy --templates-dir argument
     if cli_dir:
@@ -41,11 +41,11 @@ def resolve_templates_dir(cli_dir: Optional[str], data_root: Optional[str] = Non
     # Priority 3: GOFR_DOC_DATA environment variable
     doco_data = os.environ.get("GOFR_DOC_DATA")
     if doco_data:
-        return str(Path(doco_data) / "docs" / "templates")
+        return str(Path(doco_data) / "templates")
 
-    # Priority 4: Project default
+    # Priority 4: Project default (data/ is the runtime location)
     project_root = Path(__file__).parent.parent.parent
-    return str(project_root / "data" / "docs" / "templates")
+    return str(project_root / "data" / "templates")
 
 
 def resolve_fragments_dir(cli_dir: Optional[str], data_root: Optional[str] = None) -> str:
@@ -53,14 +53,14 @@ def resolve_fragments_dir(cli_dir: Optional[str], data_root: Optional[str] = Non
     Resolve fragments directory with priority chain.
 
     Priority:
-    1. CLI --data-root argument (docs/fragments subdirectory)
+    1. CLI --data-root argument (fragments subdirectory)
     2. CLI --fragments-dir argument (legacy)
     3. DOCO_DATA environment variable
-    4. Project default
+    4. Project default (data/fragments)
     """
-    # Priority 1: --data-root points to data directory, docs/fragments is subdirectory
+    # Priority 1: --data-root points to data directory
     if data_root:
-        return str(Path(data_root) / "docs" / "fragments")
+        return str(Path(data_root) / "fragments")
 
     # Priority 2: Legacy --fragments-dir argument
     if cli_dir:
@@ -69,11 +69,11 @@ def resolve_fragments_dir(cli_dir: Optional[str], data_root: Optional[str] = Non
     # Priority 3: GOFR_DOC_DATA environment variable
     doco_data = os.environ.get("GOFR_DOC_DATA")
     if doco_data:
-        return str(Path(doco_data) / "docs" / "fragments")
+        return str(Path(doco_data) / "fragments")
 
-    # Priority 4: Project default
+    # Priority 4: Project default (data/ is the runtime location)
     project_root = Path(__file__).parent.parent.parent
-    return str(project_root / "data" / "docs" / "fragments")
+    return str(project_root / "data" / "fragments")
 
 
 def resolve_styles_dir(cli_dir: Optional[str], data_root: Optional[str] = None) -> str:
@@ -81,14 +81,14 @@ def resolve_styles_dir(cli_dir: Optional[str], data_root: Optional[str] = None) 
     Resolve styles directory with priority chain.
 
     Priority:
-    1. CLI --data-root argument (docs/styles subdirectory)
+    1. CLI --data-root argument (styles subdirectory)
     2. CLI --styles-dir argument (legacy)
     3. DOCO_DATA environment variable
-    4. Project default
+    4. Project default (data/styles)
     """
-    # Priority 1: --data-root points to data directory, docs/styles is subdirectory
+    # Priority 1: --data-root points to data directory
     if data_root:
-        return str(Path(data_root) / "docs" / "styles")
+        return str(Path(data_root) / "styles")
 
     # Priority 2: Legacy --styles-dir argument
     if cli_dir:
@@ -97,11 +97,11 @@ def resolve_styles_dir(cli_dir: Optional[str], data_root: Optional[str] = None) 
     # Priority 3: GOFR_DOC_DATA environment variable
     doco_data = os.environ.get("GOFR_DOC_DATA")
     if doco_data:
-        return str(Path(doco_data) / "docs" / "styles")
+        return str(Path(doco_data) / "styles")
 
-    # Priority 4: Project default
+    # Priority 4: Project default (data/ is the runtime location)
     project_root = Path(__file__).parent.parent.parent
-    return str(project_root / "data" / "docs" / "styles")
+    return str(project_root / "data" / "styles")
 
 
 def list_templates(args):
@@ -407,14 +407,14 @@ def validate_template_parameters(args):
         is_valid, errors = registry.validate_global_parameters(args.template_id, params)
 
         if is_valid:
-            logger.info(f"✓ Template '{args.template_id}' parameters are valid")
+            logger.info(f"[Y] Template '{args.template_id}' parameters are valid")
             if params:
                 logger.info("Provided parameters:")
                 for key, value in params.items():
                     logger.info(f"  {key}: {value}")
             return 0
         else:
-            logger.error(f"✗ Template '{args.template_id}' parameters are invalid:")
+            logger.error(f"[N] Template '{args.template_id}' parameters are invalid:")
             for error in errors:
                 logger.error(f"  - {error}")
             return 1
@@ -527,14 +527,14 @@ def validate_fragment_parameters(args):
             location = "(standalone)"
 
         if is_valid:
-            logger.info(f"✓ Fragment '{args.fragment_id}' {location} parameters are valid")
+            logger.info(f"[Y] Fragment '{args.fragment_id}' {location} parameters are valid")
             if params:
                 logger.info("Provided parameters:")
                 for key, value in params.items():
                     logger.info(f"  {key}: {value}")
             return 0
         else:
-            logger.error(f"✗ Fragment '{args.fragment_id}' {location} parameters are invalid:")
+            logger.error(f"[N] Fragment '{args.fragment_id}' {location} parameters are invalid:")
             for error in errors:
                 logger.error(f"  - {error}")
             return 1
@@ -605,7 +605,7 @@ Environment Variables:
         "--data-root",
         type=str,
         default=os.environ.get("GOFR_DOC_DATA"),
-        help="Data root directory (contains docs/ with templates, fragments, styles)",
+        help="Data root directory (contains templates, fragments, styles subdirectories)",
     )
 
     # Legacy arguments (kept for backward compatibility)
@@ -613,19 +613,19 @@ Environment Variables:
         "--templates-dir",
         type=str,
         default=None,
-        help="Templates directory (default: project data/docs/templates)",
+        help="Templates directory (default: data/templates).",
     )
     parser.add_argument(
         "--fragments-dir",
         type=str,
         default=None,
-        help="Fragments directory (default: {project}/fragments)",
+        help="Fragments directory (default: data/fragments).",
     )
     parser.add_argument(
         "--styles-dir",
         type=str,
         default=None,
-        help="Styles directory (default: {project}/styles)",
+        help="Styles directory (default: data/styles).",
     )
     parser.add_argument(
         "--group",

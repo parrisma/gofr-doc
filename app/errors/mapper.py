@@ -26,7 +26,7 @@ RECOVERY_STRATEGIES: Dict[str, str] = {
     "INVALID_TABLE_DATA": "Review table validation requirements in documentation. Ensure rows are consistent and required parameters are provided.",
     "INVALID_COLOR": "Use theme colors (blue, orange, green, red, purple, etc.) or hex format (#RRGGBB or #RGB).",
     "NUMBER_FORMAT_ERROR": "Use format specifications like 'currency:USD', 'percent', 'decimal:2', 'integer', or 'accounting'.",
-    "INVALID_COLUMN_WIDTH": "Column widths must be percentages (e.g., '25%') and total ≤ 100%.",
+    "INVALID_COLUMN_WIDTH": "Column widths must be percentages (e.g., '25%') and total <= 100%.",
     "STYLE_NOT_FOUND": "Use list_styles to see available styles for your group.",
     "REGISTRY_ERROR": "Check that template/fragment/style ID is valid and exists in the system.",
     "VALIDATION_ERROR": "Review the error message and adjust the request parameters accordingly.",

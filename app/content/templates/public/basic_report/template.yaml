@@ -132,7 +132,7 @@ fragments:
         required: false
       - name: column_widths
         type: object
-        description: "Dictionary mapping column indices (0-based) to percentage widths (e.g., {0: '30%', 1: '40%'}). Total must be ≤100%. Unspecified columns auto-distribute remaining width."
+        description: "Dictionary mapping column indices (0-based) to percentage widths (e.g., {0: '30%', 1: '40%'}). Total must be <=100%. Unspecified columns auto-distribute remaining width."
         required: false
       - name: zebra_stripe
         type: boolean

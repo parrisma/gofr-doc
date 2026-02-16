@@ -12,7 +12,7 @@ class TestBasicTableRendering:
     def table_template(self):
         """Load the table template."""
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             return Template(f.read())
@@ -148,7 +148,7 @@ class TestColumnAlignment:
     def table_template(self):
         """Load the table template."""
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             return Template(f.read())
@@ -203,7 +203,7 @@ class TestBorderStyles:
     def table_template(self):
         """Load the table template."""
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             return Template(f.read())
@@ -228,7 +228,7 @@ class TestZebraStriping:
     def table_template(self):
         """Load the table template."""
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             return Template(f.read())
@@ -252,7 +252,7 @@ class TestCompactMode:
     def table_template(self):
         """Load the table template."""
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             return Template(f.read())
@@ -294,7 +294,7 @@ class TestNumberFormatting:
         from app.formatting.number_formatter import format_number
 
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             template_source = f.read()
@@ -405,7 +405,7 @@ class TestColorRendering:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -466,7 +466,7 @@ class TestSorting:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -485,7 +485,7 @@ class TestSorting:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -521,7 +521,7 @@ class TestSorting:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -558,7 +558,7 @@ class TestSorting:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -596,7 +596,7 @@ class TestSorting:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -633,7 +633,7 @@ class TestSorting:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
 
         env = Environment(
-            loader=FileSystemLoader("test/data/docs/templates"),
+            loader=FileSystemLoader("data/templates"),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
             lstrip_blocks=True,
@@ -672,7 +672,7 @@ class TestColumnWidthsRendering:
     def table_template(self):
         """Load the table template."""
         template_path = Path(
-            "test/data/docs/templates/public/basic_report/fragments/table.html.jinja2"
+            "data/templates/public/basic_report/fragments/table.html.jinja2"
         )
         with open(template_path, "r") as f:
             return Template(f.read())

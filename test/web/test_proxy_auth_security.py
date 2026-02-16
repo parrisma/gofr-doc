@@ -24,7 +24,7 @@ from app.config import get_default_sessions_dir
 @pytest.fixture
 def client_with_auth(auth_service):
     """Create a test client for the web server with authentication enabled"""
-    test_data_dir = Path(__file__).parent.parent / "data" / "docs"
+    test_data_dir = Path(__file__).parent.parent / "data"
     server = GofrDocWebServer(
         require_auth=True,
         auth_service=auth_service,
@@ -38,7 +38,7 @@ def client_with_auth(auth_service):
 @pytest.fixture
 def session_manager():
     """Create a session manager for test setup"""
-    templates_dir = str(Path(__file__).parent.parent / "data" / "docs" / "templates")
+    templates_dir = str(Path(__file__).parent.parent.parent / "data" / "templates")
     sessions_dir = get_default_sessions_dir()
 
     session_store = SessionStore(sessions_dir)

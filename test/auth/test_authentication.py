@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 import pytest
 import time
 from datetime import datetime
-from gofr_common.auth import AuthService
+from gofr_common.auth import AuthService, JwtSecretProvider
+from gofr_common.auth.backends import VaultClient
 from app.logger import Logger, session_logger
 
 
@@ -20,6 +21,15 @@ from app.logger import Logger, session_logger
 TEST_GROUP = "secure"
 TEST_EXPIRY_SECONDS = 90
 TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
+
+
+def make_test_secret_provider(secret: str = TEST_JWT_SECRET) -> JwtSecretProvider:
+    """Create a JwtSecretProvider backed by a mock VaultClient for testing."""
+    from unittest.mock import MagicMock
+
+    mock_vault = MagicMock(spec=VaultClient)
+    mock_vault.read_secret.return_value = {"value": secret}
+    return JwtSecretProvider(vault_client=mock_vault)
 
 
 @pytest.fixture
@@ -100,7 +110,7 @@ class TestAuthTokenCreation:
         wrong_service = AuthService(
             token_store=auth_service._token_store,
             group_registry=auth_service._group_registry,
-            secret_key="wrong-secret",
+            secret_provider=make_test_secret_provider("wrong-secret"),
             env_prefix="GOFR_DOC",
         )
 
@@ -122,7 +132,7 @@ class TestAuthTokenCreation:
         service2 = AuthService(
             token_store=auth_service._token_store,
             group_registry=auth_service._group_registry,
-            secret_key=TEST_JWT_SECRET,
+            secret_provider=make_test_secret_provider(TEST_JWT_SECRET),
             env_prefix="GOFR_DOC",
         )
 

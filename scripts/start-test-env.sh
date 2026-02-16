@@ -154,7 +154,37 @@ tear_down
 # ── Start the stack ──────────────────────────────────────────────────────────
 
 info "Starting gofr-doc test stack..."
+set +e
 docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d
+COMPOSE_UP_EXIT_CODE=$?
+set -e
+
+if [ ${COMPOSE_UP_EXIT_CODE} -ne 0 ]; then
+    echo -e "${RED}=== docker compose up failed (exit code: ${COMPOSE_UP_EXIT_CODE}) ===${NC}"
+    echo ""
+    echo "--- docker compose ps ---"
+    docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" ps 2>&1 || true
+    echo ""
+
+    echo "--- vault logs (gofr-vault-test) ---"
+    docker logs gofr-vault-test 2>&1 || true
+    echo ""
+    echo "--- vault-init logs (gofr-vault-init-test) ---"
+    docker logs gofr-vault-init-test 2>&1 || true
+    echo ""
+
+    for cname in "${CONTAINERS[@]}"; do
+        echo "--- container logs (${cname}) ---"
+        docker logs "${cname}" 2>&1 || true
+        echo ""
+
+        echo "--- health status (${cname}) ---"
+        docker inspect --format='{{json .State.Health}}' "${cname}" 2>&1 || true
+        echo ""
+    done
+
+    exit ${COMPOSE_UP_EXIT_CODE}
+fi
 
 # ── Poll health checks ────────────────────────────────────────────────────────
 
@@ -201,8 +231,8 @@ else
             *)         warn "${cname##gofr-doc-}: ${status}" ;;
         esac
         if [ "${status}" != "healthy" ]; then
-            echo "  --- last 15 log lines ---"
-            docker logs --tail 15 "${cname}" 2>&1 | sed 's/^/    /'
+            echo "  --- full logs ---"
+            docker logs "${cname}" 2>&1
         fi
     done
     exit 1

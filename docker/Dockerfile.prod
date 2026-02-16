@@ -38,18 +38,12 @@ RUN mkdir -p /home/gofr-doc/app \
 
 WORKDIR /home/gofr-doc
 
-# Copy project files
+# ---- Dependency layer (cached unless pyproject.toml or lib/ change) ----
 COPY --chown=gofr-doc:gofr-doc pyproject.toml /home/gofr-doc/
 COPY --chown=gofr-doc:gofr-doc README.md /home/gofr-doc/
-COPY --chown=gofr-doc:gofr-doc app/ /home/gofr-doc/app/
 COPY --chown=gofr-doc:gofr-doc lib/ /home/gofr-doc/lib/
 
-# Ship built-in templates, styles, and fragments as code
-COPY --chown=gofr-doc:gofr-doc test/data/docs/templates/ /home/gofr-doc/data/templates/
-COPY --chown=gofr-doc:gofr-doc test/data/docs/styles/ /home/gofr-doc/data/styles/
-COPY --chown=gofr-doc:gofr-doc test/data/docs/fragments/ /home/gofr-doc/data/fragments/
-
-# Create venv and install dependencies (as root to avoid permission issues)
+# Create venv and install dependencies (cached until pyproject.toml/lib change)
 RUN uv venv /home/gofr-doc/.venv --python=python3.11
 
 ENV VIRTUAL_ENV=/home/gofr-doc/.venv
@@ -60,6 +54,15 @@ RUN uv pip install -e ./lib/gofr-common && uv pip install -e .
 
 # Install mcpo for OpenAPI proxy
 RUN uv pip install mcpo
+
+# ---- Application code (rebuilds only when app/ changes) ----
+COPY --chown=gofr-doc:gofr-doc app/ /home/gofr-doc/app/
+
+# Stage built-in content outside the data volume mount point.
+# The entrypoint deploys these into the data volume at container start.
+COPY --chown=gofr-doc:gofr-doc app/content/templates/ /home/gofr-doc/_content/templates/
+COPY --chown=gofr-doc:gofr-doc app/content/styles/    /home/gofr-doc/_content/styles/
+COPY --chown=gofr-doc:gofr-doc app/content/fragments/ /home/gofr-doc/_content/fragments/
 
 # Fix ownership after installation
 RUN chown -R gofr-doc:gofr-doc /home/gofr-doc

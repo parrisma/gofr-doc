@@ -27,7 +27,7 @@ import uuid
 @pytest.fixture
 def client(tmp_path, auth_service):
     """Create a test client for the web server"""
-    test_data_dir = Path(__file__).parent.parent / "data" / "docs"
+    test_data_dir = Path(__file__).parent.parent / "data"
 
     server = GofrDocWebServer(
         require_auth=False,
@@ -42,7 +42,7 @@ def client(tmp_path, auth_service):
 @pytest.fixture
 def session_manager():
     """Create a session manager for test setup"""
-    test_data_dir = Path(__file__).parent.parent / "data" / "docs"
+    test_data_dir = Path(__file__).parent.parent / "data"
     session_store = SessionStore(base_dir=get_default_sessions_dir(), logger=session_logger)
     template_registry = TemplateRegistry(str(test_data_dir / "templates"), session_logger)
     return SessionManager(

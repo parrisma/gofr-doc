@@ -1,6 +1,8 @@
 """Tests for session aliasing functionality."""
 
 import uuid
+from pathlib import Path
+
 import pytest
 
 from app.sessions.manager import SessionManager
@@ -10,7 +12,7 @@ from app.logger import ConsoleLogger
 
 
 @pytest.fixture
-def session_manager(tmp_path, test_data_dir):
+def session_manager(tmp_path):
     """Create a SessionManager instance for testing."""
     # Create session storage
     sessions_dir = tmp_path / "sessions"
@@ -21,7 +23,7 @@ def session_manager(tmp_path, test_data_dir):
     logger = ConsoleLogger()
 
     # Create template registry
-    templates_dir = test_data_dir / "docs" / "templates"
+    templates_dir = Path(__file__).parent.parent / "data" / "templates"
     template_registry = TemplateRegistry(
         templates_dir=str(templates_dir), group="test-group", logger=logger
     )

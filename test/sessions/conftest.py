@@ -22,7 +22,7 @@ def session_manager(tmp_path):
 
     # Use actual test data directory for templates
     project_root = Path(__file__).parent.parent.parent
-    templates_dir = project_root / "test" / "data" / "docs" / "templates"
+    templates_dir = project_root / "data" / "templates"
 
     # Load templates from all groups (public, group1, group2)
     template_registry = TemplateRegistry(

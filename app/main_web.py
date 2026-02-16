@@ -3,8 +3,13 @@ import argparse
 import os
 import sys
 from app.web_server.web_server import GofrDocWebServer
-from gofr_common.auth import AuthService, GroupRegistry, create_stores_from_env
-from gofr_common.auth.config import resolve_auth_config
+from gofr_common.auth import (
+    AuthService,
+    GroupRegistry,
+    JwtSecretProvider,
+    create_stores_from_env,
+    create_vault_client_from_env,
+)
 from app.logger import Logger, session_logger
 import app.startup.validation
 
@@ -35,12 +40,6 @@ if __name__ == "__main__":
         help="Port number to listen on (default: 8012, or GOFR_DOC_WEB_PORT env var)",
     )
     parser.add_argument(
-        "--jwt-secret",
-        type=str,
-        default=None,
-        help="JWT secret key (default: read from Vault, or GOFR_JWT_SECRET env var)",
-    )
-    parser.add_argument(
         "--no-auth",
         action="store_true",
         help="Disable authentication (WARNING: insecure, for development only)",
@@ -49,39 +48,39 @@ if __name__ == "__main__":
         "--templates-dir",
         type=str,
         default=None,
-        help="Path to templates directory (default: data/docs/templates)",
+        help="Path to templates directory (default: data/templates).",
     )
     parser.add_argument(
         "--fragments-dir",
         type=str,
         default=None,
-        help="Path to fragments directory (default: data/docs/fragments)",
+        help="Path to fragments directory (default: data/fragments).",
     )
     parser.add_argument(
         "--styles-dir",
         type=str,
         default=None,
-        help="Path to styles directory (default: data/docs/styles)",
+        help="Path to styles directory (default: data/styles).",
     )
     args = parser.parse_args()
 
-    # Resolve authentication configuration
-    jwt_secret, _require_auth = resolve_auth_config(
-        env_prefix="GOFR_DOC",
-        jwt_secret_arg=args.jwt_secret,
-        require_auth=not args.no_auth,
-        logger=logger,
-    )
-
     # Initialize AuthService if authentication is enabled
     auth_service = None
-    if jwt_secret:
-        token_store, group_store = create_stores_from_env(prefix="GOFR_DOC")
+    if not args.no_auth:
+        vault_client = create_vault_client_from_env("GOFR_DOC", logger=logger)
+        secret_provider = JwtSecretProvider(
+            vault_client=vault_client,
+            logger=logger,
+        )
+        token_store, group_store = create_stores_from_env(
+            "GOFR_DOC",
+            vault_client=vault_client,
+        )
         group_registry = GroupRegistry(store=group_store)
         auth_service = AuthService(
             token_store=token_store,
             group_registry=group_registry,
-            secret_key=jwt_secret,
+            secret_provider=secret_provider,
             env_prefix="GOFR_DOC",
         )
         logger.info(

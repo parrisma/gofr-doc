@@ -7,13 +7,13 @@
 # Services listen on INTERNAL prod ports (8040-8042),
 # host-mapped to TEST ports (8140-8142) via gofr_ports.env.
 #
-# Auth is always enabled (--jwt-secret).  Vault env vars are passed through
-# from the shell so containers share the same ephemeral Vault started by
-# run_tests.sh.
+# Auth is always enabled.  Vault runs in dev mode inside this stack;
+# vault-init seeds the JWT signing secret before app containers start.
+# JWT signing secret is read from Vault by JwtSecretProvider.
 #
 # Port Configuration:
 #   All ports defined in lib/gofr-common/config/gofr_ports.env
-#   Test ports (prod + 100) — see gofr_ports.env
+#   Test ports (prod + 100) -- see gofr_ports.env
 #   Containers run internally on prod ports
 #
 # Usage:
@@ -44,7 +44,57 @@ x-gofr-doc-common: &gofr-doc-common
 services:
 
   # ==========================================================================
-  # 1. MCP Server (Core Logic — Streamable HTTP)
+  # 0a. Vault (Ephemeral Dev Mode)
+  # ==========================================================================
+  vault:
+    image: hashicorp/vault:1.15.4
+    container_name: gofr-vault-test
+    hostname: gofr-vault-test
+    restart: "no"
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=gofr-dev-root-token
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+      - VAULT_LOG_LEVEL=warn
+      - VAULT_ADDR=http://127.0.0.1:8200
+    command: server -dev
+    ports:
+      - "${GOFR_VAULT_PORT_TEST:-8301}:8200"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    networks:
+      - gofr-test-net
+
+  # ==========================================================================
+  # 0b. Vault Init (Seed Secrets -- runs once then exits)
+  # ==========================================================================
+  vault-init:
+    image: hashicorp/vault:1.15.4
+    container_name: gofr-vault-init-test
+    restart: "no"
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      - VAULT_ADDR=http://gofr-vault-test:8200
+      - VAULT_TOKEN=gofr-dev-root-token
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Seeding test secrets into Vault..."
+        vault kv put secret/gofr/config/jwt-signing-secret \
+          value="test-secret-key-for-secure-testing-do-not-use-in-production"
+        echo "Vault secrets seeded successfully."
+    networks:
+      - gofr-test-net
+
+  # ==========================================================================
+  # 1. MCP Server (Core Logic -- Streamable HTTP)
   # ==========================================================================
   mcp:
     <<: *gofr-doc-common
@@ -53,30 +103,37 @@ services:
     user: root
     working_dir: /home/gofr-doc
     entrypoint: ["/bin/sh", "-c"]
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
     command:
       - |
         mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
+        for subdir in templates styles fragments; do
+          src="/home/gofr-doc/_content/$${subdir}"
+          dst="/home/gofr-doc/data/$${subdir}"
+          if [ -d "$${src}" ]; then cp -a "$${src}/." "$${dst}/" 2>/dev/null || cp -r "$${src}/." "$${dst}/"; fi
+        done
         chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
-        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_mcp --host 0.0.0.0 --port $${GOFR_DOC_MCP_PORT} --jwt-secret $${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --styles-dir /home/gofr-doc/data/styles --web-url http://gofr-doc-web-test:$${GOFR_DOC_WEB_PORT} --proxy-url-mode url'
+        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_mcp --host 0.0.0.0 --port $${GOFR_DOC_MCP_PORT} --templates-dir /home/gofr-doc/data/templates --styles-dir /home/gofr-doc/data/styles --web-url http://gofr-doc-web-test:$${GOFR_DOC_WEB_PORT} --proxy-url-mode url'
     environment:
       - GOFR_DOC_ENV=TEST
       - GOFR_DOC_MCP_PORT=${GOFR_DOC_MCP_PORT}
       - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-DEBUG}
-      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:-test-secret-key-for-secure-testing-do-not-use-in-production}
-      - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
-      - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault-test:8200}
-      - GOFR_DOC_VAULT_TOKEN=${GOFR_DOC_VAULT_TOKEN:-gofr-dev-root-token}
+      - GOFR_DOC_AUTH_BACKEND=vault
+      - GOFR_DOC_VAULT_URL=http://gofr-vault-test:8200
+      - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
       - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
       - GOFR_DOC_WEB_URL=http://gofr-doc-web-test:${GOFR_DOC_WEB_PORT:-8042}
     ports:
       - "${GOFR_DOC_MCP_HOST_PORT:-${GOFR_DOC_MCP_PORT_TEST}}:${GOFR_DOC_MCP_PORT}"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_MCP_PORT}/mcp || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      test: ["CMD-SHELL", "/home/gofr-doc/.venv/bin/python -c 'import os,socket; port=int(os.environ.get(\"GOFR_DOC_MCP_PORT\",\"8040\")); s=socket.socket(); s.settimeout(2); s.connect((\"127.0.0.1\", port)); s.close()'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
     volumes:
       - gofr-doc-storage:/home/gofr-doc/data/storage
 
@@ -120,19 +177,26 @@ services:
     user: root
     working_dir: /home/gofr-doc
     entrypoint: ["/bin/sh", "-c"]
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
     command:
       - |
         mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
+        for subdir in templates styles fragments; do
+          src="/home/gofr-doc/_content/$${subdir}"
+          dst="/home/gofr-doc/data/$${subdir}"
+          if [ -d "$${src}" ]; then cp -a "$${src}/." "$${dst}/" 2>/dev/null || cp -r "$${src}/." "$${dst}/"; fi
+        done
         chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
-        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_web --host 0.0.0.0 --port $${GOFR_DOC_WEB_PORT} --jwt-secret $${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --fragments-dir /home/gofr-doc/data/fragments --styles-dir /home/gofr-doc/data/styles'
+        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_web --host 0.0.0.0 --port $${GOFR_DOC_WEB_PORT} --templates-dir /home/gofr-doc/data/templates --fragments-dir /home/gofr-doc/data/fragments --styles-dir /home/gofr-doc/data/styles'
     environment:
       - GOFR_DOC_ENV=TEST
       - GOFR_DOC_WEB_PORT=${GOFR_DOC_WEB_PORT}
       - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-DEBUG}
-      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:-test-secret-key-for-secure-testing-do-not-use-in-production}
-      - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
-      - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault-test:8200}
-      - GOFR_DOC_VAULT_TOKEN=${GOFR_DOC_VAULT_TOKEN:-gofr-dev-root-token}
+      - GOFR_DOC_AUTH_BACKEND=vault
+      - GOFR_DOC_VAULT_URL=http://gofr-vault-test:8200
+      - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
       - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
     ports:
@@ -142,7 +206,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 20s
     volumes:
       - gofr-doc-storage:/home/gofr-doc/data/storage
 

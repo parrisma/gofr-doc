@@ -51,6 +51,7 @@ uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text py
 | **[Integration Guide](docs/INTEGRATIONS.md)** | n8n setup, HTTP API, MCP protocol, troubleshooting |
 | **[Docker Deployment](docs/DOCKER.md)** | Container setup, docker-compose, production deployment |
 | **[Data Persistence](docs/DATA_PERSISTENCE.md)** | Session storage, recovery, file management |
+| **[gofr-plot Migration Plan](docs/gofr-plot-migration-plan.md)** | Step-by-step plan to merge gofr-plot tools + functional tests into gofr-doc |
 
 > 💡 **Pro Tip**: Start with [DEVELOPMENT.md](docs/DEVELOPMENT.md) for complete setup, then explore [FEATURES.md](docs/FEATURES.md) for all capabilities.
 

@@ -14,7 +14,7 @@ Security Model:
 
 Authentication Flow:
 1. Client sends JWT token in Authorization: Bearer header
-2. _verify_auth() extracts and validates token → returns (auth_group, error)
+2. _verify_auth() extracts and validates token -> returns (auth_group, error)
 3. handle_call_tool() injects auth_group into tool arguments
 4. Tool handlers verify session.group == auth_group before operations
 5. Generic "SESSION_NOT_FOUND" errors prevent information leakage across groups
@@ -92,6 +92,7 @@ rendering_engine: Optional[RenderingEngine] = None
 
 TOKEN_OPTIONAL_TOOLS = {
     "ping",
+    "help",
     "list_templates",
     "get_template_details",
     "list_template_fragments",
@@ -293,8 +294,12 @@ async def initialize_server() -> None:
     global template_registry, style_registry, session_store, session_manager, rendering_engine
 
     # Use overrides if provided (for testing), otherwise use defaults
-    templates_dir = templates_dir_override or str(SysPath(__file__).parent.parent / "templates")
-    styles_dir = styles_dir_override or str(SysPath(__file__).parent.parent / "styles")
+    templates_dir = templates_dir_override or str(
+        SysPath(__file__).parent.parent.parent / "data" / "templates"
+    )
+    styles_dir = styles_dir_override or str(
+        SysPath(__file__).parent.parent.parent / "data" / "styles"
+    )
 
     template_registry = TemplateRegistry(templates_dir=templates_dir, logger=logger)
     style_registry = StyleRegistry(styles_dir=styles_dir, logger=logger)
@@ -326,12 +331,15 @@ async def handle_list_tools() -> List[Tool]:
         Tool(
             name="help",
             description=(
-                "Comprehensive Documentation - Get complete workflow guidance, GUID lifecycle rules, and common pitfalls. "
+                "Comprehensive Documentation - Get complete workflow guidance, GUID lifecycle rules, common pitfalls, "
+                "and a step-by-step authoring guide for creating your own templates, fragments, and styles. "
                 "WORKFLOW: Call this anytime you need help understanding the service workflow or troubleshooting issues. "
                 "Returns: Service overview, GUID persistence rules (when session_ids and fragment_instance_guids are created/deleted), "
-                "common mistakes to avoid, example workflows, and tool sequencing guide. "
-                "CRITICAL TOPICS COVERED: How long GUIDs persist, when to save them, workflow best practices, parameter requirements. "
-                "USE THIS: When starting a new task, when confused about workflow, or when encountering repeated errors."
+                "common mistakes to avoid, example workflows, tool sequencing guide, and content authoring reference. "
+                "CRITICAL TOPICS COVERED: How long GUIDs persist, when to save them, workflow best practices, parameter requirements, "
+                "how to create new templates/fragments/styles with correct YAML schemas and directory layout. "
+                "USE THIS: When starting a new task, when confused about workflow, when encountering repeated errors, "
+                "or when you need to create custom templates or fragments."
             ),
             inputSchema={"type": "object", "properties": {}},
         ),
@@ -384,12 +392,12 @@ async def handle_list_tools() -> List[Tool]:
                 "ERROR DETAILS: Each error includes parameter name, expected type, what you provided, and example values. "
                 "\n"
                 "TABLE FRAGMENT VALIDATION: When validating table parameters, common errors to check:\n"
-                "• rows must be non-empty array of arrays with consistent column counts\n"
-                "• column_widths total must not exceed 100% (e.g., {0: '40%', 1: '60%'} is valid, {0: '60%', 1: '50%'} fails)\n"
-                "• column indices in number_format, highlight_columns, column_widths must be valid (0-based, less than column count)\n"
-                "• row indices in highlight_rows must be valid (0-based, less than row count)\n"
-                "• colors must be theme names ('primary', 'success', etc.) or valid hex codes ('#4A90E2')\n"
-                "• sort_by column references must exist (column name if has_header=true, or valid column index)\n"
+                "- rows must be non-empty array of arrays with consistent column counts\n"
+                "- column_widths total must not exceed 100% (e.g., {0: '40%', 1: '60%'} is valid, {0: '60%', 1: '50%'} fails)\n"
+                "- column indices in number_format, highlight_columns, column_widths must be valid (0-based, less than column count)\n"
+                "- row indices in highlight_rows must be valid (0-based, less than row count)\n"
+                "- colors must be theme names ('primary', 'success', etc.) or valid hex codes ('#4A90E2')\n"
+                "- sort_by column references must exist (column name if has_header=true, or valid column index)\n"
                 "Use this tool to catch these before calling add_fragment!\n"
                 "\n"
                 "GROUP SECURITY: Validates against templates in your authenticated group. Returns 'TEMPLATE_NOT_FOUND' for templates in other groups. "
@@ -491,12 +499,12 @@ async def handle_list_tools() -> List[Tool]:
                 "ERROR HANDLING: If fragment_id not found, call list_template_fragments to see available fragments. "
                 "\n"
                 "IMPORTANT FOR TABLE FRAGMENTS: The 'table' fragment has 14 powerful parameters including:\n"
-                "• Data structure (rows, has_header, title, width)\n"
-                "• Layout control (column_alignments, column_widths with percentage-based sizing)\n"
-                "• Visual styling (border_style, zebra_stripe, compact mode)\n"
-                "• Number formatting (currency with any ISO code, percent, decimal precision, accounting notation)\n"
-                "• Color theming (header_color, stripe_color, highlight_rows, highlight_columns - supports 8 theme colors + hex)\n"
-                "• Data sorting (sort_by with single/multi-column support, numeric/string detection)\n"
+                "- Data structure (rows, has_header, title, width)\n"
+                "- Layout control (column_alignments, column_widths with percentage-based sizing)\n"
+                "- Visual styling (border_style, zebra_stripe, compact mode)\n"
+                "- Number formatting (currency with any ISO code, percent, decimal precision, accounting notation)\n"
+                "- Color theming (header_color, stripe_color, highlight_rows, highlight_columns - supports 8 theme colors + hex)\n"
+                "- Data sorting (sort_by with single/multi-column support, numeric/string detection)\n"
                 "Call this tool with fragment_id='table' to see detailed specifications for each parameter."
             ),
             inputSchema={
@@ -597,14 +605,14 @@ async def handle_list_tools() -> List[Tool]:
                 "TIP: Use get_fragment_details first to understand what parameters each fragment type requires. "
                 "\n\n"
                 "TABLE FRAGMENT GUIDE: The 'table' fragment supports 14 parameters for rich tabular data:\n"
-                "• REQUIRED: rows (array of arrays) - e.g., [['Name', 'Age'], ['Alice', '30']]\n"
-                "• STRUCTURE: has_header (bool), title (string), width ('auto'|'full'|'80%')\n"
-                "• LAYOUT: column_alignments (array: ['left', 'center', 'right']), column_widths (dict: {0: '40%', 1: '60%'} - must total ≤100%)\n"
-                "• STYLING: border_style ('full'|'horizontal'|'minimal'|'none'), zebra_stripe (bool), compact (bool)\n"
-                "• FORMATTING: number_format (dict: {1: 'currency:USD', 2: 'percent'}) - supports currency:CODE, percent, decimal:N, integer, accounting\n"
-                "• COLORS: header_color, stripe_color (theme: 'primary'|'success'|'warning'|'danger'|'info'|'light'|'dark'|'muted' OR hex: '#4A90E2')\n"
-                "• HIGHLIGHTS: highlight_rows (dict: {0: 'success', 2: 'warning'}), highlight_columns (dict: {1: 'info'})\n"
-                "• SORTING: sort_by (string column name | int column index | {column: 1, order: 'asc'|'desc'} | array for multi-column)\n"
+                "- REQUIRED: rows (array of arrays) - e.g., [['Name', 'Age'], ['Alice', '30']]\n"
+                "- STRUCTURE: has_header (bool), title (string), width ('auto'|'full'|'80%')\n"
+                "- LAYOUT: column_alignments (array: ['left', 'center', 'right']), column_widths (dict: {0: '40%', 1: '60%'} - must total <=100%)\n"
+                "- STYLING: border_style ('full'|'horizontal'|'minimal'|'none'), zebra_stripe (bool), compact (bool)\n"
+                "- FORMATTING: number_format (dict: {1: 'currency:USD', 2: 'percent'}) - supports currency:CODE, percent, decimal:N, integer, accounting\n"
+                "- COLORS: header_color, stripe_color (theme: 'primary'|'success'|'warning'|'danger'|'info'|'light'|'dark'|'muted' OR hex: '#4A90E2')\n"
+                "- HIGHLIGHTS: highlight_rows (dict: {0: 'success', 2: 'warning'}), highlight_columns (dict: {1: 'info'})\n"
+                "- SORTING: sort_by (string column name | int column index | {column: 1, order: 'asc'|'desc'} | array for multi-column)\n"
                 "\n"
                 "EXAMPLE TABLE with all features:\n"
                 "{'rows': [['Product','Q1','Q2','Q3'], ['Widget','1500','1800','2100'], ['Gadget','900','1200','1400']],\n"
@@ -655,7 +663,7 @@ async def handle_list_tools() -> List[Tool]:
             description=(
                 "Content Building - Add an image from a URL to the document with immediate URL validation. "
                 "\n\n"
-                "⚠️ CRITICAL: URL VALIDATION HAPPENS IMMEDIATELY (not at render time)\n"
+                "NOTE: CRITICAL: URL VALIDATION HAPPENS IMMEDIATELY (not at render time)\n"
                 "When you call this tool, the service immediately validates:\n"
                 "1. URL format and accessibility (HTTP HEAD request)\n"
                 "2. Content-Type header matches allowed image types\n"
@@ -665,29 +673,29 @@ async def handle_list_tools() -> List[Tool]:
                 "WORKFLOW: After create_document_session, call this to add images. URL must be publicly accessible.\n"
                 "\n"
                 "PARAMETERS:\n"
-                "• REQUIRED: image_url (string) - Must be accessible URL returning valid image content-type\n"
-                "• OPTIONAL: title (string) - Caption displayed above image\n"
-                "• OPTIONAL: width (integer, pixels) - If only width set, height scales proportionally\n"
-                "• OPTIONAL: height (integer, pixels) - If only height set, width scales proportionally\n"
-                "• OPTIONAL: alt_text (string) - Accessibility text (defaults to title or 'Image')\n"
-                "• OPTIONAL: alignment ('left'|'center'|'right') - Default: 'center'\n"
-                "• OPTIONAL: require_https (bool) - Default: true (enforces HTTPS for security)\n"
-                "• OPTIONAL: position (string) - Where to insert: 'end' (default), 'start', 'before:<guid>', 'after:<guid>'\n"
+                "- REQUIRED: image_url (string) - Must be accessible URL returning valid image content-type\n"
+                "- OPTIONAL: title (string) - Caption displayed above image\n"
+                "- OPTIONAL: width (integer, pixels) - If only width set, height scales proportionally\n"
+                "- OPTIONAL: height (integer, pixels) - If only height set, width scales proportionally\n"
+                "- OPTIONAL: alt_text (string) - Accessibility text (defaults to title or 'Image')\n"
+                "- OPTIONAL: alignment ('left'|'center'|'right') - Default: 'center'\n"
+                "- OPTIONAL: require_https (bool) - Default: true (enforces HTTPS for security)\n"
+                "- OPTIONAL: position (string) - Where to insert: 'end' (default), 'start', 'before:<guid>', 'after:<guid>'\n"
                 "\n"
                 "ALLOWED IMAGE TYPES:\n"
-                "✓ image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml\n"
-                "✗ PDFs, HTML, text files, etc. will be rejected\n"
+                "[Y] image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml\n"
+                "[N] PDFs, HTML, text files, etc. will be rejected\n"
                 "\n"
                 "RENDERING BEHAVIOR:\n"
-                "• PDF/HTML: Image downloaded and embedded as base64 (no external dependencies)\n"
-                "• Markdown: Image linked via URL (![alt](url) syntax)\n"
+                "- PDF/HTML: Image downloaded and embedded as base64 (no external dependencies)\n"
+                "- Markdown: Image linked via URL (![alt](url) syntax)\n"
                 "\n"
                 "COMMON ERROR CODES & FIXES:\n"
-                "• INVALID_IMAGE_URL: Non-HTTPS URL with require_https=true → Use HTTPS or set require_https=false\n"
-                "• IMAGE_URL_NOT_ACCESSIBLE: HTTP 404/403/500 → Verify URL in browser, check if public\n"
-                "• INVALID_IMAGE_CONTENT_TYPE: URL returns non-image type → Ensure URL points to actual image file\n"
-                "• IMAGE_TOO_LARGE: File > 10MB → Compress image or use smaller version\n"
-                "• IMAGE_URL_TIMEOUT: Slow/unreachable server → Check network, try different CDN\n"
+                "- INVALID_IMAGE_URL: Non-HTTPS URL with require_https=true -> Use HTTPS or set require_https=false\n"
+                "- IMAGE_URL_NOT_ACCESSIBLE: HTTP 404/403/500 -> Verify URL in browser, check if public\n"
+                "- INVALID_IMAGE_CONTENT_TYPE: URL returns non-image type -> Ensure URL points to actual image file\n"
+                "- IMAGE_TOO_LARGE: File > 10MB -> Compress image or use smaller version\n"
+                "- IMAGE_URL_TIMEOUT: Slow/unreachable server -> Check network, try different CDN\n"
                 "\n"
                 "EXAMPLE - Basic image:\n"
                 "{'image_url': 'https://example.com/logo.png', 'title': 'Company Logo', 'alignment': 'center'}\n"
@@ -715,7 +723,7 @@ async def handle_list_tools() -> List[Tool]:
                         "type": "string",
                         "description": (
                             "URL of the image to download and display. VALIDATED IMMEDIATELY via HTTP HEAD request. "
-                            "Requirements: (1) Publicly accessible, (2) Returns 200 OK, (3) Content-Type is image/*, (4) Size ≤10MB. "
+                            "Requirements: (1) Publicly accessible, (2) Returns 200 OK, (3) Content-Type is image/*, (4) Size <=10MB. "
                             "Allowed types: image/png, image/jpeg, image/jpg, image/gif, image/webp, image/svg+xml. "
                             "Example: 'https://cdn.example.com/images/logo.png'. "
                             "TIP: Test URL in browser first to verify it loads and shows image content-type."
@@ -865,14 +873,14 @@ async def handle_list_tools() -> List[Tool]:
                 "FORMATS: 'html' (web display), 'pdf' (printable, base64-encoded), 'md' or 'markdown' (plain text with markdown). "
                 "STYLING: Optionally specify style_id from list_styles, or omit for default styling. "
                 "PROXY MODE: Set proxy=true to store rendered document on server and receive proxy_guid + download_url instead of full content. "
-                "  ⚠️ IMPORTANT: proxy_guid is NOT the same as session_id! The proxy_guid is a unique identifier for the stored rendered document. "
+                "  NOTE: IMPORTANT: proxy_guid is NOT the same as session_id! The proxy_guid is a unique identifier for the stored rendered document. "
                 "  RESPONSE FIELDS: "
                 "    - proxy_guid: Unique GUID for THIS rendered document (different from session_id) "
                 "    - download_url: Complete HTTP URL to retrieve document: {web_server}/proxy/{proxy_guid} "
                 "    - content: Will be null when proxy=true "
                 "  RETRIEVAL: Use the download_url to GET the rendered document. The proxy_guid alone can also be used with /proxy/{proxy_guid} endpoint. "
                 "  BENEFITS: Reduces network overhead for large documents (PDFs); persistent server-side storage for later retrieval. "
-                "  EXAMPLE: get_document(session_id='abc-123', format='pdf', proxy=true) → returns proxy_guid='xyz-789' and download_url='http://server:8012/proxy/xyz-789' "
+                "  EXAMPLE: get_document(session_id='abc-123', format='pdf', proxy=true) -> returns proxy_guid='xyz-789' and download_url='http://server:8012/proxy/xyz-789' "
                 "ERROR HANDLING: If session not ready, verify global parameters are set and fragments added. If session_id not found, check the ID or create a new session. "
                 "TIP: You can call this multiple times with different formats to get the same document in different outputs. "
                 "GROUP SECURITY: Can only render documents from sessions in your authenticated group. Returns 'SESSION_NOT_FOUND' for cross-group access. "
@@ -1559,7 +1567,7 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
         service_name="gofr-doc-document-service",
         version="1.21.0",
         workflow_overview=(
-            "WORKFLOW: DISCOVERY → SESSION → CONFIG → BUILD → RENDER\n"
+            "WORKFLOW: DISCOVERY -> SESSION -> CONFIG -> BUILD -> RENDER\n"
             "1. DISCOVERY: list_templates, get_template_details, list_template_fragments\n"
             "2. SESSION: create_document_session\n"
             "3. CONFIG: set_global_parameters (title, author, etc.)\n"
@@ -1569,44 +1577,44 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
             "Discovery tools (list_templates, get_template_details, list_styles) do NOT need auth."
         ),
         guid_persistence=(
-            "⚠️ CRITICAL: UUID HANDLING (36-char format only)\n"
+            "CRITICAL: UUID HANDLING (36-char format only)\n"
             "Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx | Example: 61ea2281-c8df-4719-b71e-56a1305352cc\n"
-            "✓ Copy/paste EXACT | ✗ Never retype (b71e ≠ b77e) | ✗ Never truncate | Case-sensitive\n\n"
+            "[Y] Copy/paste EXACT | [N] Never retype (b71e != b77e) | [N] Never truncate | Case-sensitive\n\n"
             "THREE GUID TYPES:\n"
             "1. session_id: Document config (reusable, save immediately after create_document_session)\n"
             "2. fragment_instance_guid: Unique per add_fragment call (use to remove specific fragments)\n"
             "3. proxy_guid: One specific rendered output (DIFFERENT from session_id!)\n\n"
-            "PROXY MODE (session_id ≠ proxy_guid):\n"
+            "PROXY MODE (session_id != proxy_guid):\n"
             "session_id = recipe (reusable) | proxy_guid = baked cake (one specific render)\n"
-            "One session → many proxy_guids (different formats/styles)\n"
+            "One session -> many proxy_guids (different formats/styles)\n"
             "Download: GET /proxy/{proxy_guid} with Authorization header (NOT /proxy/{session_id}!)"
         ),
         common_pitfalls=[
-            "❌ Not saving session_id immediately after create_document_session",
-            "❌ Retyping/modifying UUIDs (b71e ≠ b77e) or truncating them (61ea2281-... invalid)",
-            "❌ Global parameters AFTER fragments (must be BEFORE) | ❌ Wrong parameter names",
-            "❌ Confusing session_id (config/reusable) with proxy_guid (rendered/one-time)",
-            "❌ Downloading proxy via /proxy/{session_id} instead of /proxy/{proxy_guid}",
-            "❌ Missing Authorization header on proxy downloads",
-            "❌ TABLE: Widths total >100% | 1-based indices (use 0-based) | Capitalized colors",
-            "❌ TABLE: Missing # in hex | Wrong format ('USD' not 'currency:USD') | sort_by column name when no header",
-            "❌ IMAGE: Not testing URL in browser first | Behind login | Missing image/* Content-Type",
-            "❌ IMAGE: HTTP without require_https=false | Both width AND height (distorts) | >10MB",
+            "Not saving session_id immediately after create_document_session",
+            "Retyping/modifying UUIDs (b71e != b77e) or truncating them (61ea2281-... invalid)",
+            "Global parameters AFTER fragments (must be BEFORE) | AVOID:  Wrong parameter names",
+            "Confusing session_id (config/reusable) with proxy_guid (rendered/one-time)",
+            "Downloading proxy via /proxy/{session_id} instead of /proxy/{proxy_guid}",
+            "Missing Authorization header on proxy downloads",
+            "TABLE: Widths total >100% | 1-based indices (use 0-based) | Capitalized colors",
+            "TABLE: Missing # in hex | Wrong format ('USD' not 'currency:USD') | sort_by column name when no header",
+            "IMAGE: Not testing URL in browser first | Behind login | Missing image/* Content-Type",
+            "IMAGE: HTTP without require_https=false | Both width AND height (distorts) | >10MB",
         ],
         example_workflows=[
             {
                 "name": "QUICK START: Create & Render Document",
                 "steps": [
-                    "1. list_templates() → Pick a template_id",
-                    "2. create_document_session(template_id='...') → Save session_id",
+                    "1. list_templates() -> Pick a template_id",
+                    "2. create_document_session(template_id='...') -> Save session_id",
                     "3. set_global_parameters(session_id='...', parameters={title: '...', author: '...'})",
                     "4. add_fragment(session_id='...', fragment_id='heading', parameters={text: '...'})",
                     "5. add_fragment(session_id='...', fragment_id='paragraph', parameters={text: '...'})",
-                    "6. get_document(session_id='...', format='html') → Get HTML directly",
+                    "6. get_document(session_id='...', format='html') -> Get HTML directly",
                     "",
                     "ALTERNATIVE (for large docs):",
-                    "6. get_document(session_id='...', format='pdf', proxy=true) → Save proxy_guid",
-                    "7. GET /proxy/{proxy_guid} with Authorization header → Download PDF from web",
+                    "6. get_document(session_id='...', format='pdf', proxy=true) -> Save proxy_guid",
+                    "7. GET /proxy/{proxy_guid} with Authorization header -> Download PDF from web",
                 ],
             },
             {
@@ -1620,7 +1628,7 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
             {
                 "name": "Table with Formatting",
                 "steps": [
-                    "create_document_session → set_global_parameters → add_fragment with:",
+                    "create_document_session -> set_global_parameters -> add_fragment with:",
                     "  rows: [[...]], has_header: true, column_widths: {0: '40%', 1: '30%', 2: '30%'},",
                     "  column_alignments: ['left','right','right'],",
                     "  number_format: {1: 'currency:USD', 2: 'decimal:2'},",
@@ -1670,6 +1678,20 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
                 ],
             },
             {"category": "RENDER", "tools": ["get_document"]},
+        ],
+        authoring_guide=[
+            "All content lives under data/{templates,fragments,styles}/<group>/. The <group> directory name controls access isolation (e.g. public, team1).",
+            "TEMPLATE: Directory is data/templates/<group>/<template_id>/. Required files: template.yaml (schema: metadata + global_parameters + fragments list), document.html.jinja2 (outer HTML wrapper receiving {{ title }}, {{ css }}, {{ fragments }}), and a fragments/ subdirectory with one .html.jinja2 per fragment declared in the YAML.",
+            "template.yaml skeleton: metadata: {template_id: my_report, group: public, name: My Report, description: A custom report template}. global_parameters: [{name: title, type: string, required: true}, {name: author, type: string, required: false}]. fragments: [{fragment_id: paragraph, name: Paragraph, parameters: [{name: text, type: string, required: true}]}]",
+            "document.html.jinja2 minimal example: <html><head><style>{{ css }}</style></head><body><h1>{{ title }}</h1>{% for f in fragments %}{{ f.html|safe }}{% endfor %}</body></html>",
+            "Fragment Jinja2 example (fragments/paragraph.html.jinja2): <div class='fragment-paragraph'><p>{{ text }}</p></div>",
+            "STANDALONE FRAGMENT: Directory is data/fragments/<group>/<fragment_id>/. Required files: fragment.yaml (schema: fragment_id, group, name, description, parameters) and fragment.html.jinja2 (Jinja2 template receiving declared parameters as variables).",
+            "fragment.yaml skeleton: {fragment_id: callout, group: public, name: Callout Box, description: A highlighted callout, parameters: [{name: text, type: string, required: true}, {name: style, type: string, required: false, default: info}]}",
+            "STYLE: Directory is data/styles/<group>/<style_id>/. Required files: style.yaml (metadata: style_id, group, name, description) and style.css (CSS injected into documents via {{ css }}).",
+            "RULE: template_id / fragment_id / style_id MUST match their directory name.",
+            "RULE: group field in YAML MUST match the parent group directory name.",
+            "RULE: Parameter types are string, integer, number, boolean, array, object.",
+            "RULE: Restart the service after adding new content (registries scan at startup).",
         ],
     )
 

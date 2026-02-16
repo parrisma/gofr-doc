@@ -16,6 +16,7 @@ from app.logger import Logger, session_logger
 from app.web_server.web_server import GofrDocWebServer
 from gofr_common.auth import AuthService, create_stores_from_env, GroupRegistry
 from gofr_common.auth.groups import DuplicateGroupError
+from test.conftest import make_test_secret_provider
 
 
 async def test_web_server():
@@ -29,7 +30,7 @@ async def test_web_server():
     auth_service = AuthService(
         token_store=token_store,
         group_registry=group_registry,
-        secret_key="test-secret-key",
+        secret_provider=make_test_secret_provider("test-secret-key"),
         env_prefix="GOFR_DOC",
     )
     try:

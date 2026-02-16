@@ -24,10 +24,8 @@ and their environment variable mappings.
 #
 # Authentication & Security
 # -------------------------
-# GOFR_JWT_SECRET: Secret key for JWT token signing/verification
-#   Source of truth: Vault at secret/gofr/config/jwt-signing-secret
-#   Provisioned by: manage_vault.sh bootstrap (platform bootstrap)
-#   Read at startup by entrypoint via AppRole login
+# JWT signing secret is read from Vault at runtime by JwtSecretProvider.
+# No env var needed for JWT secret.
 # GOFR_DOC_TOKEN_STORE: Path to token store file (default: {DATA_DIR}/auth/tokens.json)
 # GOFR_DOC_JWT_TOKEN: Bearer token for API authentication
 #
@@ -90,7 +88,7 @@ def get_config_summary() -> dict:
         "mcpo_port": int(os.getenv("GOFR_DOC_MCPO_PORT", DEFAULT_MCPO_PORT)),
         "web_server_url": os.getenv("GOFR_DOC_WEB_SERVER_URL", DEFAULT_WEB_SERVER_URL),
         "mcpo_mode": os.getenv("GOFR_DOC_MCPO_MODE", DEFAULT_MCPO_MODE),
-        "jwt_secret_set": bool(os.getenv("GOFR_JWT_SECRET")),
+        "jwt_secret_set": True,  # JWT always from Vault via JwtSecretProvider
         "log_level": os.getenv("GOFR_DOC_LOG_LEVEL", DEFAULT_LOG_LEVEL),
     }
 
@@ -120,8 +118,7 @@ def validate_configuration() -> tuple[bool, list[str]]:
     # Check auth configuration if mode is "auth"
     mcpo_mode = os.getenv("GOFR_DOC_MCPO_MODE", DEFAULT_MCPO_MODE)
     if mcpo_mode == "auth":
-        if not os.getenv("GOFR_JWT_SECRET"):
-            errors.append("GOFR_JWT_SECRET required when GOFR_DOC_MCPO_MODE='auth' but not set")
+        pass  # JWT secret is always from Vault via JwtSecretProvider
 
     # Check port numbers are valid
     for port_var, default in [
@@ -143,19 +140,19 @@ def validate_configuration() -> tuple[bool, list[str]]:
 def print_configuration_help() -> None:
     """Print comprehensive configuration help to stdout."""
     help_text = """
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                   DOCO CONFIGURATION REFERENCE                             ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+========================================================================
+  DOCO CONFIGURATION REFERENCE
+========================================================================
 
 ENVIRONMENT VARIABLES
-═════════════════════
+---------------------
 
-📁 DATA & STORAGE
+DATA & STORAGE
   GOFR_DOC_DATA_DIR       Base directory for all persistent data
                           Default: ./data
                           Used for: sessions, storage, auth, proxy docs
 
-🔌 APPLICATION PORTS
+APPLICATION PORTS
   GOFR_DOC_MCP_PORT       MCP server port
                           Default: 8010
   
@@ -168,10 +165,9 @@ ENVIRONMENT VARIABLES
   GOFR_DOC_WEB_SERVER_URL Web server base URL for proxy downloads
                           Default: http://localhost:8012
 
-🔐 AUTHENTICATION & SECURITY
-  GOFR_JWT_SECRET        Secret key for JWT signing/verification
-                          Required: When using auth mode
-                          Format: Any secure random string
+AUTHENTICATION & SECURITY
+  JWT signing secret is read from Vault at runtime by JwtSecretProvider.
+  No env var needed.
   
   GOFR_DOC_TOKEN_STORE    Path to token store file
                           Default: {DATA_DIR}/auth/tokens.json
@@ -179,27 +175,26 @@ ENVIRONMENT VARIABLES
   GOFR_DOC_JWT_TOKEN      Bearer token for API authentication
                           Format: JWT token string
 
-🎛️  MCPO CONFIGURATION
+MCPO CONFIGURATION
   GOFR_DOC_MCPO_MODE      Operation mode
                           Values: "auth" | "public"
                           Default: "public"
   
   GOFR_DOC_MCPO_API_KEY   API key for MCPO wrapper access
 
-🧪 DEVELOPMENT & TESTING
+DEVELOPMENT & TESTING
   GOFR_DOC_LOG_LEVEL      Logging verbosity
                           Values: DEBUG | INFO | WARNING | ERROR | CRITICAL
                           Default: INFO
 
-═════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------
 
 CONFIGURATION MODES
-═══════════════════
+-------------------
 
 Production (Authenticated)
 --------------------------
 export GOFR_DOC_MCPO_MODE=auth
-export GOFR_JWT_SECRET="your-secret-key-here"
 export GOFR_DOC_DATA_DIR="/var/gofr_doc/data"
 
 Development (Public Access)
@@ -212,10 +207,10 @@ Testing
 # Set by test framework automatically
 export GOFR_DOC_DATA_DIR="/tmp/gofr_doc-test-XXXXX"
 
-═════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------
 
 QUICK START
-═══════════
+-----------
 
 1. Minimal Setup (Development)
    export GOFR_DOC_MCP_PORT=8010
@@ -224,17 +219,16 @@ QUICK START
 
 2. Authenticated Setup (Production)
    export GOFR_DOC_MCPO_MODE=auth
-   export GOFR_JWT_SECRET="$(openssl rand -hex 32)"
    export GOFR_DOC_DATA_DIR="/var/gofr-doc/data"
    python app/main_mcp.py
 
 3. Docker Setup
    # See docker/compose.prod.yml for container configuration
 
-═════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------
 
 VALIDATION
-══════════
+----------
 
 To check your configuration:
   python -c "from app.config_docs import validate_configuration; \\
@@ -246,7 +240,7 @@ To view current configuration:
              import json; \\
              print(json.dumps(get_config_summary(), indent=2))"
 
-═════════════════════════════════════════════════════════════════════════════
+------------------------------------------------------------------------
 """
     print(help_text)
 
@@ -268,8 +262,8 @@ if __name__ == "__main__":
 
     is_valid, errors = validate_configuration()
     if is_valid:
-        print("✅ Configuration is valid")
+        print("Configuration is valid")
     else:
-        print("❌ Configuration errors:")
+        print("AVOID: Configuration errors:")
         for error in errors:
-            print(f"   • {error}")
+            print(f"   - {error}")

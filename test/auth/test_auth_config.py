@@ -1,198 +1,86 @@
 #!/usr/bin/env python3
 """Tests for authentication configuration.
 
-Tests the gofr_common.auth.config resolve_auth_config function
-and the app.startup.auth_config thin wrapper.
+Tests that entry points use the JwtSecretProvider/create_vault_client_from_env
+pattern and that the old config functions have been removed.
 """
 
-import os
 import sys
-import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from gofr_common.auth.config import resolve_auth_config
-from app.startup.auth_config import resolve_jwt_secret_for_cli
-from app.logger import Logger, session_logger
+import pytest
 
 
-class TestResolveAuthConfig:
-    """Tests for resolve_auth_config() function."""
+class TestOldConfigRemoved:
+    """Verify the old resolve_auth_config / resolve_jwt_secret_for_cli are gone."""
 
-    def test_returns_none_when_auth_disabled(self):
-        """When require_auth=False, should return (None, False)."""
-        logger: Logger = session_logger
+    def test_resolve_auth_config_removed(self):
+        """resolve_auth_config should no longer be importable."""
+        with pytest.raises(ImportError):
+            from gofr_common.auth.config import resolve_auth_config  # noqa: F401
 
-        jwt_secret, require_auth = resolve_auth_config(
-            env_prefix="GOFR_DOC",
-            jwt_secret_arg=None,
-            require_auth=False,
-            logger=logger,
-        )
-
-        assert jwt_secret is None
-        assert require_auth is False
-
-    def test_prefers_cli_secret_over_environment(self):
-        """CLI argument should take precedence over environment variable."""
-        logger: Logger = session_logger
-        cli_secret = "cli-provided-secret"
-        env_secret = "env-provided-secret"
-
-        # Set environment variable
-        original_env = os.environ.get("GOFR_JWT_SECRET")
-        os.environ["GOFR_JWT_SECRET"] = env_secret
-
-        try:
-            jwt_secret, _ = resolve_auth_config(
-                env_prefix="GOFR_DOC",
-                jwt_secret_arg=cli_secret,
-                require_auth=True,
-                logger=logger,
-            )
-
-            assert jwt_secret == cli_secret
-        finally:
-            if original_env:
-                os.environ["GOFR_JWT_SECRET"] = original_env
-            else:
-                os.environ.pop("GOFR_JWT_SECRET", None)
-
-    def test_uses_environment_when_cli_arg_none(self):
-        """Should use environment variable when CLI arg is None."""
-        logger: Logger = session_logger
-        env_secret = "env-provided-secret"
-
-        original_env = os.environ.get("GOFR_JWT_SECRET")
-        os.environ["GOFR_JWT_SECRET"] = env_secret
-
-        try:
-            jwt_secret, _ = resolve_auth_config(
-                env_prefix="GOFR_DOC",
-                jwt_secret_arg=None,
-                require_auth=True,
-                logger=logger,
-            )
-
-            assert jwt_secret == env_secret
-        finally:
-            if original_env:
-                os.environ["GOFR_JWT_SECRET"] = original_env
-            else:
-                os.environ.pop("GOFR_JWT_SECRET", None)
-
-    def test_exits_when_secret_required_but_missing(self):
-        """Should exit when auth required but no secret provided and auto disabled."""
-        logger: Logger = session_logger
-
-        original_env = os.environ.get("GOFR_JWT_SECRET")
-        os.environ.pop("GOFR_JWT_SECRET", None)
-
-        try:
-            with pytest.raises(SystemExit) as exc_info:
-                resolve_auth_config(
-                    env_prefix="GOFR_DOC",
-                    jwt_secret_arg=None,
-                    require_auth=True,
-                    allow_auto_secret=False,
-                    exit_on_missing=True,
-                    logger=logger,
-                )
-
-            assert exc_info.value.code == 1
-        finally:
-            if original_env:
-                os.environ["GOFR_JWT_SECRET"] = original_env
+    def test_resolve_jwt_secret_for_cli_removed(self):
+        """resolve_jwt_secret_for_cli should no longer be importable."""
+        with pytest.raises(ImportError):
+            from gofr_common.auth.config import resolve_jwt_secret_for_cli  # noqa: F401
 
 
-class TestResolveJwtSecretForCli:
-    """Tests for resolve_jwt_secret_for_cli() function."""
+class TestJwtSecretProviderImportable:
+    """Verify JwtSecretProvider is importable from gofr_common.auth."""
 
-    def test_prefers_cli_secret_over_environment(self):
-        """CLI argument should take precedence over environment variable."""
-        logger: Logger = session_logger
-        cli_secret = "cli-provided-secret"
-        env_secret = "env-provided-secret"
+    def test_import_from_auth(self):
+        from gofr_common.auth import JwtSecretProvider
 
-        original_env = os.environ.get("GOFR_JWT_SECRET")
-        os.environ["GOFR_JWT_SECRET"] = env_secret
+        assert JwtSecretProvider is not None
 
-        try:
-            result = resolve_jwt_secret_for_cli(
-                env_prefix="GOFR_DOC",
-                cli_secret=cli_secret,
-                logger=logger,
-            )
+    def test_import_from_module(self):
+        from gofr_common.auth.jwt_secret_provider import JwtSecretProvider
 
-            assert result == cli_secret
-        finally:
-            if original_env:
-                os.environ["GOFR_JWT_SECRET"] = original_env
-            else:
-                os.environ.pop("GOFR_JWT_SECRET", None)
+        assert JwtSecretProvider is not None
 
-    def test_uses_environment_when_cli_none(self):
-        """Should use environment variable when CLI arg is None."""
-        logger: Logger = session_logger
-        env_secret = "env-provided-secret"
 
-        original_env = os.environ.get("GOFR_JWT_SECRET")
-        os.environ["GOFR_JWT_SECRET"] = env_secret
+class TestVaultClientFactoryImportable:
+    """Verify create_vault_client_from_env is importable."""
 
-        try:
-            result = resolve_jwt_secret_for_cli(
-                env_prefix="GOFR_DOC",
-                cli_secret=None,
-                logger=logger,
-            )
+    def test_import_from_auth(self):
+        from gofr_common.auth import create_vault_client_from_env
 
-            assert result == env_secret
-        finally:
-            if original_env:
-                os.environ["GOFR_JWT_SECRET"] = original_env
-            else:
-                os.environ.pop("GOFR_JWT_SECRET", None)
+        assert callable(create_vault_client_from_env)
 
-    def test_exits_when_no_secret_provided(self):
-        """Should call sys.exit(1) when no secret can be resolved."""
-        logger: Logger = session_logger
+    def test_import_from_backends(self):
+        from gofr_common.auth.backends import create_vault_client_from_env
 
-        original_env = os.environ.get("GOFR_JWT_SECRET")
-        os.environ.pop("GOFR_JWT_SECRET", None)
-
-        try:
-            with pytest.raises(SystemExit) as exc_info:
-                resolve_jwt_secret_for_cli(
-                    env_prefix="GOFR_DOC",
-                    cli_secret=None,
-                    logger=logger,
-                )
-
-            assert exc_info.value.code == 1
-        finally:
-            if original_env:
-                os.environ["GOFR_JWT_SECRET"] = original_env
+        assert callable(create_vault_client_from_env)
 
 
 class TestIntegrationWithEntryPoints:
-    """Integration tests verifying entry points use auth_config correctly."""
+    """Integration tests verifying entry points use the provider pattern."""
 
-    def test_main_mcp_imports_auth_config(self):
-        """Verify main_mcp.py imports resolve_auth_config from gofr_common."""
+    def test_main_mcp_uses_provider_pattern(self):
+        """Verify main_mcp.py uses create_vault_client_from_env + JwtSecretProvider."""
         with open("app/main_mcp.py") as f:
             content = f.read()
 
-        assert "from gofr_common.auth.config import resolve_auth_config" in content
-        assert "resolve_auth_config(" in content
+        assert "create_vault_client_from_env" in content
+        assert "JwtSecretProvider" in content
+        assert "secret_provider" in content
+        # Old patterns should be gone
+        assert "resolve_auth_config" not in content
+        assert "--jwt-secret" not in content
 
-    def test_main_web_imports_auth_config(self):
-        """Verify main_web.py imports resolve_auth_config from gofr_common."""
+    def test_main_web_uses_provider_pattern(self):
+        """Verify main_web.py uses create_vault_client_from_env + JwtSecretProvider."""
         with open("app/main_web.py") as f:
             content = f.read()
 
-        assert "from gofr_common.auth.config import resolve_auth_config" in content
-        assert "resolve_auth_config(" in content
+        assert "create_vault_client_from_env" in content
+        assert "JwtSecretProvider" in content
+        assert "secret_provider" in content
+        # Old patterns should be gone
+        assert "resolve_auth_config" not in content
+        assert "--jwt-secret" not in content
 
     def test_no_hardcoded_test_secrets_in_production_code(self):
         """Verify no hardcoded test secrets remain in production code."""
@@ -231,3 +119,18 @@ class TestIntegrationWithEntryPoints:
                 "create_stores_from_env" in content
             ), f"Missing create_stores_from_env in {filepath}"
             assert "GroupRegistry" in content, f"Missing GroupRegistry in {filepath}"
+
+    def test_no_gofr_jwt_secret_env_in_production_code(self):
+        """Verify production code does not reference GOFR_JWT_SECRET env var."""
+        files_to_check = [
+            "app/main_mcp.py",
+            "app/main_web.py",
+        ]
+
+        for filepath in files_to_check:
+            with open(filepath) as f:
+                content = f.read()
+
+            assert (
+                "GOFR_JWT_SECRET" not in content
+            ), f"Found GOFR_JWT_SECRET reference in {filepath}"

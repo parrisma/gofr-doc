@@ -61,9 +61,9 @@ class GofrDocWebServer:
 
         # Set up registries
         project_root = Path(__file__).parent.parent.parent
-        self.templates_dir = templates_dir or str(project_root / "data" / "docs" / "templates")
-        self.fragments_dir = fragments_dir or str(project_root / "data" / "docs" / "fragments")
-        self.styles_dir = styles_dir or str(project_root / "data" / "docs" / "styles")
+        self.templates_dir = templates_dir or str(project_root / "data" / "templates")
+        self.fragments_dir = fragments_dir or str(project_root / "data" / "fragments")
+        self.styles_dir = styles_dir or str(project_root / "data" / "styles")
         self.styles_group = styles_group
 
         self.template_registry = TemplateRegistry(self.templates_dir, session_logger)

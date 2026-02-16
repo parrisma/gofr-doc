@@ -118,7 +118,7 @@ if __name__ == "__main__":
     try:
         # Start MCPO wrapper
         logger.info(
-            "🔌 Connecting to MCP server...", mcp_url=f"http://{args.mcp_host}:{args.mcp_port}/mcp"
+            "Connecting to MCP server...", mcp_url=f"http://{args.mcp_host}:{args.mcp_port}/mcp"
         )
         wrapper = start_mcpo_wrapper(
             mcp_host=args.mcp_host,
@@ -131,11 +131,11 @@ if __name__ == "__main__":
         )
 
         logger.info("=" * 70)
-        logger.info("✓ MCPO wrapper started successfully")
+        logger.info("[Y] MCPO wrapper started successfully")
         logger.info("=" * 70)
-        logger.info(f"📡 OpenAPI endpoint: http://localhost:{args.mcpo_port}")
-        logger.info(f"📚 API documentation: http://localhost:{args.mcpo_port}/docs")
-        logger.info(f"🔍 Health check: http://localhost:{args.mcpo_port}/health")
+        logger.info(f"OpenAPI endpoint: http://localhost:{args.mcpo_port}")
+        logger.info(f"API documentation: http://localhost:{args.mcpo_port}/docs")
+        logger.info(f"Health check: http://localhost:{args.mcpo_port}/health")
         logger.info("=" * 70)
         logger.info("Press Ctrl+C to stop")
 

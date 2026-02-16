@@ -23,8 +23,48 @@ from uuid import uuid4
 
 from gofr_common.auth import AuthService, GroupRegistry
 from gofr_common.auth.backends import VaultClient, VaultConfig, VaultGroupStore, VaultTokenStore
+from gofr_common.auth.jwt_secret_provider import JwtSecretProvider
 from app.config import Config
 from app.storage import get_storage, reset_storage
+
+
+# ============================================================================
+# CONTENT BOOTSTRAP — symlink app/content/ into data/ for local test runs
+# ============================================================================
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _bootstrap_content():
+    """Ensure data/{templates,styles,fragments} exist by symlinking from app/content/.
+
+    In prod/test Docker images the Dockerfile COPYs real files into data/.
+    In the dev container the entrypoint creates symlinks.
+    This fixture covers the case where tests run directly (e.g. pytest from CLI)
+    without the entrypoint having run first.
+
+    Also symlinks test/data/{templates,styles,fragments} so that render
+    tests that use their own test_data_dir fixture find content too.
+    """
+    project_root = Path(__file__).parent.parent
+    content_dir = project_root / "app" / "content"
+
+    # Locations that need content symlinks
+    targets = [
+        project_root / "data",
+        project_root / "test" / "data",
+    ]
+
+    for data_dir in targets:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        for subdir in ("templates", "styles", "fragments"):
+            target = data_dir / subdir
+            source = content_dir / subdir
+            if not source.is_dir():
+                continue
+            if target.is_symlink() or target.exists():
+                # Already set up (symlink or real dir with content)
+                continue
+            target.symlink_to(source)
 
 
 # ============================================================================
@@ -36,6 +76,19 @@ from app.storage import get_storage, reset_storage
 TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
 
 TEST_GROUP = "test_group"
+
+
+def make_test_secret_provider(secret: str = TEST_JWT_SECRET) -> JwtSecretProvider:
+    """Create a JwtSecretProvider backed by a mock VaultClient for testing.
+
+    The mock always returns the given secret from Vault, providing the
+    same interface as production but without a real Vault dependency.
+    """
+    from unittest.mock import MagicMock
+
+    mock_vault = MagicMock(spec=VaultClient)
+    mock_vault.read_secret.return_value = {"value": secret}
+    return JwtSecretProvider(vault_client=mock_vault)
 
 
 def _create_test_auth_service(vault_client: VaultClient, path_prefix: str) -> AuthService:
@@ -56,7 +109,7 @@ def _create_test_auth_service(vault_client: VaultClient, path_prefix: str) -> Au
     return AuthService(
         token_store=token_store,
         group_registry=group_registry,
-        secret_key=TEST_JWT_SECRET,
+        secret_provider=make_test_secret_provider(),
         env_prefix="GOFR_DOC",
     )
 
@@ -286,10 +339,9 @@ def configure_test_auth_environment():
     """
     Configure environment variables for test server authentication.
 
-    This ensures test MCP/web servers use the same JWT secret and Vault backend
+    This ensures test MCP/web servers use the same Vault backend
     as the test fixtures. Auto-runs before all tests.
     """
-    os.environ["GOFR_JWT_SECRET"] = TEST_JWT_SECRET
     os.environ["GOFR_DOC_AUTH_BACKEND"] = "vault"
 
     # Default to local test vault if not already set
@@ -302,7 +354,6 @@ def configure_test_auth_environment():
     yield
 
     # Cleanup
-    os.environ.pop("GOFR_JWT_SECRET", None)
     os.environ.pop("GOFR_DOC_AUTH_BACKEND", None)
     os.environ.pop("GOFR_DOC_VAULT_URL", None)
     os.environ.pop("GOFR_DOC_VAULT_TOKEN", None)

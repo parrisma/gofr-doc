@@ -1,4 +1,4 @@
-"""Housekeeper Service — periodic storage pruning for gofr-doc.
+"""Housekeeper Service -- periodic storage pruning for gofr-doc.
 
 Runs in a loop, calling ``prune_size`` from the storage manager to keep the
 rendered-documents directory under a configurable size limit.

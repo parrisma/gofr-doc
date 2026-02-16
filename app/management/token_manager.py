@@ -14,30 +14,37 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from gofr_common.auth import AuthService, create_stores_from_env, GroupRegistry
+from gofr_common.auth import (
+    AuthService,
+    JwtSecretProvider,
+    create_stores_from_env,
+    create_vault_client_from_env,
+    GroupRegistry,
+)
 from app.logger import Logger, session_logger
-from app.startup.auth_config import resolve_jwt_secret_for_cli
 
 ENV_PREFIX = "GOFR_DOC"
 
 
 def _build_auth_service(args) -> AuthService:
-    """Build an AuthService from CLI args and environment."""
+    """Build an AuthService from environment (Vault-backed)."""
     logger: Logger = session_logger
 
-    jwt_secret = resolve_jwt_secret_for_cli(
-        env_prefix=ENV_PREFIX, cli_secret=args.secret, logger=logger
+    vault_client = create_vault_client_from_env(ENV_PREFIX, logger=logger)
+    secret_provider = JwtSecretProvider(
+        vault_client=vault_client,
+        logger=logger,
     )
-    if not jwt_secret:
-        sys.exit(1)
-
-    token_store, group_store = create_stores_from_env(ENV_PREFIX)
+    token_store, group_store = create_stores_from_env(
+        ENV_PREFIX,
+        vault_client=vault_client,
+    )
     group_registry = GroupRegistry(store=group_store)
 
     return AuthService(
         token_store=token_store,
         group_registry=group_registry,
-        secret_key=jwt_secret,
+        secret_provider=secret_provider,
         env_prefix=ENV_PREFIX,
     )
 
@@ -189,7 +196,7 @@ Examples:
 
 Environment Variables:
     GOFR_DOC_ENV            Environment mode (TEST or PROD)
-    GOFR_JWT_SECRET         JWT secret key for token signing and verification
+
     GOFR_DOC_AUTH_BACKEND   Must be "vault"
     GOFR_DOC_VAULT_URL      Vault server URL
     GOFR_DOC_VAULT_TOKEN    Vault authentication token
@@ -203,12 +210,6 @@ Environment Variables:
         default=os.environ.get("GOFR_DOC_ENV", "TEST"),
         choices=["TEST", "PROD"],
         help="Environment mode (TEST or PROD, default: from GOFR_DOC_ENV or TEST)",
-    )
-    parser.add_argument(
-        "--secret",
-        type=str,
-        default=os.environ.get("GOFR_JWT_SECRET"),
-        help="JWT secret key (default: GOFR_JWT_SECRET env var)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")

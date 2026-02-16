@@ -1,15 +1,17 @@
 #!/bin/bash
 # =============================================================================
 # gofr-doc Production Entrypoint
-# Common startup for all gofr-doc containers: copies AppRole creds, reads
-# JWT signing secret from Vault, sets up directories, then exec's CMD.
+# Common startup for all gofr-doc containers: copies AppRole creds,
+# sets up directories, then exec's CMD.
+#
+# JWT signing secret is read from Vault at runtime by JwtSecretProvider
+# (no env var needed).
 #
 # Usage in compose.prod.yml:
 #   entrypoint: ["/home/gofr-doc/entrypoint-prod.sh"]
 #   command: ["/home/gofr-doc/.venv/bin/python", "-m", "app.main_mcp", ...]
 #
 # Environment variables:
-#   GOFR_JWT_SECRET       - Override: skip Vault read, use this value directly
 #   GOFR_DOC_VAULT_URL    - Vault address (default: http://gofr-vault:<GOFR_VAULT_PORT>)
 #   GOFR_DOC_DATA_DIR     - Data root (default: /home/gofr-doc/data)
 #   GOFR_DOC_STORAGE_DIR  - Storage dir (default: /home/gofr-doc/data/storage)
@@ -27,6 +29,25 @@ STORAGE_DIR="${GOFR_DOC_STORAGE_DIR:-/home/gofr-doc/data/storage}"
 mkdir -p "${DATA_DIR}" "${STORAGE_DIR}" /home/gofr-doc/data/sessions /home/gofr-doc/logs
 chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs 2>/dev/null || true
 
+# --- Deploy built-in content into the data volume ----------------------------
+# _content/ is baked into the image (outside the volume mount).
+# Copy into the data volume so templates/styles/fragments/images are available.
+#
+# INTERIM: Long-term, replace this with a dedicated content-init container
+# (same pattern as vault-init) that populates the data volume independently.
+# This keeps the app image small as content grows in size and number.
+CONTENT_STAGE="/home/gofr-doc/_content"
+for subdir in templates styles fragments images; do
+    src="${CONTENT_STAGE}/${subdir}"
+    dst="${DATA_DIR}/${subdir}"
+    if [ -d "${src}" ]; then
+        # Merge: copy new/updated files without removing user additions
+        cp -a "${src}/." "${dst}/" 2>/dev/null || cp -r "${src}/." "${dst}/"
+        chown -R gofr-doc:gofr-doc "${dst}" 2>/dev/null || true
+        echo "Deployed built-in ${subdir} to ${dst}"
+    fi
+done
+
 # --- Copy AppRole credentials ------------------------------------------------
 mkdir -p /run/secrets
 if [ -f "${CREDS_SOURCE}" ]; then
@@ -34,42 +55,6 @@ if [ -f "${CREDS_SOURCE}" ]; then
     chown gofr-doc:gofr-doc "${CREDS_TARGET}"
 else
     echo "WARNING: No AppRole credentials at ${CREDS_SOURCE}"
-fi
-
-# --- Read JWT secret from Vault via AppRole ----------------------------------
-# Source of truth: Vault at secret/gofr/config/jwt-signing-secret
-# Env var GOFR_JWT_SECRET is a fallback override only.
-if [ -z "${GOFR_JWT_SECRET:-}" ]; then
-    if [ -f "${CREDS_TARGET}" ]; then
-        echo "Reading JWT secret from Vault via AppRole..."
-        VAULT_URL="${GOFR_DOC_VAULT_URL:-http://gofr-vault:${GOFR_VAULT_PORT:-8201}}"
-        JWT_FROM_VAULT=$(
-            su -s /bin/bash gofr-doc -c "${VENV_PATH}/bin/python -c \"
-import json, sys, os
-sys.path.insert(0, '/home/gofr-doc')
-from gofr_common.auth.backends.vault_config import VaultConfig
-from gofr_common.auth.backends.vault_client import VaultClient
-creds = json.load(open('${CREDS_TARGET}'))
-config = VaultConfig(url='${VAULT_URL}', role_id=creds['role_id'], secret_id=creds['secret_id'])
-client = VaultClient(config)
-secret = client.read_secret('gofr/config/jwt-signing-secret')
-print(secret['value'])
-\"" 2>&1
-        ) || true
-
-        if [ -n "${JWT_FROM_VAULT}" ]; then
-            export GOFR_JWT_SECRET="${JWT_FROM_VAULT}"
-            echo "JWT secret loaded from Vault via AppRole"
-        else
-            echo "FATAL: Cannot read JWT secret from Vault and GOFR_JWT_SECRET not set"
-            exit 1
-        fi
-    else
-        echo "FATAL: No Vault credentials at ${CREDS_TARGET} and GOFR_JWT_SECRET not set"
-        exit 1
-    fi
-else
-    echo "JWT secret set via environment override"
 fi
 
 # --- Auth flag ---------------------------------------------------------------

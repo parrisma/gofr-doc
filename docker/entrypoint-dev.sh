@@ -44,6 +44,18 @@ fi
 mkdir -p "$PROJECT_DIR/data/storage" "$PROJECT_DIR/data/auth"
 mkdir -p "$PROJECT_DIR/logs"
 
+# Deploy content from app/content/ to data/ (symlinks for instant dev edits)
+# In prod images, Dockerfile COPYs real files; in dev we symlink to source.
+CONTENT_DIR="$PROJECT_DIR/app/content"
+for subdir in templates styles fragments; do
+    target="$PROJECT_DIR/data/$subdir"
+    source="$CONTENT_DIR/$subdir"
+    if [ -d "$source" ] && [ ! -e "$target" ]; then
+        ln -s "$source" "$target"
+        echo "Linked data/$subdir -> app/content/$subdir"
+    fi
+done
+
 # Ensure virtual environment exists and is valid
 if [ ! -f "$VENV_DIR/bin/python" ] || [ ! -x "$VENV_DIR/bin/python" ]; then
     echo "Creating Python virtual environment..."
