@@ -12,7 +12,7 @@ export GOFR_DOC_MCPO_PORT="${GOFR_DOC_MCPO_PORT:-8041}"
 export GOFR_DOC_WEB_PORT="${GOFR_DOC_WEB_PORT:-8042}"
 export GOFR_JWT_SECRET="${GOFR_JWT_SECRET:?GOFR_JWT_SECRET is required}"
 export GOFR_DOC_AUTH_BACKEND="${GOFR_DOC_AUTH_BACKEND:-vault}"
-export GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL:-}"
+export GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL:-http://gofr-vault:8201}"
 export GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN:-}"
 export GOFR_DOC_STORAGE_DIR="${GOFR_DOC_STORAGE_DIR:-/home/gofr-doc/data/storage}"
 export GOFR_DOC_SESSIONS_DIR="${GOFR_DOC_SESSIONS_DIR:-/home/gofr-doc/data/sessions}"
@@ -20,6 +20,27 @@ export GOFR_DOC_TEMPLATES_DIR="${GOFR_DOC_TEMPLATES_DIR:-/home/gofr-doc/data/tem
 export GOFR_DOC_FRAGMENTS_DIR="${GOFR_DOC_FRAGMENTS_DIR:-/home/gofr-doc/data/fragments}"
 export GOFR_DOC_STYLES_DIR="${GOFR_DOC_STYLES_DIR:-/home/gofr-doc/data/styles}"
 export GOFR_DOC_LOG_LEVEL="${GOFR_DOC_LOG_LEVEL:-INFO}"
+
+# -----------------------------------------------------------------------
+# Vault AppRole runtime identity (required)
+# -----------------------------------------------------------------------
+# gofr-common prefers AppRole creds injected at /run/secrets/vault_creds.
+# We mount the shared secrets volume at /run/gofr-secrets and copy the
+# project-specific creds file into the standard location.
+CREDS_SRC="/run/gofr-secrets/service_creds/gofr-doc.json"
+CREDS_DST_DIR="/run/secrets"
+CREDS_DST="${CREDS_DST_DIR}/vault_creds"
+
+if [ ! -f "${CREDS_SRC}" ]; then
+	echo "[ERR] Missing Vault AppRole creds at ${CREDS_SRC}" >&2
+	echo "[ERR] Fix: run ./scripts/ensure_approle.sh then ./scripts/migrate_secrets_to_volume.sh" >&2
+	exit 1
+fi
+
+mkdir -p "${CREDS_DST_DIR}"
+cp "${CREDS_SRC}" "${CREDS_DST}"
+chmod 600 "${CREDS_DST}"
+chown gofr-doc:gofr-doc "${CREDS_DST}" || true
 
 # Ensure directories exist
 mkdir -p /home/gofr-doc/data/storage

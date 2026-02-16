@@ -1,112 +1,131 @@
+# =============================================================================
+# gofr-doc Production Stack (Docker Compose)
+# =============================================================================
+# Mirrors gofr-dig compose pattern:
+# - One container per service (MCP, MCPO, Web)
+# - Vault auth uses AppRole creds injected via shared secrets volume
+# - Shared gofr-net network
+#
+# Requirements:
+# - Vault container running on gofr-net as hostname: gofr-vault (port 8201)
+# - Shared secrets volume seeded: gofr-secrets (contains service_creds/gofr-doc.json)
+# - GOFR_JWT_SECRET provided (shared across all GOFR services)
+# =============================================================================
+
 services:
-  # 1. MCP Server (Core Logic)
+  # ==========================================================================
+  # 1. MCP Server (Streamable HTTP)
+  # ==========================================================================
   mcp:
-    image: gofr-doc_prod:latest
+    image: gofr-doc-prod:latest
     container_name: gofr-doc-mcp
+    hostname: gofr-doc-mcp
     restart: unless-stopped
-    command: python -m app.main_mcp --no-auth --host 0.0.0.0 --port 8010
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /run/secrets /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
+        cp /run/gofr-secrets/service_creds/gofr-doc.json /run/secrets/vault_creds
+        chown gofr-doc:gofr-doc /run/secrets/vault_creds
+        chmod 600 /run/secrets/vault_creds
+        chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_mcp --host 0.0.0.0 --port ${GOFR_DOC_MCP_PORT:-8040} --jwt-secret ${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --styles-dir /home/gofr-doc/data/styles --web-url http://gofr-doc-web:${GOFR_DOC_WEB_PORT:-8042} --proxy-url-mode url'
     environment:
       - GOFR_DOC_ENV=PROD
       - GOFR_DOC_LOG_LEVEL=INFO
-      # Web URL for proxy mode - use container hostname
-      - GOFR_DOC_WEB_URL=http://gofr-doc-web:8012
-      # For production with auth, uncomment and set:
-      # - GOFR_JWT_SECRET=your-secret-key-here
+      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:?GOFR_JWT_SECRET is required}
+      - GOFR_DOC_AUTH_BACKEND=vault
+      - GOFR_DOC_VAULT_URL=http://gofr-vault:8201
+      - GOFR_DOC_VAULT_PATH_PREFIX=gofr/doc/auth
+      - GOFR_DOC_VAULT_MOUNT=secret
+      - GOFR_DOC_WEB_URL=http://gofr-doc-web:${GOFR_DOC_WEB_PORT:-8042}
     ports:
-      - "8010:8010"
+      - "${GOFR_DOC_MCP_PORT:-8040}:8040"
     volumes:
-      - gofr_doc_data:/home/gofr-doc/data
+      - gofr-doc-data:/home/gofr-doc/data
+      - gofr-doc-logs:/home/gofr-doc/logs
+      - gofr-secrets:/run/gofr-secrets:ro
     networks:
       - gofr-net
 
+  # ==========================================================================
   # 2. MCPO Server (OpenAPI Wrapper)
+  # ==========================================================================
   mcpo:
-    image: gofr-doc_prod:latest
+    image: gofr-doc-prod:latest
     container_name: gofr-doc-mcpo
+    hostname: gofr-doc-mcpo
     restart: unless-stopped
+    user: gofr-doc
+    working_dir: /home/gofr-doc
+    entrypoint: []
     depends_on:
       - mcp
-    command: python -m app.main_mcpo --mcp-host gofr-doc-mcp --mcp-port 8010 --mcpo-host 0.0.0.0 --mcpo-port 8011
+    command: >
+      /home/gofr-doc/.venv/bin/mcpo
+      --host 0.0.0.0 --port ${GOFR_DOC_MCPO_PORT:-8041} --server-type streamable-http
+      -- http://gofr-doc-mcp:${GOFR_DOC_MCP_PORT:-8040}/mcp
     environment:
       - GOFR_DOC_ENV=PROD
     ports:
-      - "8011:8011"
-    volumes:
-      - gofr_doc_data:/home/gofr-doc/data
+      - "${GOFR_DOC_MCPO_PORT:-8041}:8041"
     networks:
       - gofr-net
 
-  # 3. Web Server (Frontend/API)
+  # ==========================================================================
+  # 3. Web Server (REST API)
+  # ==========================================================================
   web:
-    image: gofr-doc_prod:latest
+    image: gofr-doc-prod:latest
     container_name: gofr-doc-web
+    hostname: gofr-doc-web
     restart: unless-stopped
-    command: python -m app.main_web --no-auth --host 0.0.0.0 --port 8012
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /run/secrets /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
+        cp /run/gofr-secrets/service_creds/gofr-doc.json /run/secrets/vault_creds
+        chown gofr-doc:gofr-doc /run/secrets/vault_creds
+        chmod 600 /run/secrets/vault_creds
+        chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_web --host 0.0.0.0 --port ${GOFR_DOC_WEB_PORT:-8042} --jwt-secret ${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --fragments-dir /home/gofr-doc/data/fragments --styles-dir /home/gofr-doc/data/styles'
     environment:
       - GOFR_DOC_ENV=PROD
-      # For production with auth, uncomment and set:
-      # - GOFR_JWT_SECRET=your-secret-key-here
+      - GOFR_DOC_LOG_LEVEL=INFO
+      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:?GOFR_JWT_SECRET is required}
+      - GOFR_DOC_AUTH_BACKEND=vault
+      - GOFR_DOC_VAULT_URL=http://gofr-vault:8201
+      - GOFR_DOC_VAULT_PATH_PREFIX=gofr/doc/auth
+      - GOFR_DOC_VAULT_MOUNT=secret
     ports:
-      - "8012:8012"
+      - "${GOFR_DOC_WEB_PORT:-8042}:8042"
     volumes:
-      - gofr_doc_data:/home/gofr-doc/data
+      - gofr-doc-data:/home/gofr-doc/data
+      - gofr-doc-logs:/home/gofr-doc/logs
+      - gofr-secrets:/run/gofr-secrets:ro
     networks:
       - gofr-net
 
-  # 4. Backup Service (Sidecar using gofr-common shared backup)
-  backup:
-    image: gofr-common-backup:latest
-    container_name: gofr-doc-backup
-    restart: unless-stopped
-    depends_on:
-      - mcp
-      - web
-    environment:
-      # Project identifier (required)
-      - GOFR_PROJECT=doc
-      
-      # Backup scheduling
-      - GOFR_DOC_BACKUP_ENABLED=${GOFR_DOC_BACKUP_ENABLED:-true}
-      - GOFR_DOC_BACKUP_SCHEDULE=${GOFR_DOC_BACKUP_SCHEDULE:-0 2 * * *}
-      
-      # Retention policies
-      - GOFR_DOC_BACKUP_RETENTION_DAYS=${GOFR_DOC_BACKUP_RETENTION_DAYS:-30}
-      - GOFR_DOC_BACKUP_MAX_COUNT=${GOFR_DOC_BACKUP_MAX_COUNT:-90}
-      
-      # What to backup (paths relative to /data)
-      - GOFR_DOC_BACKUP_PATHS=${GOFR_DOC_BACKUP_PATHS:-storage:storage,auth:auth,logs:../logs}
-      
-      # Compression
-      - GOFR_DOC_BACKUP_COMPRESSION=${GOFR_DOC_BACKUP_COMPRESSION:-gzip}
-      - GOFR_DOC_BACKUP_COMPRESSION_LEVEL=${GOFR_DOC_BACKUP_COMPRESSION_LEVEL:-6}
-      
-      # Housekeeping
-      - GOFR_DOC_BACKUP_CLEANUP_ON_START=${GOFR_DOC_BACKUP_CLEANUP_ON_START:-true}
-      - GOFR_DOC_BACKUP_VERIFY_AFTER_BACKUP=${GOFR_DOC_BACKUP_VERIFY_AFTER_BACKUP:-true}
-      
-      # Tiered retention (optional)
-      - GOFR_DOC_BACKUP_ENABLE_WEEKLY=${GOFR_DOC_BACKUP_ENABLE_WEEKLY:-false}
-      - GOFR_DOC_BACKUP_ENABLE_MONTHLY=${GOFR_DOC_BACKUP_ENABLE_MONTHLY:-false}
-      - GOFR_DOC_BACKUP_WEEKLY_RETENTION_WEEKS=${GOFR_DOC_BACKUP_WEEKLY_RETENTION_WEEKS:-8}
-      - GOFR_DOC_BACKUP_MONTHLY_RETENTION_MONTHS=${GOFR_DOC_BACKUP_MONTHLY_RETENTION_MONTHS:-12}
-    volumes:
-      - gofr_doc_data:/data:ro              # Read-only access to app data
-      - gofr_doc_backups:/backups:rw        # Write access to backups
-    networks:
-      - gofr-net
-
-# Shared Volume for Persistence
+# Shared volumes
 volumes:
-  gofr_doc_data:
-    name: gofr-doc_data
-    external: false # Set to true if you created it manually via CLI
-  
-  gofr_doc_backups:
-    name: gofr-doc_backups
-    external: false
+  gofr-doc-data:
+    name: gofr-doc-data
+    external: true
+  gofr-doc-logs:
+    name: gofr-doc-logs
+    external: true
+  gofr-secrets:
+    name: gofr-secrets
+    external: true
 
-# Shared Network
+# Shared network
 networks:
   gofr-net:
     name: gofr-net
-    external: true # Assumes network exists (created by other gofr services)
+    external: true

@@ -101,10 +101,15 @@ docker run -d \
     -v "$PROJECT_ROOT:/home/gofr/devroot/gofr-doc:rw" \
     -v "$PROJECT_ROOT/../gofr-dig:/home/gofr/devroot/gofr-dig:ro" \
     -v ${VOLUME_NAME}:/home/gofr/devroot/gofr-doc/data:rw \
+    -v gofr-secrets:/run/gofr-secrets:ro \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -e GOFRDOC_ENV=development \
     -e GOFRDOC_DEBUG=true \
     -e GOFRDOC_LOG_LEVEL=DEBUG \
+    -e GOFR_DOC_AUTH_BACKEND=vault \
+    -e GOFR_DOC_VAULT_URL=http://gofr-vault:8201 \
+    -e GOFR_DOC_VAULT_PATH_PREFIX=gofr/doc/auth \
+    -e GOFR_DOC_VAULT_MOUNT=secret \
     "$IMAGE_NAME"
 
 # Attach to additional networks (test network for Vault, etc.)

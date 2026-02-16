@@ -12,6 +12,25 @@ echo "======================================================================="
 echo "GOFR-DOC Container Entrypoint"
 echo "======================================================================="
 
+# -----------------------------------------------------------------------
+# Vault AppRole runtime identity (preferred)
+# -----------------------------------------------------------------------
+# When the shared secrets volume is mounted at /run/gofr-secrets, copy the
+# creds file to the standard location expected by gofr-common.
+CREDS_SRC="/run/gofr-secrets/service_creds/gofr-doc.json"
+CREDS_DST_DIR="/run/secrets"
+CREDS_DST="${CREDS_DST_DIR}/vault_creds"
+
+if [ -f "${CREDS_SRC}" ]; then
+    echo "Injecting Vault AppRole creds to ${CREDS_DST}"
+    sudo mkdir -p "${CREDS_DST_DIR}"
+    sudo cp "${CREDS_SRC}" "${CREDS_DST}"
+    sudo chmod 600 "${CREDS_DST}"
+    sudo chown ${GOFR_USER}:${GOFR_USER} "${CREDS_DST}" || true
+else
+    echo "Note: Vault AppRole creds not found at ${CREDS_SRC} (dev container may still use GOFR_DOC_VAULT_TOKEN)"
+fi
+
 # Fix data directory permissions if mounted as volume
 if [ -d "$PROJECT_DIR/data" ]; then
     if [ ! -w "$PROJECT_DIR/data" ]; then

@@ -58,13 +58,15 @@ docker run -d \
     --network ${NETWORK_NAME} \
     -v gofr-doc-data:/home/gofr-doc/data \
     -v gofr-doc-logs:/home/gofr-doc/logs \
+    -v gofr-secrets:/run/gofr-secrets:ro \
     -p ${MCP_PORT}:8040 \
     -p ${MCPO_PORT}:8041 \
     -p ${WEB_PORT}:8042 \
-    -e JWT_SECRET="${JWT_SECRET}" \
-    -e MCP_PORT=8040 \
-    -e MCPO_PORT=8041 \
-    -e WEB_PORT=8042 \
+    -e GOFR_JWT_SECRET="${JWT_SECRET}" \
+    -e GOFR_DOC_AUTH_BACKEND=vault \
+    -e GOFR_DOC_VAULT_URL=http://gofr-vault:8201 \
+    -e GOFR_DOC_VAULT_PATH_PREFIX=gofr/doc/auth \
+    -e GOFR_DOC_VAULT_MOUNT=secret \
     ${IMAGE_NAME}
 
 # Wait for container to start
