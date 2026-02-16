@@ -19,6 +19,8 @@ CONTAINER_NAME="gofr-doc-dev"
 IMAGE_NAME="gofr-doc-dev:latest"
 
 # Defaults from environment or hardcoded (gofr-doc uses 8040-8042)
+# Dev container maps to PROD ports on the host.
+# Test ports (8140-8142) are reserved for compose.dev.yml test containers.
 MCP_PORT="${GOFRDOC_MCP_PORT:-8040}"
 MCPO_PORT="${GOFRDOC_MCPO_PORT:-8041}"
 WEB_PORT="${GOFRDOC_WEB_PORT:-8042}"
@@ -80,24 +82,46 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 fi
 
 # Run container
+# Detect host Docker socket GID for permission mapping
+DOCKER_SOCK="/var/run/docker.sock"
+DOCKER_GID_ARGS=""
+if [ -S "$DOCKER_SOCK" ]; then
+    DOCKER_SOCK_GID=$(stat -c '%g' "$DOCKER_SOCK")
+    echo "Docker socket GID: $DOCKER_SOCK_GID"
+    DOCKER_GID_ARGS="--group-add $DOCKER_SOCK_GID"
+fi
+
 docker run -d \
     --name "$CONTAINER_NAME" \
     --network "$DOCKER_NETWORK" \
+    $DOCKER_GID_ARGS \
     -p ${MCP_PORT}:8040 \
     -p ${MCPO_PORT}:8041 \
     -p ${WEB_PORT}:8042 \
     -v "$PROJECT_ROOT:/home/gofr/devroot/gofr-doc:rw" \
+    -v "$PROJECT_ROOT/../gofr-dig:/home/gofr/devroot/gofr-dig:ro" \
     -v ${VOLUME_NAME}:/home/gofr/devroot/gofr-doc/data:rw \
+    -v /var/run/docker.sock:/var/run/docker.sock \
     -e GOFRDOC_ENV=development \
     -e GOFRDOC_DEBUG=true \
     -e GOFRDOC_LOG_LEVEL=DEBUG \
     "$IMAGE_NAME"
+
+# Attach to additional networks (test network for Vault, etc.)
+TEST_NETWORK="${GOFR_TEST_NETWORK:-gofr-test-net}"
+if ! docker network inspect "$TEST_NETWORK" >/dev/null 2>&1; then
+    echo "Creating test network: $TEST_NETWORK"
+    docker network create "$TEST_NETWORK"
+fi
+echo "Connecting $CONTAINER_NAME to $TEST_NETWORK..."
+docker network connect "$TEST_NETWORK" "$CONTAINER_NAME" 2>/dev/null || true
 
 echo ""
 echo "======================================================================="
 echo "Container started: $CONTAINER_NAME"
 echo "======================================================================="
 echo ""
+echo "Networks: $DOCKER_NETWORK, $TEST_NETWORK"
 echo "Ports:"
 echo "  - $MCP_PORT: MCP server"
 echo "  - $MCPO_PORT: MCPO proxy"

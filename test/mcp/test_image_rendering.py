@@ -20,8 +20,9 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
 # MCP server configuration
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
 
 def skip_if_mcp_unavailable(func):
@@ -62,7 +63,7 @@ def logger() -> Logger:
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_image_fragment_appears_in_rendered_html(logger, mcp_headers, image_server):
+async def test_image_fragment_appears_in_rendered_html(logger, server_mcp_headers, image_server):
     """Verify that an added image fragment actually appears in the rendered HTML document.
 
     This test catches issues where:
@@ -70,7 +71,7 @@ async def test_image_fragment_appears_in_rendered_html(logger, mcp_headers, imag
     - HTTP method issues (HEAD vs GET) prevent image download
     - Image URL is stored but not properly included in rendering
     """
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -162,13 +163,13 @@ async def test_image_fragment_appears_in_rendered_html(logger, mcp_headers, imag
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_image_fragment_appears_in_rendered_pdf(logger, mcp_headers, image_server):
+async def test_image_fragment_appears_in_rendered_pdf(logger, server_mcp_headers, image_server):
     """Verify that an added image fragment is included in PDF rendering.
 
     This test ensures that images make it through the full rendering pipeline
     including PDF generation via WeasyPrint.
     """
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -304,9 +305,9 @@ async def test_image_fragment_appears_in_rendered_pdf(logger, mcp_headers, image
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_multiple_images_in_document(logger, mcp_headers, image_server):
+async def test_multiple_images_in_document(logger, server_mcp_headers, image_server):
     """Verify that multiple image fragments can be added and all appear in rendering."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

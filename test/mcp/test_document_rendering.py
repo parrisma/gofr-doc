@@ -19,10 +19,11 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import session_logger
 
 # MCP server configuration via environment variables (defaults to production port)
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
-# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+# Note: auth_service and server_mcp_headers fixtures are now provided by conftest.py
 
 
 # ============================================================================
@@ -103,9 +104,9 @@ async def logger():
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_document_tool_exists(logger, mcp_headers):
+async def test_get_document_tool_exists(logger, server_mcp_headers):
     """Verify get_document tool is registered."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -115,9 +116,9 @@ async def test_get_document_tool_exists(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_document_requires_session_id(logger, mcp_headers):
+async def test_get_document_requires_session_id(logger, server_mcp_headers):
     """Verify get_document requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.call_tool("get_document", arguments={"format": "html"})
@@ -131,9 +132,9 @@ async def test_get_document_requires_session_id(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_get_document_invalid_session(logger, mcp_headers):
+async def test_get_document_invalid_session(logger, server_mcp_headers):
     """Verify get_document handles invalid session gracefully."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.call_tool(

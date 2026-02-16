@@ -493,7 +493,7 @@ Expected: SSE stream with tools list
 
 **Solution**: Verify JWT secret matches:
 ```bash
-echo $GOFR_DOC_JWT_SECRET
+echo $GOFR_JWT_SECRET
 ```
 
 ### 2. Network Issues

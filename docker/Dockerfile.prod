@@ -2,10 +2,17 @@
 # Single-stage build with supervisor for MCP + MCPO + Web servers
 FROM python:3.11-slim
 
-# Install system dependencies and supervisor
+# Install system dependencies, supervisor, and WeasyPrint native libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     supervisor \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    libcairo2 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast Python package management
@@ -34,6 +41,11 @@ COPY --chown=gofr-doc:gofr-doc pyproject.toml /home/gofr-doc/
 COPY --chown=gofr-doc:gofr-doc README.md /home/gofr-doc/
 COPY --chown=gofr-doc:gofr-doc app/ /home/gofr-doc/app/
 COPY --chown=gofr-doc:gofr-doc lib/ /home/gofr-doc/lib/
+
+# Ship built-in templates, styles, and fragments as code
+COPY --chown=gofr-doc:gofr-doc test/data/docs/templates/ /home/gofr-doc/data/templates/
+COPY --chown=gofr-doc:gofr-doc test/data/docs/styles/ /home/gofr-doc/data/styles/
+COPY --chown=gofr-doc:gofr-doc test/data/docs/fragments/ /home/gofr-doc/data/fragments/
 
 # Create venv and install dependencies (as root to avoid permission issues)
 RUN uv venv /home/gofr-doc/.venv --python=python3.11

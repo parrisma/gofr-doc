@@ -235,7 +235,7 @@ See [Features Guide](docs/FEATURES.md#tables) for complete documentation with ex
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `GOFR_DOC_JWT_SECRET` | None (auth disabled) | Shared JWT secret for both servers. When set, enables authentication and group-based isolation |
+| `GOFR_JWT_SECRET` | None (auth disabled) | Shared JWT secret for all gofr servers. When set, enables authentication and group-based isolation |
 | `GOFR_DOC_TOKEN_STORE` | `<data_dir>/auth/tokens.json` | Path to token store file for token management |
 | `GOFR_DOC_DATA_DIR` | `<repo>/data` | Base directory for auth, storage, sessions, and proxy documents |
 | `GOFR_DOC_MCP_PORT` | `8010` | Port for MCP server (used by tests) |

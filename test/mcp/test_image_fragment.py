@@ -18,8 +18,9 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
 # MCP server configuration
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
 
 def skip_if_mcp_unavailable(func):
@@ -60,9 +61,9 @@ def logger() -> Logger:
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_image_fragment_tool_exists(mcp_headers):
+async def test_add_image_fragment_tool_exists(server_mcp_headers):
     """Verify add_image_fragment tool is registered."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -77,9 +78,9 @@ async def test_add_image_fragment_tool_exists(mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_image_fragment_rejects_non_https_url_by_default(logger, mcp_headers):
+async def test_add_image_fragment_rejects_non_https_url_by_default(logger, server_mcp_headers):
     """Verify add_image_fragment rejects HTTP URLs when require_https=true (default)."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -108,9 +109,9 @@ async def test_add_image_fragment_rejects_non_https_url_by_default(logger, mcp_h
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_image_fragment_accepts_http_when_explicitly_allowed(logger, mcp_headers):
+async def test_add_image_fragment_accepts_http_when_explicitly_allowed(logger, server_mcp_headers):
     """Verify add_image_fragment accepts HTTP URLs when require_https=false."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -141,9 +142,9 @@ async def test_add_image_fragment_accepts_http_when_explicitly_allowed(logger, m
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_image_fragment_rejects_invalid_url(logger, mcp_headers):
+async def test_add_image_fragment_rejects_invalid_url(logger, server_mcp_headers):
     """Verify add_image_fragment rejects malformed URLs."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -170,9 +171,11 @@ async def test_add_image_fragment_rejects_invalid_url(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_image_fragment_success_with_local_server(logger, mcp_headers, image_server):
+async def test_add_image_fragment_success_with_local_server(
+    logger, server_mcp_headers, image_server
+):
     """Verify add_image_fragment succeeds with valid accessible image from local test server."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -211,9 +214,11 @@ async def test_add_image_fragment_success_with_local_server(logger, mcp_headers,
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_image_fragment_respects_group_security(logger, auth_service, mcp_headers):
+async def test_add_image_fragment_respects_group_security(
+    logger, server_auth_service, server_mcp_headers
+):
     """Verify add_image_fragment respects group isolation."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

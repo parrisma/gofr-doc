@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "endpointUrl": "http://doco_dev:8011/mcp/",
+        "endpointUrl": "http://gofr-doc-mcp-test:8040/mcp/",
         "authentication": "bearerAuth",
         "options": {}
       },

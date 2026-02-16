@@ -89,8 +89,8 @@ export GOFR_MCPO_HOST="$GOFR_DOC_MCPO_HOST"
 export GOFR_WEB_HOST="$GOFR_DOC_WEB_HOST"
 export GOFR_NETWORK="$GOFR_DOC_NETWORK"
 
-# JWT authentication credentials (if set)
-export GOFR_JWT_SECRET="${GOFR_DOC_JWT_SECRET:-}"
+# JWT authentication credentials (shared across all gofr services)
+export GOFR_JWT_SECRET="${GOFR_JWT_SECRET:-}"
 export GOFR_TOKEN_STORE="${GOFR_DOC_TOKEN_STORE:-}"
 
 # Extra args for MCP server (project-specific)

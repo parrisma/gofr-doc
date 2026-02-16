@@ -7,7 +7,15 @@ Re-exports from gofr_common.auth for backward compatibility.
 # Re-export everything from gofr_common.auth
 from gofr_common.auth import (
     AuthService,
+    GroupRegistry,
+    Group,
     TokenInfo,
+    TokenRecord,
+    create_stores_from_env,
+    VaultConfig,
+    VaultClient,
+    VaultTokenStore,
+    VaultGroupStore,
     get_auth_service,
     verify_token,
     optional_verify_token,
@@ -18,7 +26,15 @@ from gofr_common.auth import (
 
 __all__ = [
     "AuthService",
+    "GroupRegistry",
+    "Group",
     "TokenInfo",
+    "TokenRecord",
+    "create_stores_from_env",
+    "VaultConfig",
+    "VaultClient",
+    "VaultTokenStore",
+    "VaultGroupStore",
     "get_auth_service",
     "verify_token",
     "optional_verify_token",

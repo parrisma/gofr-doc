@@ -1,0 +1,159 @@
+# =============================================================================
+# gofr-doc Test Stack (Ephemeral)
+# =============================================================================
+# Mirrors the gofr-dig compose.dev.yml pattern.
+# Spun up by scripts/start-test-env.sh, used by scripts/run_tests.sh.
+#
+# Services listen on INTERNAL prod ports (8040-8042),
+# host-mapped to TEST ports (8140-8142) via gofr_ports.env.
+#
+# Auth is always enabled (--jwt-secret).  Vault env vars are passed through
+# from the shell so containers share the same ephemeral Vault started by
+# run_tests.sh.
+#
+# Port Configuration:
+#   All ports defined in lib/gofr-common/config/gofr_ports.env
+#   Test ports (prod + 100) — see gofr_ports.env
+#   Containers run internally on prod ports
+#
+# Usage:
+#   # Normally invoked via scripts/start-test-env.sh, not directly.
+#   docker compose -f docker/compose.dev.yml --project-directory . up -d
+#   docker compose -f docker/compose.dev.yml --project-directory . logs -f
+#   docker compose -f docker/compose.dev.yml --project-directory . down
+# =============================================================================
+
+name: gofr-doc-test
+
+# ── Shared anchors ──────────────────────────────────────────────────────────
+
+x-gofr-ports: &gofr-ports
+  env_file:
+    - lib/gofr-common/config/gofr_ports.env
+
+# Shared settings for all gofr-doc application services
+x-gofr-doc-common: &gofr-doc-common
+  <<: *gofr-ports
+  image: gofr-doc-prod:latest
+  restart: "no"
+  networks:
+    - gofr-test-net
+
+# ── Services ────────────────────────────────────────────────────────────────
+
+services:
+
+  # ==========================================================================
+  # 1. MCP Server (Core Logic — Streamable HTTP)
+  # ==========================================================================
+  mcp:
+    <<: *gofr-doc-common
+    container_name: gofr-doc-mcp-test
+    hostname: gofr-doc-mcp-test
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
+        chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_mcp --host 0.0.0.0 --port $${GOFR_DOC_MCP_PORT} --jwt-secret $${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --styles-dir /home/gofr-doc/data/styles --web-url http://gofr-doc-web-test:$${GOFR_DOC_WEB_PORT} --proxy-url-mode url'
+    environment:
+      - GOFR_DOC_ENV=TEST
+      - GOFR_DOC_MCP_PORT=${GOFR_DOC_MCP_PORT}
+      - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-DEBUG}
+      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:-test-secret-key-for-secure-testing-do-not-use-in-production}
+      - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
+      - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault-test:8200}
+      - GOFR_DOC_VAULT_TOKEN=${GOFR_DOC_VAULT_TOKEN:-gofr-dev-root-token}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
+      - GOFR_DOC_WEB_URL=http://gofr-doc-web-test:${GOFR_DOC_WEB_PORT:-8042}
+    ports:
+      - "${GOFR_DOC_MCP_HOST_PORT:-${GOFR_DOC_MCP_PORT_TEST}}:${GOFR_DOC_MCP_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_MCP_PORT}/mcp || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    volumes:
+      - gofr-doc-storage:/home/gofr-doc/data/storage
+
+  # ==========================================================================
+  # 2. MCPO Server (OpenAPI Wrapper)
+  # ==========================================================================
+  mcpo:
+    <<: *gofr-doc-common
+    container_name: gofr-doc-mcpo-test
+    hostname: gofr-doc-mcpo-test
+    user: gofr-doc
+    working_dir: /home/gofr-doc
+    entrypoint: []
+    depends_on:
+      mcp:
+        condition: service_healthy
+    command: >
+      /home/gofr-doc/.venv/bin/mcpo
+      --host 0.0.0.0 --port ${GOFR_DOC_MCPO_PORT} --server-type streamable-http
+      -- http://gofr-doc-mcp-test:${GOFR_DOC_MCP_PORT}/mcp
+    environment:
+      - GOFR_DOC_ENV=TEST
+      - GOFR_DOC_MCP_PORT=${GOFR_DOC_MCP_PORT:-8040}
+      - GOFR_DOC_MCPO_PORT=${GOFR_DOC_MCPO_PORT:-8041}
+    ports:
+      - "${GOFR_DOC_MCPO_HOST_PORT:-${GOFR_DOC_MCPO_PORT_TEST}}:${GOFR_DOC_MCPO_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_MCPO_PORT}/openapi.json || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ==========================================================================
+  # 3. Web Server (REST API)
+  # ==========================================================================
+  web:
+    <<: *gofr-doc-common
+    container_name: gofr-doc-web-test
+    hostname: gofr-doc-web-test
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
+        chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+        exec su -s /bin/bash gofr-doc -c '/home/gofr-doc/.venv/bin/python -m app.main_web --host 0.0.0.0 --port $${GOFR_DOC_WEB_PORT} --jwt-secret $${GOFR_JWT_SECRET} --templates-dir /home/gofr-doc/data/templates --fragments-dir /home/gofr-doc/data/fragments --styles-dir /home/gofr-doc/data/styles'
+    environment:
+      - GOFR_DOC_ENV=TEST
+      - GOFR_DOC_WEB_PORT=${GOFR_DOC_WEB_PORT}
+      - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-DEBUG}
+      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET:-test-secret-key-for-secure-testing-do-not-use-in-production}
+      - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
+      - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault-test:8200}
+      - GOFR_DOC_VAULT_TOKEN=${GOFR_DOC_VAULT_TOKEN:-gofr-dev-root-token}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
+    ports:
+      - "${GOFR_DOC_WEB_HOST_PORT:-${GOFR_DOC_WEB_PORT_TEST}}:${GOFR_DOC_WEB_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_WEB_PORT}/ping || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - gofr-doc-storage:/home/gofr-doc/data/storage
+
+# ── Network ─────────────────────────────────────────────────────────────────
+
+networks:
+  gofr-test-net:
+    name: gofr-test-net
+    external: true
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+
+volumes:
+  gofr-doc-storage:

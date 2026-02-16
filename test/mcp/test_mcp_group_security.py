@@ -22,12 +22,22 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.types import TextContent
 
-from app.auth import AuthService
 from app.logger import Logger, session_logger
+from gofr_common.auth.groups import DuplicateGroupError
+
+
+def _ensure_group(registry, name, description=None):
+    """Create group if it doesn't already exist."""
+    try:
+        registry.create_group(name, description)
+    except DuplicateGroupError:
+        pass
+
 
 # Port configuration via environment variables (defaults to production port)
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
 # Test constants
 TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
@@ -77,28 +87,32 @@ def logger() -> Logger:
 
 
 @pytest.fixture
-async def multi_group_tokens(auth_service):
+async def multi_group_tokens(server_auth_service):
     """Provide tokens for multiple test groups"""
+    for grp in ["alpha", "beta", "gamma"]:
+        _ensure_group(server_auth_service._group_registry, grp, f"Test group {grp}")
+    # "public" is auto-bootstrapped by GroupRegistry
     tokens = {
-        "alpha": auth_service.create_token(group="alpha", expires_in_seconds=3600),
-        "beta": auth_service.create_token(group="beta", expires_in_seconds=3600),
-        "gamma": auth_service.create_token(group="gamma", expires_in_seconds=3600),
-        "public": auth_service.create_token(group="public", expires_in_seconds=3600),
+        "alpha": server_auth_service.create_token(groups=["alpha"], expires_in_seconds=3600),
+        "beta": server_auth_service.create_token(groups=["beta"], expires_in_seconds=3600),
+        "gamma": server_auth_service.create_token(groups=["gamma"], expires_in_seconds=3600),
+        "public": server_auth_service.create_token(groups=["public"], expires_in_seconds=3600),
     }
     yield tokens
     # Revoke all tokens after test
     for token in tokens.values():
         try:
-            auth_service.revoke_token(token)
+            server_auth_service.revoke_token(token)
         except Exception:
             pass
 
 
 async def create_session_for_group(
-    group: str, template_id: str, auth_service: AuthService
+    group: str, template_id: str, server_auth_service
 ) -> Tuple[str, str]:
     """Helper: Create session and return (session_id, token)"""
-    token = auth_service.create_token(group=group, expires_in_seconds=3600)
+    _ensure_group(server_auth_service._group_registry, group, f"Test group {group}")
+    token = server_auth_service.create_token(groups=[group], expires_in_seconds=3600)
     headers = {"Authorization": f"Bearer {token}"}
 
     async with streamablehttp_client(MCP_URL, headers=headers) as (read, write, _):
@@ -149,7 +163,7 @@ async def verify_cross_group_access_denied(
 
 
 @pytest.mark.asyncio
-async def test_jwt_token_contains_group_claim(auth_service, logger):
+async def test_jwt_token_contains_group_claim(server_auth_service, logger):
     """Test that JWT tokens contain the group claim in their payload.
 
     Security Aspect: Verifies that JWT tokens include the 'group' claim which is
@@ -166,14 +180,17 @@ async def test_jwt_token_contains_group_claim(auth_service, logger):
 
     # Create token for a specific group
     group = "finance"
-    token = auth_service.create_token(group=group, expires_in_seconds=3600)
+    _ensure_group(server_auth_service._group_registry, group, "Test group finance")
+    token = server_auth_service.create_token(groups=[group], expires_in_seconds=3600)
 
     # Decode JWT without verification to inspect payload
     decoded = pyjwt.decode(token, options={"verify_signature": False})
 
-    # Verify group claim exists
-    assert "group" in decoded, f"JWT payload missing 'group' claim: {decoded}"
-    assert decoded["group"] == group, f"Expected group='{group}', got: {decoded['group']}"
+    # Verify groups claim exists (new API uses 'groups' list)
+    assert "groups" in decoded, f"JWT payload missing 'groups' claim: {decoded}"
+    assert (
+        group in decoded["groups"]
+    ), f"Expected group='{group}' in groups, got: {decoded['groups']}"
 
     # Verify standard claims
     assert "exp" in decoded, "JWT missing expiration claim"
@@ -185,13 +202,13 @@ async def test_jwt_token_contains_group_claim(auth_service, logger):
 
     logger.info(
         "JWT token validation passed",
-        group=decoded["group"],
+        groups=decoded["groups"],
         claims=list(decoded.keys()),
     )
 
 
 @pytest.mark.asyncio
-async def test_auth_service_verify_token_extracts_group(auth_service, logger):
+async def test_auth_service_verify_token_extracts_group(server_auth_service, logger):
     """Test that AuthService.verify_token() correctly extracts group from JWT.
 
     Security Aspect: Validates that the AuthService can decode JWT tokens and
@@ -204,17 +221,20 @@ async def test_auth_service_verify_token_extracts_group(auth_service, logger):
     - TokenInfo includes expires_at and issued_at timestamps
     - No errors during token validation
     """
-    logger.info("Testing auth_service.verify_token() extracts group")
+    logger.info("Testing server_auth_service.verify_token() extracts group")
 
     # Create token for marketing group
     group = "marketing"
-    token = auth_service.create_token(group=group, expires_in_seconds=3600)
+    _ensure_group(server_auth_service._group_registry, group, "Test group marketing")
+    token = server_auth_service.create_token(groups=[group], expires_in_seconds=3600)
 
     # Verify token and extract TokenInfo
-    token_info = auth_service.verify_token(token)
+    token_info = server_auth_service.verify_token(token)
 
     # Verify group is correctly extracted
-    assert token_info.group == group, f"Expected group='{group}', got: {token_info.group}"
+    assert (
+        group in token_info.groups
+    ), f"Expected group='{group}' in groups, got: {token_info.groups}"
 
     # Verify expires_at is populated
     assert token_info.expires_at is not None, "TokenInfo missing expires_at"
@@ -224,7 +244,7 @@ async def test_auth_service_verify_token_extracts_group(auth_service, logger):
 
     logger.info(
         "AuthService.verify_token() correctly extracted group",
-        group=token_info.group,
+        groups=token_info.groups,
         expires_at=token_info.expires_at,
         issued_at=token_info.issued_at,
     )
@@ -232,7 +252,7 @@ async def test_auth_service_verify_token_extracts_group(auth_service, logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_mcp_server_extracts_group_from_bearer_token(auth_service, logger):
+async def test_mcp_server_extracts_group_from_bearer_token(server_auth_service, logger):
     """Test that MCP server extracts group from Authorization Bearer token.
 
     Security Aspect: Validates the complete MCP server authentication flow where
@@ -249,7 +269,8 @@ async def test_mcp_server_extracts_group_from_bearer_token(auth_service, logger)
 
     # Create token for sales group
     group = "sales"
-    token = auth_service.create_token(group=group, expires_in_seconds=3600)
+    _ensure_group(server_auth_service._group_registry, group, "Test group sales")
+    token = server_auth_service.create_token(groups=[group], expires_in_seconds=3600)
     headers = {"Authorization": f"Bearer {token}"}
 
     async with streamablehttp_client(MCP_URL, headers=headers) as (read, write, _):
@@ -299,7 +320,7 @@ async def test_mcp_server_extracts_group_from_bearer_token(auth_service, logger)
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_session_ownership_same_group_access(auth_service, logger):
+async def test_session_ownership_same_group_access(server_auth_service, logger):
     """Test that users can access sessions within their own group.
 
     Security Aspect: Verifies the positive case where a user with JWT token for
@@ -318,7 +339,7 @@ async def test_session_ownership_same_group_access(auth_service, logger):
     logger.info("Testing same group access to owned sessions")
 
     group = "sales"
-    session_id, token = await create_session_for_group(group, "news_email", auth_service)
+    session_id, token = await create_session_for_group(group, "news_email", server_auth_service)
     headers = {"Authorization": f"Bearer {token}"}
 
     async with streamablehttp_client(MCP_URL, headers=headers) as (read, write, _):
@@ -394,7 +415,7 @@ async def test_session_ownership_same_group_access(auth_service, logger):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_session_ownership_cross_group_access_denied(auth_service, logger):
+async def test_session_ownership_cross_group_access_denied(server_auth_service, logger):
     """Test that users cannot access sessions from other groups.
 
     Security Aspect: CRITICAL security test validating that cross-group access is
@@ -416,12 +437,13 @@ async def test_session_ownership_cross_group_access_denied(auth_service, logger)
 
     # Create session in alpha group
     alpha_session_id, alpha_token = await create_session_for_group(
-        "alpha", "news_email", auth_service
+        "alpha", "news_email", server_auth_service
     )
     logger.info(f"Created session in 'alpha' group: {alpha_session_id}")
 
     # Create token for beta group
-    beta_token = auth_service.create_token(group="beta", expires_in_seconds=3600)
+    _ensure_group(server_auth_service._group_registry, "beta", "Test group beta")
+    beta_token = server_auth_service.create_token(groups=["beta"], expires_in_seconds=3600)
 
     # Attempt all session operations with wrong group token
     logger.info("Attempting cross-group operations (should all fail with SESSION_NOT_FOUND)")

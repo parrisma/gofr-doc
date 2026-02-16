@@ -14,7 +14,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from httpx import AsyncClient, ASGITransport
 from app.logger import Logger, session_logger
 from app.web_server.web_server import GofrDocWebServer
-from app.auth import AuthService
+from gofr_common.auth import AuthService, create_stores_from_env, GroupRegistry
+from gofr_common.auth.groups import DuplicateGroupError
 
 
 async def test_web_server():
@@ -22,18 +23,28 @@ async def test_web_server():
 
     logger: Logger = session_logger
 
+    # Create Vault-backed auth service and token for testing
+    token_store, group_store = create_stores_from_env("GOFR_DOC")
+    group_registry = GroupRegistry(store=group_store)
+    auth_service = AuthService(
+        token_store=token_store,
+        group_registry=group_registry,
+        secret_key="test-secret-key",
+        env_prefix="GOFR_DOC",
+    )
+    try:
+        group_registry.create_group("test_group", "Manual test group")
+    except DuplicateGroupError:
+        pass
+
     # Create server instance with auth
     server = GofrDocWebServer(
-        auth_service=None,
+        auth_service=auth_service,
         require_auth=False,
     )
     app = server.app
 
-    # Create auth service and token for testing
-    auth_service = AuthService(
-        secret_key="test-secret-key", token_store_path="/tmp/manual_test_tokens.json"
-    )
-    token = auth_service.create_token(group="test_group")
+    token = auth_service.create_token(groups=["test_group"])
     logger.info("Created test token", token=token[:20] + "...")
 
     logger.info("Starting web server tests")

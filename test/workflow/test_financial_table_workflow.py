@@ -21,9 +21,8 @@ FEATURES TESTED:
 - Phase 8: Markdown table support (alignment markers)
 
 Requires:
-- MCP server running on port 8011
-- Web server running on port 8010
-- JWT authentication configured
+- MCP server running (Docker Compose via scripts/start-test-env.sh)
+- Web server running with JWT authentication
 """
 
 import json
@@ -40,11 +39,11 @@ from mcp.types import TextContent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Port configuration
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8010")
-
-# Use 127.0.0.1 for better Docker container compatibility
-MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
+WEB_HOST = os.environ.get("GOFR_DOC_WEB_HOST", "localhost")
+WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8042")
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
 
 def _extract_text(result):
@@ -72,10 +71,10 @@ class TestFinancialTableWorkflow:
     """Test complete financial table workflow with all features."""
 
     @pytest.mark.asyncio
-    async def test_simple_financial_table(self, mcp_headers):
+    async def test_simple_financial_table(self, server_mcp_headers):
         """Test basic table with financial data - Phase 1-3 features."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -137,10 +136,10 @@ class TestFinancialTableWorkflow:
                 assert "15%" in html_content or "15.0%" in html_content
 
     @pytest.mark.asyncio
-    async def test_table_with_all_features(self, mcp_headers):
+    async def test_table_with_all_features(self, server_mcp_headers):
         """Test table with ALL Phase 1-6 features enabled."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -219,10 +218,10 @@ class TestFinancialTableWorkflow:
                 assert widget_d_pos < widget_a_pos  # D comes before A (sorted by sales desc)
 
     @pytest.mark.asyncio
-    async def test_markdown_output_with_alignment(self, mcp_headers):
+    async def test_markdown_output_with_alignment(self, server_mcp_headers):
         """Test Phase 8: Markdown output with alignment markers."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -277,10 +276,10 @@ class TestFinancialTableWorkflow:
                 assert ":---:" in markdown_content  # Center alignment
 
     @pytest.mark.asyncio
-    async def test_multiple_tables_in_document(self, mcp_headers):
+    async def test_multiple_tables_in_document(self, server_mcp_headers):
         """Test document with multiple tables."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -353,10 +352,10 @@ class TestFinancialTableWorkflow:
                 assert "Marketing" in html_content
 
     @pytest.mark.asyncio
-    async def test_all_output_formats(self, mcp_headers):
+    async def test_all_output_formats(self, server_mcp_headers):
         """Test rendering to HTML, PDF, and Markdown."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -433,10 +432,10 @@ class TestTablePerformance:
     """Performance tests for large tables."""
 
     @pytest.mark.asyncio
-    async def test_large_table_100_rows(self, mcp_headers):
+    async def test_large_table_100_rows(self, server_mcp_headers):
         """Test performance with 100-row table."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -502,10 +501,10 @@ class TestTablePerformance:
                 assert "Item 100" in html_content
 
     @pytest.mark.asyncio
-    async def test_wide_table_20_columns(self, mcp_headers):
+    async def test_wide_table_20_columns(self, server_mcp_headers):
         """Test performance with 20-column table."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -556,10 +555,10 @@ class TestTablePerformance:
                 assert "Col20" in html_content
 
     @pytest.mark.asyncio
-    async def test_sorting_performance(self, mcp_headers):
+    async def test_sorting_performance(self, server_mcp_headers):
         """Test sorting performance with 50 rows."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 

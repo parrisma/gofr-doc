@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """JWT Token Management CLI
 
-Command-line utility to create, list, and revoke JWT tokens for doco authentication.
+Command-line utility to create, list, and revoke JWT tokens for gofr-doc authentication.
+Uses Vault-backed stores via gofr-common.
 """
 
 import argparse
@@ -13,29 +14,42 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.auth import AuthService
+from gofr_common.auth import AuthService, create_stores_from_env, GroupRegistry
 from app.logger import Logger, session_logger
 from app.startup.auth_config import resolve_jwt_secret_for_cli
+
+ENV_PREFIX = "GOFR_DOC"
+
+
+def _build_auth_service(args) -> AuthService:
+    """Build an AuthService from CLI args and environment."""
+    logger: Logger = session_logger
+
+    jwt_secret = resolve_jwt_secret_for_cli(
+        env_prefix=ENV_PREFIX, cli_secret=args.secret, logger=logger
+    )
+    if not jwt_secret:
+        sys.exit(1)
+
+    token_store, group_store = create_stores_from_env(ENV_PREFIX)
+    group_registry = GroupRegistry(store=group_store)
+
+    return AuthService(
+        token_store=token_store,
+        group_registry=group_registry,
+        secret_key=jwt_secret,
+        env_prefix=ENV_PREFIX,
+    )
 
 
 def create_token(args):
     """Create a new JWT token"""
     logger: Logger = session_logger
 
-    # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
-    if not jwt_secret:
-        # resolve_jwt_secret_for_cli already logs the error and exits
-        return 1
-
-    # Initialize auth service
-    auth_service = AuthService(
-        secret_key=jwt_secret,
-        token_store_path=args.token_store,
-    )
+    auth_service = _build_auth_service(args)
 
     try:
-        token = auth_service.create_token(group=args.group, expires_in_seconds=args.expires)
+        token = auth_service.create_token(groups=[args.group], expires_in_seconds=args.expires)
 
         # Convert seconds to human-readable format
         days = args.expires // 86400
@@ -72,54 +86,35 @@ def list_tokens(args):
     """List all tokens"""
     logger: Logger = session_logger
 
-    # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
-    if not jwt_secret:
-        # resolve_jwt_secret_for_cli already logs the error and exits
-        return 1
-
-    # Initialize auth service
-    auth_service = AuthService(
-        secret_key=jwt_secret,
-        token_store_path=args.token_store,
-    )
+    auth_service = _build_auth_service(args)
 
     try:
-        tokens = auth_service.list_tokens()
+        records = auth_service.list_tokens()
 
-        if not tokens:
+        if not records:
             logger.info("No tokens found.")
             return 0
 
-        logger.info(f"{len(tokens)} Token(s) Found:")
-        logger.info(f"{'Group':<20} {'Issued':<25} {'Expires':<25} {'Token (first 20 chars)'}")
+        logger.info(f"{len(records)} Token(s) Found:")
+        logger.info(f"{'Groups':<20} {'Created':<25} {'Expires':<25} {'Status':<10} {'Name'}")
         logger.info("-" * 100)
 
-        for token, info in tokens.items():
-            group = info.get("group", "N/A")
-            issued = info.get("issued_at", "N/A")
-            expires = info.get("expires_at", "N/A")
+        for record in records:
+            groups_str = ", ".join(record.groups) if record.groups else "N/A"
+            created_str = record.created_at.strftime("%Y-%m-%d %H:%M")
+            name_str = record.name or ""
 
-            # Parse dates if possible
-
-            try:
-                issued_dt = datetime.fromisoformat(issued)
-                issued_str = issued_dt.strftime("%Y-%m-%d %H:%M")
-            except Exception:
-                issued_str = issued[:16] if len(issued) > 16 else issued
-
-            try:
-                expires_dt = datetime.fromisoformat(expires)
-                expires_str = expires_dt.strftime("%Y-%m-%d %H:%M")
-
-                # Check if expired
-                if expires_dt < datetime.utcnow():
+            if record.expires_at:
+                expires_str = record.expires_at.strftime("%Y-%m-%d %H:%M")
+                if record.is_expired:
                     expires_str += " (EXPIRED)"
-            except Exception:
-                expires_str = expires[:16] if len(expires) > 16 else expires
+            else:
+                expires_str = "never"
 
-            token_preview = token[:20] + "..."
-            logger.info(f"{group:<20} {issued_str:<25} {expires_str:<25} {token_preview}")
+            logger.info(
+                f"{groups_str:<20} {created_str:<25} {expires_str:<25} "
+                f"{record.status:<10} {name_str}"
+            )
 
         return 0
     except Exception as e:
@@ -131,17 +126,7 @@ def revoke_token(args):
     """Revoke a token"""
     logger: Logger = session_logger
 
-    # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
-    if not jwt_secret:
-        # resolve_jwt_secret_for_cli already logs the error and exits
-        return 1
-
-    # Initialize auth service
-    auth_service = AuthService(
-        secret_key=jwt_secret,
-        token_store_path=args.token_store,
-    )
+    auth_service = _build_auth_service(args)
 
     try:
         auth_service.revoke_token(args.token)
@@ -156,31 +141,24 @@ def verify_token(args):
     """Verify a token"""
     logger: Logger = session_logger
 
-    # Validate JWT secret is provided
-    jwt_secret = resolve_jwt_secret_for_cli(cli_secret=args.secret, logger=logger)
-    if not jwt_secret:
-        # resolve_jwt_secret_for_cli already logs the error and exits
-        return 1
-
-    # Initialize auth service
-    auth_service = AuthService(
-        secret_key=jwt_secret,
-        token_store_path=args.token_store,
-    )
+    auth_service = _build_auth_service(args)
 
     try:
         token_info = auth_service.verify_token(args.token)
 
         logger.info("Token is valid")
-        logger.info(f"Group:      {token_info.group}")
+        logger.info(f"Groups:     {', '.join(token_info.groups)}")
         logger.info(f"Issued:     {token_info.issued_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-        logger.info(f"Expires:    {token_info.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        if token_info.expires_at:
+            logger.info(f"Expires:    {token_info.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
-        # Check if close to expiry
-        now = datetime.utcnow()
-        days_until_expiry = (token_info.expires_at - now).days
-        if days_until_expiry < 7:
-            logger.warning(f"Warning: Token expires in {days_until_expiry} days")
+            # Check if close to expiry
+            now = datetime.utcnow()
+            days_until_expiry = (token_info.expires_at - now).days
+            if days_until_expiry < 7:
+                logger.warning(f"Warning: Token expires in {days_until_expiry} days")
+        else:
+            logger.info("Expires:    never")
 
         return 0
     except Exception as e:
@@ -190,7 +168,7 @@ def verify_token(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="doco JWT Token Manager - Create and manage authentication tokens",
+        description="gofr-doc JWT Token Manager - Create and manage authentication tokens (Vault-backed)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -209,13 +187,12 @@ Examples:
   # Revoke a token
   python -m app.management.token_manager revoke --token eyJhbGc...
 
-  # Using with environment variables
-  python -m app.management.token_manager --gofr-doc-env PROD --token-store /path/to/tokens.json create --group research
-
 Environment Variables:
     GOFR_DOC_ENV            Environment mode (TEST or PROD)
-    GOFR_DOC_JWT_SECRET     JWT secret key for token signing and verification
-    GOFR_DOC_TOKEN_STORE    Token store file path
+    GOFR_JWT_SECRET         JWT secret key for token signing and verification
+    GOFR_DOC_AUTH_BACKEND   Must be "vault"
+    GOFR_DOC_VAULT_URL      Vault server URL
+    GOFR_DOC_VAULT_TOKEN    Vault authentication token
         """,
     )
 
@@ -230,14 +207,8 @@ Environment Variables:
     parser.add_argument(
         "--secret",
         type=str,
-        default=os.environ.get("DOCO_JWT_SECRET"),
-        help="JWT secret key (default: DOCO_JWT_SECRET env var)",
-    )
-    parser.add_argument(
-        "--token-store",
-        type=str,
-        default=os.environ.get("DOCO_TOKEN_STORE"),
-        help="Path to token store file (default: /tmp/doco_tokens.json)",
+        default=os.environ.get("GOFR_JWT_SECRET"),
+        help="JWT secret key (default: GOFR_JWT_SECRET env var)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")

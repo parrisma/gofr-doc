@@ -16,11 +16,8 @@ from app.web_server.web_server import GofrDocWebServer
 
 
 @pytest.fixture
-def client(test_data_dir):
+def client(test_data_dir, auth_service):
     """Create a TestClient for the web server."""
-    from app.auth import AuthService
-
-    auth_service = AuthService(secret_key="test-secret")
     server = GofrDocWebServer(auth_service=auth_service)
     return TestClient(server.app)
 

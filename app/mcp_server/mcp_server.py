@@ -202,7 +202,7 @@ def _verify_auth(
 
     try:
         token_info = auth_service.verify_token(token)
-        return token_info.group, None
+        return token_info.groups[0] if token_info.groups else None, None
     except Exception as exc:  # pragma: no cover - depends on auth backend
         logger.warning("Token verification failed", error=str(exc))
         error_str = str(exc).lower()

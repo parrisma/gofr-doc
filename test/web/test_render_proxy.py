@@ -6,7 +6,7 @@ Tests the proxy rendering workflow:
 2. Render with proxy=true to get proxy_guid
 3. Retrieve document using GET /proxy/{proxy_guid}
 
-Requires MCP server running on port 8011 for test setup.
+Requires MCP server running (Docker Compose via scripts/start-test-env.sh).
 """
 
 import sys
@@ -25,15 +25,10 @@ import uuid
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, auth_service):
     """Create a test client for the web server"""
-    from app.auth import AuthService
-
-    temp_token_store = tmp_path / "tokens.json"
     test_data_dir = Path(__file__).parent.parent / "data" / "docs"
 
-    # Create web server with auth and test data directories
-    auth_service = AuthService(secret_key="test-secret", token_store_path=str(temp_token_store))
     server = GofrDocWebServer(
         require_auth=False,
         auth_service=auth_service,

@@ -19,7 +19,7 @@ open http://localhost:8011/docs
 
 ```bash
 # Start MCP server with authentication
-export GOFR_DOC_JWT_SECRET="your-secret-key"
+export GOFR_JWT_SECRET="your-secret-key"
 python app/main_mcp.py --port=8010
 
 # Generate a JWT token (or use existing one)

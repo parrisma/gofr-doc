@@ -24,7 +24,7 @@ and their environment variable mappings.
 #
 # Authentication & Security
 # -------------------------
-# GOFR_DOC_JWT_SECRET: Secret key for JWT token signing/verification (required for auth mode)
+# GOFR_JWT_SECRET: Secret key for JWT token signing/verification (required for auth mode)
 # GOFR_DOC_TOKEN_STORE: Path to token store file (default: {DATA_DIR}/auth/tokens.json)
 # GOFR_DOC_JWT_TOKEN: Bearer token for API authentication
 #
@@ -87,7 +87,7 @@ def get_config_summary() -> dict:
         "mcpo_port": int(os.getenv("GOFR_DOC_MCPO_PORT", DEFAULT_MCPO_PORT)),
         "web_server_url": os.getenv("GOFR_DOC_WEB_SERVER_URL", DEFAULT_WEB_SERVER_URL),
         "mcpo_mode": os.getenv("GOFR_DOC_MCPO_MODE", DEFAULT_MCPO_MODE),
-        "jwt_secret_set": bool(os.getenv("GOFR_DOC_JWT_SECRET")),
+        "jwt_secret_set": bool(os.getenv("GOFR_JWT_SECRET")),
         "log_level": os.getenv("GOFR_DOC_LOG_LEVEL", DEFAULT_LOG_LEVEL),
     }
 
@@ -117,8 +117,8 @@ def validate_configuration() -> tuple[bool, list[str]]:
     # Check auth configuration if mode is "auth"
     mcpo_mode = os.getenv("GOFR_DOC_MCPO_MODE", DEFAULT_MCPO_MODE)
     if mcpo_mode == "auth":
-        if not os.getenv("GOFR_DOC_JWT_SECRET"):
-            errors.append("GOFR_DOC_JWT_SECRET required when GOFR_DOC_MCPO_MODE='auth' but not set")
+        if not os.getenv("GOFR_JWT_SECRET"):
+            errors.append("GOFR_JWT_SECRET required when GOFR_DOC_MCPO_MODE='auth' but not set")
 
     # Check port numbers are valid
     for port_var, default in [
@@ -166,7 +166,7 @@ ENVIRONMENT VARIABLES
                           Default: http://localhost:8012
 
 🔐 AUTHENTICATION & SECURITY
-  GOFR_DOC_JWT_SECRET     Secret key for JWT signing/verification
+  GOFR_JWT_SECRET        Secret key for JWT signing/verification
                           Required: When using auth mode
                           Format: Any secure random string
   
@@ -196,7 +196,7 @@ CONFIGURATION MODES
 Production (Authenticated)
 --------------------------
 export GOFR_DOC_MCPO_MODE=auth
-export GOFR_DOC_JWT_SECRET="your-secret-key-here"
+export GOFR_JWT_SECRET="your-secret-key-here"
 export GOFR_DOC_DATA_DIR="/var/gofr_doc/data"
 
 Development (Public Access)

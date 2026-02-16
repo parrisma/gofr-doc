@@ -133,7 +133,7 @@ class GofrDocWebServer:
                 if self.auth_service:
                     try:
                         token_info = self.auth_service.verify_token(token)
-                        return token_info.group
+                        return token_info.groups[0] if token_info.groups else None
                     except Exception:
                         # Token is invalid, return None
                         pass

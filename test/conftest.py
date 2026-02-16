@@ -2,6 +2,10 @@
 
 Provides shared fixtures for all tests, including temporary data directories,
 auth service setup, and test server token management.
+
+Auth pattern: ALL fixtures use Vault-backed stores (no in-memory or file stores).
+Each test gets a unique Vault path prefix for isolation.
+Matches gofr-dig's conftest.py pattern.
 """
 
 import os
@@ -10,10 +14,15 @@ from pathlib import Path
 
 import pytest
 
+from gofr_common.auth.groups import DuplicateGroupError
+
 # Add project root to sys.path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.auth import AuthService
+from uuid import uuid4
+
+from gofr_common.auth import AuthService, GroupRegistry
+from gofr_common.auth.backends import VaultClient, VaultConfig, VaultGroupStore, VaultTokenStore
 from app.config import Config
 from app.storage import get_storage, reset_storage
 
@@ -26,17 +35,45 @@ from app.storage import get_storage, reset_storage
 # Must match the secret used when launching test MCP/web servers
 TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
 
-# Get token store path from environment or use default based on project root
-if "GOFR_DOC_TOKEN_STORE" not in os.environ:
-    # Calculate from gofr-doc.env pattern
-    project_root = Path(__file__).parent.parent
-    logs_dir = project_root / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    TEST_TOKEN_STORE_PATH = str(logs_dir / "gofr-doc_tokens.json")
-else:
-    TEST_TOKEN_STORE_PATH = os.environ["GOFR_DOC_TOKEN_STORE"]
-
 TEST_GROUP = "test_group"
+
+
+def _create_test_auth_service(vault_client: VaultClient, path_prefix: str) -> AuthService:
+    """Create an AuthService backed by Vault for testing.
+
+    Uses a unique path prefix per test instance to isolate data.
+    Automatically bootstraps reserved groups (public, admin) and creates
+    the test_group used across the test suite.
+    """
+    token_store = VaultTokenStore(vault_client, path_prefix=path_prefix)
+    group_store = VaultGroupStore(vault_client, path_prefix=path_prefix)
+    group_registry = GroupRegistry(store=group_store)  # auto-bootstraps public, admin
+    try:
+        group_registry.create_group(TEST_GROUP, "Test group for test suite")
+    except DuplicateGroupError:
+        pass
+
+    return AuthService(
+        token_store=token_store,
+        group_registry=group_registry,
+        secret_key=TEST_JWT_SECRET,
+        env_prefix="GOFR_DOC",
+    )
+
+
+def _build_vault_client() -> VaultClient:
+    """Create a VaultClient for tests using GOFR_DOC_VAULT_* env vars."""
+    vault_url = os.environ.get("GOFR_DOC_VAULT_URL")
+    vault_token = os.environ.get("GOFR_DOC_VAULT_TOKEN")
+
+    if not vault_url or not vault_token:
+        raise RuntimeError(
+            "Vault test configuration missing. Set GOFR_DOC_VAULT_URL and "
+            "GOFR_DOC_VAULT_TOKEN (run tests via ./scripts/run_tests.sh)."
+        )
+
+    config = VaultConfig(url=vault_url, token=vault_token)
+    return VaultClient(config)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -107,25 +144,17 @@ def temp_auth_dir(tmp_path):
 @pytest.fixture(scope="session")
 def test_auth_service():
     """
-    Create an AuthService instance for testing with a shared token store.
+    Create an AuthService instance for testing with Vault stores.
 
-    This AuthService uses:
-    - The same JWT secret as test MCP/web servers: TEST_JWT_SECRET
-    - A shared token store at: TEST_TOKEN_STORE_PATH
-
-    Test servers must be launched with:
-      --jwt-secret "test-secret-key-for-secure-testing-do-not-use-in-production"
-      --token-store "/tmp/gofr-doc_test_tokens.json"
-
-    Or via environment variables:
-      GOFR_DOC_JWT_SECRET=test-secret-key-for-secure-testing-do-not-use-in-production
-      GOFR_DOC_TOKEN_STORE=/tmp/gofr-doc_test_tokens.json
+    Uses VaultTokenStore and VaultGroupStore for isolation.
+    Automatically creates reserved groups (public, admin) and TEST_GROUP.
 
     Returns:
-        AuthService: Configured auth service with shared secret and token store
+        AuthService: Configured auth service with Vault stores
     """
-    auth_service = AuthService(secret_key=TEST_JWT_SECRET, token_store_path=TEST_TOKEN_STORE_PATH)
-    return auth_service
+    vault_client = _build_vault_client()
+    path_prefix = f"gofr/tests/{uuid4()}"
+    return _create_test_auth_service(vault_client, path_prefix)
 
 
 @pytest.fixture(scope="function")
@@ -145,7 +174,7 @@ def test_jwt_token(test_auth_service):
         str: A valid JWT token for testing with 1 hour expiry
     """
     # Create token with 1 hour expiry
-    token = test_auth_service.create_token(group=TEST_GROUP, expires_in_seconds=3600)
+    token = test_auth_service.create_token(groups=[TEST_GROUP], expires_in_seconds=3600)
 
     yield token
 
@@ -157,46 +186,24 @@ def test_jwt_token(test_auth_service):
 
 
 # ============================================================================
-# PHASE 4: CONSOLIDATED AUTH FIXTURES
+# CONSOLIDATED AUTH FIXTURES
 # ============================================================================
-
-
-@pytest.fixture(scope="function")
-def temp_token_store(tmp_path):
-    """
-    Create an isolated temporary token store for tests requiring token isolation.
-
-    Use this when:
-    - Testing cross-group access control
-    - Tests need separate token stores (no token persistence)
-    - Parallel test isolation requirements
-
-    Returns:
-        str: Path to temporary token store file (auto-cleaned up)
-    """
-    token_store = tmp_path / "isolated_tokens.json"
-    return str(token_store)
 
 
 @pytest.fixture(scope="function")
 def auth_service():
     """
-    Create an AuthService using the shared token store for MCP/web server tests.
+    Create an isolated AuthService with Vault stores for each test.
 
     This is the standard fixture name used across most test files.
-    Uses the same token store as running MCP/web servers for integration tests.
-
-    Use this for:
-    - MCP server tests (requires shared token store)
-    - Web server tests (requires shared token store)
-    - Integration tests with running servers
-
-    For isolated token testing, use test_auth_service or create a custom fixture.
+    Each test gets a fresh AuthService with no shared state.
 
     Returns:
-        AuthService: Configured with TEST_JWT_SECRET and shared token store
+        AuthService: Configured with TEST_JWT_SECRET and Vault stores
     """
-    return AuthService(secret_key=TEST_JWT_SECRET, token_store_path=TEST_TOKEN_STORE_PATH)
+    vault_client = _build_vault_client()
+    path_prefix = f"gofr/tests/{uuid4()}"
+    return _create_test_auth_service(vault_client, path_prefix)
 
 
 @pytest.fixture(scope="function")
@@ -215,8 +222,63 @@ def mcp_headers(auth_service):
     Returns:
         Dict[str, str]: {"Authorization": "Bearer <token>"}
     """
-    token = auth_service.create_token(group="test_group", expires_in_seconds=3600)
+    token = auth_service.create_token(groups=["test_group"], expires_in_seconds=3600)
     return {"Authorization": f"Bearer {token}"}
+
+
+# ============================================================================
+# SERVER-FACING AUTH FIXTURES (for integration tests)
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def server_auth_service():
+    """
+    Create an AuthService that shares the running server's Vault path.
+
+    Unlike the per-test `auth_service` fixture (which uses a UUID-isolated
+    Vault path), this fixture writes to the same path the MCP/web servers
+    use (gofr/doc/auth).  Tokens created here are visible to the server.
+
+    Use this (and `server_mcp_headers`) for integration tests that send
+    requests to a live MCP or web server started by run_tests.sh.
+    """
+    vault_client = _build_vault_client()
+    # The server's default path: prefix="GOFR_DOC" → "gofr/doc/auth"
+    server_path = os.environ.get("GOFR_DOC_VAULT_PATH_PREFIX", "gofr/doc/auth")
+    return _create_test_auth_service(vault_client, server_path)
+
+
+@pytest.fixture(scope="function")
+def server_mcp_headers(server_auth_service):
+    """
+    Auth headers recognised by the running MCP server.
+
+    Creates a token in the server's Vault path (not the isolated test path).
+    Use this for integration tests that call the live MCP server.
+    """
+    token = server_auth_service.create_token(groups=["test_group"], expires_in_seconds=3600)
+    yield {"Authorization": f"Bearer {token}"}
+    try:
+        server_auth_service.revoke_token(token)
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="function")
+def server_web_headers(server_auth_service):
+    """
+    Auth headers recognised by the running web server.
+
+    Creates a token in the server's Vault path (not the isolated test path).
+    Use this for integration tests that call the live web server.
+    """
+    token = server_auth_service.create_token(groups=["test_group"], expires_in_seconds=3600)
+    yield {"Authorization": f"Bearer {token}"}
+    try:
+        server_auth_service.revoke_token(token)
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -224,82 +286,26 @@ def configure_test_auth_environment():
     """
     Configure environment variables for test server authentication.
 
-    This ensures test MCP/web servers use the same JWT secret and token store
+    This ensures test MCP/web servers use the same JWT secret and Vault backend
     as the test fixtures. Auto-runs before all tests.
     """
-    os.environ["GOFR_DOC_JWT_SECRET"] = TEST_JWT_SECRET
-    os.environ["GOFR_DOC_TOKEN_STORE"] = TEST_TOKEN_STORE_PATH
+    os.environ["GOFR_JWT_SECRET"] = TEST_JWT_SECRET
+    os.environ["GOFR_DOC_AUTH_BACKEND"] = "vault"
 
-    # Ensure token store directory exists
-    token_store_dir = Path(TEST_TOKEN_STORE_PATH).parent
-    token_store_dir.mkdir(parents=True, exist_ok=True)
+    # Default to local test vault if not already set
+    vault_port = os.environ.get("GOFR_VAULT_PORT_TEST", "")
+    default_vault_url = f"http://localhost:{vault_port}" if vault_port else ""
+    if default_vault_url:
+        os.environ.setdefault("GOFR_DOC_VAULT_URL", default_vault_url)
+    os.environ.setdefault("GOFR_DOC_VAULT_TOKEN", "gofr-dev-root-token")
 
     yield
 
-    # Cleanup: optional - clear environment after tests
-    os.environ.pop("GOFR_DOC_JWT_SECRET", None)
-    os.environ.pop("GOFR_DOC_TOKEN_STORE", None)
-
-
-# ============================================================================
-# TEST SERVER MANAGEMENT
-# ============================================================================
-
-# Import ServerManager for managing test servers
-try:
-    # Try to import ServerManager - may fail if not in the test directory
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).parent))
-    from test_server_manager import ServerManager
-except (ImportError, ModuleNotFoundError):
-    ServerManager = None
-
-
-@pytest.fixture(scope="session")
-def test_server_manager():
-    """
-    Create a ServerManager for controlling test servers in auth mode.
-
-    This manages the lifecycle of MCP and web servers for integration testing.
-    Servers started with this manager will use the shared JWT secret and
-    token store configured in configure_test_auth_environment.
-
-    Usage:
-        def test_with_server(test_server_manager, test_data_dir):
-            # Start MCP server with auth enabled
-            success = test_server_manager.start_mcp_server(
-                templates_dir=str(test_data_dir / "docs/templates"),
-                styles_dir=str(test_data_dir / "docs/styles"),
-                storage_dir=str(test_data_dir / "storage"),
-            )
-            if not success:
-                pytest.skip("MCP server failed to start")
-
-            # Server is ready at: test_server_manager.get_mcp_url()
-
-            yield  # Test runs with server active
-
-            # Server automatically stops here when fixture context ends
-
-    Returns:
-        ServerManager: Server manager instance, or None if import failed
-    """
-    if ServerManager is None:
-        return None
-
-    manager = ServerManager(
-        jwt_secret=TEST_JWT_SECRET,
-        token_store_path=TEST_TOKEN_STORE_PATH,
-        mcp_port=8013,
-        web_port=8000,
-    )
-
-    yield manager
-
-    # Cleanup: stop all servers
-    manager.stop_all()
+    # Cleanup
+    os.environ.pop("GOFR_JWT_SECRET", None)
+    os.environ.pop("GOFR_DOC_AUTH_BACKEND", None)
+    os.environ.pop("GOFR_DOC_VAULT_URL", None)
+    os.environ.pop("GOFR_DOC_VAULT_TOKEN", None)
 
 
 # ============================================================================
@@ -314,12 +320,13 @@ def image_server():
 
     The server serves files from test/mock/data directory on port 8765.
     Use image_server.get_url(filename) to get the full URL for a test image.
+    In Docker mode, URLs use the dev container hostname (GOFR_DOC_IMAGE_SERVER_HOST)
+    so MCP containers on the shared network can reach the server.
 
     Usage:
         def test_image_download(image_server):
             url = image_server.get_url("graph.png")
-            # url is "http://localhost:8765/graph.png"
-            # Make requests to this URL
+            # url is "http://gofr-doc-dev:8765/graph.png" (Docker mode)
 
     Returns:
         ImageServer: Server instance with start(), stop(), and get_url() methods

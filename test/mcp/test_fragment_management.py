@@ -20,10 +20,11 @@ from mcp.types import TextContent
 from app.logger import Logger, session_logger
 
 # MCP server configuration via environment variables (defaults to production port)
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
-# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+# Note: auth_service and server_mcp_headers fixtures are now provided by conftest.py
 
 
 def skip_if_mcp_unavailable(func):
@@ -138,9 +139,9 @@ def logger() -> Logger:
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_tool_exists(mcp_headers):
+async def test_add_fragment_tool_exists(server_mcp_headers):
     """Verify add_fragment tool is registered."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -150,9 +151,9 @@ async def test_add_fragment_tool_exists(mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_requires_session_id(logger, mcp_headers):
+async def test_add_fragment_requires_session_id(logger, server_mcp_headers):
     """Verify add_fragment requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -170,9 +171,9 @@ async def test_add_fragment_requires_session_id(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_requires_fragment_id(logger, mcp_headers):
+async def test_add_fragment_requires_fragment_id(logger, server_mcp_headers):
     """Verify add_fragment requires fragment_id parameter."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -190,9 +191,9 @@ async def test_add_fragment_requires_fragment_id(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_requires_parameters(logger, mcp_headers):
+async def test_add_fragment_requires_parameters(logger, server_mcp_headers):
     """Verify add_fragment requires parameters argument."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -210,9 +211,9 @@ async def test_add_fragment_requires_parameters(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_fragment_invalid_session(logger, mcp_headers):
+async def test_add_fragment_invalid_session(logger, server_mcp_headers):
     """Verify add_fragment handles non-existent session."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -241,9 +242,9 @@ async def test_add_fragment_invalid_session(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_session_fragments_tool_exists(mcp_headers):
+async def test_list_session_fragments_tool_exists(server_mcp_headers):
     """Verify list_session_fragments tool is registered."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -253,9 +254,9 @@ async def test_list_session_fragments_tool_exists(mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_session_fragments_requires_session_id(logger, mcp_headers):
+async def test_list_session_fragments_requires_session_id(logger, server_mcp_headers):
     """Verify list_session_fragments requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -267,9 +268,9 @@ async def test_list_session_fragments_requires_session_id(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_list_session_fragments_invalid_session(logger, mcp_headers):
+async def test_list_session_fragments_invalid_session(logger, server_mcp_headers):
     """Verify list_session_fragments handles non-existent session."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -290,9 +291,9 @@ async def test_list_session_fragments_invalid_session(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_tool_exists(mcp_headers):
+async def test_remove_fragment_tool_exists(server_mcp_headers):
     """Verify remove_fragment tool is registered."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             tools_result = await session.list_tools()
@@ -302,9 +303,9 @@ async def test_remove_fragment_tool_exists(mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_requires_session_id(logger, mcp_headers):
+async def test_remove_fragment_requires_session_id(logger, server_mcp_headers):
     """Verify remove_fragment requires session_id parameter."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -319,9 +320,9 @@ async def test_remove_fragment_requires_session_id(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_requires_guid(logger, mcp_headers):
+async def test_remove_fragment_requires_guid(logger, server_mcp_headers):
     """Verify remove_fragment requires fragment_instance_guid parameter."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -336,9 +337,9 @@ async def test_remove_fragment_requires_guid(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_remove_fragment_invalid_session(logger, mcp_headers):
+async def test_remove_fragment_invalid_session(logger, server_mcp_headers):
     """Verify remove_fragment handles non-existent session."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -362,9 +363,9 @@ async def test_remove_fragment_invalid_session(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_table_fragment_with_column_widths(logger, mcp_headers):
+async def test_add_table_fragment_with_column_widths(logger, server_mcp_headers):
     """Test adding a table fragment with column_widths parameter (Phase 6)."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -412,9 +413,9 @@ async def test_add_table_fragment_with_column_widths(logger, mcp_headers):
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_table_fragment_with_invalid_column_widths(logger, mcp_headers):
+async def test_add_table_fragment_with_invalid_column_widths(logger, server_mcp_headers):
     """Test adding table with invalid column_widths (exceeds 100%)."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
@@ -447,9 +448,9 @@ async def test_add_table_fragment_with_invalid_column_widths(logger, mcp_headers
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
-async def test_add_table_fragment_with_all_phase6_features(logger, mcp_headers):
+async def test_add_table_fragment_with_all_phase6_features(logger, server_mcp_headers):
     """Test table fragment with all Phase 1-6 parameters combined."""
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

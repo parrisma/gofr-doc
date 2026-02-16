@@ -11,12 +11,12 @@ MCP_PORT="${GOFR_DOC_MCP_PORT:-8040}"
 MCPO_PORT="${GOFR_DOC_MCPO_PORT:-8041}"
 WEB_PORT="${GOFR_DOC_WEB_PORT:-8042}"
 
-# JWT Secret (required)
-JWT_SECRET="${GOFR_DOC_JWT_SECRET:-}"
+# JWT Secret (required — shared across all gofr services)
+JWT_SECRET="${GOFR_JWT_SECRET:-}"
 
 if [ -z "$JWT_SECRET" ]; then
-    echo "ERROR: GOFR_DOC_JWT_SECRET environment variable is required"
-    echo "Usage: GOFR_DOC_JWT_SECRET=your-secret ./run-prod.sh"
+    echo "ERROR: GOFR_JWT_SECRET environment variable is required"
+    echo "Usage: GOFR_JWT_SECRET=your-secret ./run-prod.sh"
     exit 1
 fi
 

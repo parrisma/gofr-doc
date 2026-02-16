@@ -72,13 +72,20 @@ class ImageServer:
     def get_url(self, filename: str) -> str:
         """Get the full URL for a file served by this server.
 
+        In Docker mode the MCP container needs to reach this server via the
+        dev container's hostname on the shared test network.  Falls back to
+        ``localhost`` when not running inside Docker.
+
         Args:
             filename: Name of the file in test/mock/data directory
 
         Returns:
             Full HTTP URL to access the file
         """
-        return f"http://localhost:{self.port}/{filename}"
+        import os
+
+        host = os.environ.get("GOFR_DOC_IMAGE_SERVER_HOST", "localhost")
+        return f"http://{host}:{self.port}/{filename}"
 
     def __enter__(self):
         """Context manager entry."""

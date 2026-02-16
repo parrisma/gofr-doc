@@ -17,32 +17,8 @@ from fastapi.testclient import TestClient
 from app.web_server.web_server import GofrDocWebServer
 from app.sessions import SessionManager, SessionStore
 from app.templates.registry import TemplateRegistry
-from app.auth import AuthService
 from app.logger import session_logger
 from app.config import get_default_sessions_dir
-import tempfile
-
-
-@pytest.fixture
-def temp_token_store():
-    """Create temporary token store for isolated testing"""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        temp_path = f.name
-    yield temp_path
-    # Cleanup
-    import os
-
-    if os.path.exists(temp_path):
-        os.unlink(temp_path)
-
-
-@pytest.fixture
-def auth_service(temp_token_store):
-    """Create auth service with test JWT secret"""
-    return AuthService(
-        secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
-        token_store_path=temp_token_store,
-    )
 
 
 @pytest.fixture
@@ -78,10 +54,12 @@ class TestProxyGroupAccessControl:
     async def test_cross_group_access_denied(self, client_with_auth, session_manager, auth_service):
         """Test that accessing a proxy document from a different group is denied (403)"""
         # Create token for 'finance' group
-        finance_token = auth_service.create_token(group="finance", expires_in_seconds=3600)
+        auth_service._group_registry.create_group("finance", "Finance group")
+        finance_token = auth_service.create_token(groups=["finance"], expires_in_seconds=3600)
 
         # Create token for 'marketing' group
-        marketing_token = auth_service.create_token(group="marketing", expires_in_seconds=3600)
+        auth_service._group_registry.create_group("marketing", "Marketing group")
+        marketing_token = auth_service.create_token(groups=["marketing"], expires_in_seconds=3600)
 
         # Create and render document in 'finance' group
         result = await session_manager.create_session(
@@ -166,7 +144,8 @@ class TestProxyGroupAccessControl:
     ):
         """Test that stored group metadata is the source of truth, not URL parameters"""
         # Create token for 'sales' group
-        sales_token = auth_service.create_token(group="sales", expires_in_seconds=3600)
+        auth_service._group_registry.create_group("sales", "Sales group")
+        sales_token = auth_service.create_token(groups=["sales"], expires_in_seconds=3600)
 
         # Create document in 'sales' group
         result = await session_manager.create_session(
@@ -218,8 +197,10 @@ class TestProxyGroupAccessControl:
     ):
         """Test that documents with similar content in different groups remain isolated"""
         # Create tokens for two different groups
-        alpha_token = auth_service.create_token(group="alpha", expires_in_seconds=3600)
-        beta_token = auth_service.create_token(group="beta", expires_in_seconds=3600)
+        auth_service._group_registry.create_group("alpha", "Alpha group")
+        auth_service._group_registry.create_group("beta", "Beta group")
+        alpha_token = auth_service.create_token(groups=["alpha"], expires_in_seconds=3600)
+        beta_token = auth_service.create_token(groups=["beta"], expires_in_seconds=3600)
 
         # Create identical documents in both groups
         proxy_guids = {}

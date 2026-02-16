@@ -19,9 +19,9 @@ SECURITY FEATURES DEMONSTRATED:
 - Proxy document group boundaries
 
 Requires:
-- MCP server running on port 8011 with JWT authentication
-- Web server running on port 8010 with JWT authentication
-- Shared JWT secret and token store configured
+- MCP server running (Docker Compose via scripts/start-test-env.sh)
+- Web server running with JWT authentication
+- Shared JWT secret configured via GOFR_JWT_SECRET
 """
 
 import json
@@ -37,15 +37,26 @@ from mcp.types import TextContent
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-# Note: auth_service and mcp_headers fixtures are provided by conftest.py
+from gofr_common.auth.groups import DuplicateGroupError
 
-# Port configuration via environment variables (defaults to production ports)
+
+def _ensure_group(registry, name, description=None):
+    """Create group if it doesn't already exist."""
+    try:
+        registry.create_group(name, description)
+    except DuplicateGroupError:
+        pass
+
+
+# Note: server_auth_service and server_mcp_headers fixtures are provided by conftest.py
+
+# Port configuration via environment variables
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8010")
-
-# Use 127.0.0.1 for better Docker container compatibility
-MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
-WEB_URL = f"http://127.0.0.1:{WEB_PORT}"
+WEB_HOST = os.environ.get("GOFR_DOC_WEB_HOST", "localhost")
+WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8042")
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
+WEB_URL = f"http://{WEB_HOST}:{WEB_PORT}"
 
 
 def _http_get(url, headers=None):
@@ -82,26 +93,26 @@ def _safe_json_parse(text):
         return {}
 
 
-# Note: Using auth_service and mcp_headers from conftest.py (default 'test_group')
+# Note: Using server_auth_service and server_mcp_headers from conftest.py (default 'test_group')
 
 
 class TestNewsEmailWorkflow:
     """Test complete news email workflow through MCP and web servers."""
 
     @pytest.mark.asyncio
-    async def test_complete_news_email_workflow(self, mcp_headers, auth_service):
+    async def test_complete_news_email_workflow(self, server_mcp_headers, server_auth_service):
         """Test complete workflow: create → add content → render → retrieve via both methods.
 
         SECURITY: This test uses JWT authentication with group='test_group'. All operations
         verify that the session belongs to the authenticated group before allowing access.
-        The mcp_headers fixture provides the Bearer token for authentication.
+        The server_mcp_headers fixture provides the Bearer token for authentication.
         """
 
         # ================================================================
         # PART 1: Create and build document via MCP (with authentication)
         # ================================================================
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -251,7 +262,7 @@ class TestNewsEmailWorkflow:
         # ================================================================
 
         # Step 8: Get document via web server proxy endpoint
-        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}", headers=mcp_headers)
+        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}", headers=server_mcp_headers)
         assert (
             web_response["status_code"] == 200
         ), f"Web server returned {web_response['status_code']}"
@@ -281,10 +292,10 @@ class TestNewsEmailWorkflow:
         assert "Professional Investors" in mcp_html, "Missing recipient type"
 
     @pytest.mark.asyncio
-    async def test_workflow_multiple_renders_same_content(self, mcp_headers):
+    async def test_workflow_multiple_renders_same_content(self, server_mcp_headers):
         """Test that multiple renders of same session produce identical content."""
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -358,14 +369,14 @@ class TestNewsEmailWorkflow:
                 assert len(html_renders[0]) > 100, "Rendered content too short"
 
     @pytest.mark.asyncio
-    async def test_workflow_proxy_persistence(self, mcp_headers):
+    async def test_workflow_proxy_persistence(self, server_mcp_headers):
         """Test that proxy documents remain accessible after session ends."""
 
         proxy_guid = None
         session_id = None
 
         # Create and render with proxy
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -416,14 +427,14 @@ class TestNewsEmailWorkflow:
         assert proxy_guid, "No proxy_guid created"
 
         # Retrieve via web server
-        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}", headers=mcp_headers)
+        web_response = _http_get(f"{WEB_URL}/proxy/{proxy_guid}", headers=server_mcp_headers)
         assert (
             web_response["status_code"] == 200
         ), "Proxy document not accessible after session closed"
         assert "Persistence Corp" in web_response["text"], "Proxy content incorrect"
 
     @pytest.mark.asyncio
-    async def test_workflow_group_isolation_security(self, auth_service):
+    async def test_workflow_group_isolation_security(self, server_auth_service):
         """Test that group-based security prevents cross-group session access.
 
         SECURITY TEST: Demonstrates the complete group isolation model:
@@ -437,8 +448,14 @@ class TestNewsEmailWorkflow:
         """
 
         # Create tokens for two different groups
-        engineering_token = auth_service.create_token(group="engineering", expires_in_seconds=3600)
-        marketing_token = auth_service.create_token(group="marketing", expires_in_seconds=3600)
+        _ensure_group(server_auth_service._group_registry, "engineering", "Engineering test group")
+        _ensure_group(server_auth_service._group_registry, "marketing", "Marketing test group")
+        engineering_token = server_auth_service.create_token(
+            groups=["engineering"], expires_in_seconds=3600
+        )
+        marketing_token = server_auth_service.create_token(
+            groups=["marketing"], expires_in_seconds=3600
+        )
 
         engineering_headers = {"Authorization": f"Bearer {engineering_token}"}
         marketing_headers = {"Authorization": f"Bearer {marketing_token}"}

@@ -18,8 +18,8 @@ Test Scenarios:
 - 10.5: Error handling (non-existent alias → helpful errors)
 
 Requires:
-- MCP server running on port 8011 with JWT authentication
-- Web server running on port 8010 with JWT authentication
+- MCP server running (Docker Compose via scripts/start-test-env.sh)
+- Web server running with JWT authentication
 """
 
 import json
@@ -35,9 +35,11 @@ from mcp.types import TextContent
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Port configuration - use test ports from environment
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8012")
-MCP_URL = f"http://127.0.0.1:{MCP_PORT}/mcp/"
+WEB_HOST = os.environ.get("GOFR_DOC_WEB_HOST", "localhost")
+WEB_PORT = os.environ.get("GOFR_DOC_WEB_PORT", "8042")
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
 
 def _extract_text(result):
@@ -65,7 +67,7 @@ class TestAliasOnlyWorkflow:
     """Test complete workflows using ONLY aliases, never UUIDs."""
 
     @pytest.mark.asyncio
-    async def test_basic_alias_only_workflow(self, mcp_headers):
+    async def test_basic_alias_only_workflow(self, server_mcp_headers):
         """Task 10.1: Complete document workflow using only the alias.
 
         This test demonstrates that after creating a session with an alias,
@@ -86,7 +88,7 @@ class TestAliasOnlyWorkflow:
         # Use a unique alias for this test
         test_alias = "quarterly-report-basic"
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -211,7 +213,7 @@ class TestAliasOnlyWorkflow:
                 # This proves the alias system works end-to-end
 
     @pytest.mark.asyncio
-    async def test_discovery_workflow_with_aliases(self, mcp_headers):
+    async def test_discovery_workflow_with_aliases(self, server_mcp_headers):
         """Task 10.2: Create multiple sessions, discover via list, use discovered aliases.
 
         This test demonstrates the discovery workflow:
@@ -227,7 +229,7 @@ class TestAliasOnlyWorkflow:
         # Create 3 sessions with memorable aliases
         aliases = ["discovery-report-alpha", "discovery-report-beta", "discovery-report-gamma"]
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -353,7 +355,7 @@ class TestAliasOnlyWorkflow:
                     ), f"Alias '{alias}' should have been deleted"
 
     @pytest.mark.asyncio
-    async def test_iterative_workflow_with_alias(self, mcp_headers):
+    async def test_iterative_workflow_with_alias(self, server_mcp_headers):
         """Task 10.3: Create session, render, add more content, re-render using alias.
 
         This test demonstrates iterative document building:
@@ -370,7 +372,7 @@ class TestAliasOnlyWorkflow:
 
         test_alias = "iterative-report"
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -505,7 +507,7 @@ class TestAliasOnlyWorkflow:
                 assert response.get("status") == "success"
 
     @pytest.mark.asyncio
-    async def test_multi_format_workflow_with_alias(self, mcp_headers):
+    async def test_multi_format_workflow_with_alias(self, server_mcp_headers):
         """Task 10.4: Render same session to HTML, PDF, and Markdown using alias.
 
         This test demonstrates multi-format rendering:
@@ -521,7 +523,7 @@ class TestAliasOnlyWorkflow:
 
         test_alias = "multi-format-report"
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 
@@ -643,7 +645,7 @@ class TestAliasOnlyWorkflow:
                 assert response.get("status") == "success"
 
     @pytest.mark.asyncio
-    async def test_error_handling_with_invalid_alias(self, mcp_headers):
+    async def test_error_handling_with_invalid_alias(self, server_mcp_headers):
         """Task 10.5: Verify helpful error handling for non-existent aliases.
 
         This test demonstrates proper error handling:
@@ -658,7 +660,7 @@ class TestAliasOnlyWorkflow:
         # Use an alias that definitely doesn't exist
         fake_alias = "this-session-does-not-exist"
 
-        async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+        async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
 

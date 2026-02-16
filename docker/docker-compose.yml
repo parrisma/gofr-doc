@@ -11,7 +11,7 @@ services:
       # Web URL for proxy mode - use container hostname
       - GOFR_DOC_WEB_URL=http://gofr-doc-web:8012
       # For production with auth, uncomment and set:
-      # - GOFR_DOC_JWT_SECRET=your-secret-key-here
+      # - GOFR_JWT_SECRET=your-secret-key-here
     ports:
       - "8010:8010"
     volumes:
@@ -45,7 +45,7 @@ services:
     environment:
       - GOFR_DOC_ENV=PROD
       # For production with auth, uncomment and set:
-      # - GOFR_DOC_JWT_SECRET=your-secret-key-here
+      # - GOFR_JWT_SECRET=your-secret-key-here
     ports:
       - "8012:8012"
     volumes:

@@ -13,19 +13,20 @@ from mcp.client.streamable_http import streamablehttp_client
 from app.logger import Logger, session_logger
 
 # Port configuration via environment variables (defaults to production port)
+MCP_HOST = os.environ.get("GOFR_DOC_MCP_HOST", "localhost")
 MCP_PORT = os.environ.get("GOFR_DOC_MCP_PORT", "8040")
-MCP_URL = f"http://localhost:{MCP_PORT}/mcp/"
+MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}/mcp/"
 
-# Note: auth_service and mcp_headers fixtures are now provided by conftest.py
+# Note: auth_service and server_mcp_headers fixtures are now provided by conftest.py
 
 
 @pytest.mark.asyncio
-async def test_ping_tool_available(mcp_headers):
+async def test_ping_tool_available(server_mcp_headers):
     """Test that ping tool is available in tool list"""
     logger: Logger = session_logger
     logger.info("Testing ping tool availability")
 
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             logger.info("MCP server initialized successfully")
@@ -40,12 +41,12 @@ async def test_ping_tool_available(mcp_headers):
 
 
 @pytest.mark.asyncio
-async def test_ping_returns_correct_response(mcp_headers):
+async def test_ping_returns_correct_response(server_mcp_headers):
     """Test that ping tool returns timestamp and service info"""
     logger: Logger = session_logger
     logger.info("Testing ping tool response")
 
-    async with streamablehttp_client(MCP_URL, headers=mcp_headers) as (read, write, _):
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
 

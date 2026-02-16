@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Test JWT authentication and token management"""
+"""Test JWT authentication and token management
+
+Uses Vault-backed auth service from conftest fixtures.
+"""
 
 import sys
 from pathlib import Path
@@ -7,40 +10,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import pytest
-import tempfile
+import time
 from datetime import datetime
-from app.auth import AuthService
+from gofr_common.auth import AuthService
 from app.logger import Logger, session_logger
 
 
 # Test configuration
 TEST_GROUP = "secure"
 TEST_EXPIRY_SECONDS = 90
-
-# Note: auth_service fixture overridden below for auth tests requiring isolation
-
-
-@pytest.fixture
-def auth_service():
-    """
-    Create an isolated AuthService for auth unit tests.
-
-    Auth tests need isolated token stores to verify token counts, listing, etc.
-    without interference from other tests using the shared store.
-    """
-    with tempfile.TemporaryDirectory(prefix="gofr_doc_auth_test_") as temp_dir:
-        token_store = f"{temp_dir}/tokens.json"
-        service = AuthService(
-            secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
-            token_store_path=token_store,
-        )
-        yield service
+TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
 
 
 @pytest.fixture
 def test_token(auth_service):
     """Create a test token for the 'secure' group"""
-    token = auth_service.create_token(group=TEST_GROUP, expires_in_seconds=TEST_EXPIRY_SECONDS)
+    auth_service._group_registry.create_group(TEST_GROUP, "Secure test group")
+    token = auth_service.create_token(groups=[TEST_GROUP], expires_in_seconds=TEST_EXPIRY_SECONDS)
     return token
 
 
@@ -52,7 +38,10 @@ class TestAuthTokenCreation:
         logger: Logger = session_logger
         logger.info("Testing token creation", group=TEST_GROUP, expiry_seconds=TEST_EXPIRY_SECONDS)
 
-        token = auth_service.create_token(group=TEST_GROUP, expires_in_seconds=TEST_EXPIRY_SECONDS)
+        auth_service._group_registry.create_group(TEST_GROUP, "Secure test group")
+        token = auth_service.create_token(
+            groups=[TEST_GROUP], expires_in_seconds=TEST_EXPIRY_SECONDS
+        )
 
         # Verify token is created
         assert token is not None, "Token should not be None"
@@ -64,17 +53,17 @@ class TestAuthTokenCreation:
         # Verify token can be validated
         token_info = auth_service.verify_token(token)
         assert (
-            token_info.group == TEST_GROUP
-        ), f"Group mismatch: expected {TEST_GROUP}, got {token_info.group}"
+            TEST_GROUP in token_info.groups
+        ), f"Group mismatch: expected {TEST_GROUP} in {token_info.groups}"
 
-        # Verify expiry is correct (within 1 second tolerance)
+        # Verify expiry is correct (within 2 second tolerance)
         now = datetime.utcnow()
         expiry_delta = (token_info.expires_at - now).total_seconds()
         assert (
             abs(expiry_delta - TEST_EXPIRY_SECONDS) < 2
         ), f"Expiry mismatch: expected ~{TEST_EXPIRY_SECONDS}s, got {expiry_delta}s"
 
-        logger.info("Token validation passed", group=token_info.group, expires_in=expiry_delta)
+        logger.info("Token validation passed", groups=token_info.groups, expires_in=expiry_delta)
 
     def test_create_multiple_tokens_different_groups(self, auth_service):
         """Test creating tokens for different groups"""
@@ -85,12 +74,13 @@ class TestAuthTokenCreation:
         tokens = {}
 
         for group in groups:
-            token = auth_service.create_token(group=group, expires_in_seconds=60)
+            auth_service._group_registry.create_group(group, f"Test group {group}")
+            token = auth_service.create_token(groups=[group], expires_in_seconds=60)
             tokens[group] = token
 
             # Verify each token
             token_info = auth_service.verify_token(token)
-            assert token_info.group == group, f"Group mismatch for {group}"
+            assert group in token_info.groups, f"Group mismatch for {group}"
 
         logger.info("Multiple tokens created and validated", groups=len(tokens))
 
@@ -103,40 +93,44 @@ class TestAuthTokenCreation:
         logger: Logger = session_logger
         logger.info("Testing token verification with wrong secret")
 
-        # Create token with correct secret
-        token = auth_service.create_token(group=TEST_GROUP, expires_in_seconds=60)
+        auth_service._group_registry.create_group(TEST_GROUP, "Secure test group")
+        token = auth_service.create_token(groups=[TEST_GROUP], expires_in_seconds=60)
 
-        # Try to verify with wrong secret
-        wrong_service = AuthService(secret_key="wrong-secret", token_store_path="/tmp/wrong.json")
+        # Create second auth service with wrong secret, sharing same stores
+        wrong_service = AuthService(
+            token_store=auth_service._token_store,
+            group_registry=auth_service._group_registry,
+            secret_key="wrong-secret",
+            env_prefix="GOFR_DOC",
+        )
 
         with pytest.raises(Exception):  # Should raise authentication error
             wrong_service.verify_token(token)
 
         logger.info("Token correctly rejected with wrong secret")
 
-    def test_token_storage_persistence(self):
-        """Test that tokens persist across AuthService instances"""
+    def test_token_storage_persistence(self, auth_service):
+        """Test that tokens persist across AuthService instances via Vault"""
         logger: Logger = session_logger
-        logger.info("Testing token persistence")
+        logger.info("Testing token persistence via Vault")
 
-        TEST_JWT_SECRET = "test-secret-key-for-secure-testing-do-not-use-in-production"
+        auth_service._group_registry.create_group(TEST_GROUP, "Secure test group")
+        token = auth_service.create_token(groups=[TEST_GROUP], expires_in_seconds=60)
+        logger.info("Token created with service1", token=token[:20])
 
-        with tempfile.TemporaryDirectory(prefix="gofr_doc_persist_test_") as temp_dir:
-            token_store = f"{temp_dir}/tokens.json"
+        # Create second service with same Vault stores
+        service2 = AuthService(
+            token_store=auth_service._token_store,
+            group_registry=auth_service._group_registry,
+            secret_key=TEST_JWT_SECRET,
+            env_prefix="GOFR_DOC",
+        )
 
-            # Create first service and token
-            service1 = AuthService(secret_key=TEST_JWT_SECRET, token_store_path=token_store)
-            token = service1.create_token(group=TEST_GROUP, expires_in_seconds=60)
-            logger.info("Token created with service1", token=token[:20])
+        # Verify token exists in second service
+        token_info = service2.verify_token(token)
+        assert TEST_GROUP in token_info.groups, "Token not persisted in Vault"
 
-            # Create second service with same token store
-            service2 = AuthService(secret_key=TEST_JWT_SECRET, token_store_path=token_store)
-
-            # Verify token exists in second service
-            token_info = service2.verify_token(token)
-            assert token_info.group == TEST_GROUP, "Token not persisted"
-
-            logger.info("Token persisted across service instances")
+        logger.info("Token persisted across service instances")
 
     def test_revoke_token(self, auth_service, test_token):
         """Test token revocation"""
@@ -162,21 +156,22 @@ class TestAuthTokenCreation:
         logger: Logger = session_logger
         logger.info("Testing list_tokens")
 
-        # Create several tokens
+        # Create several tokens with different groups
         groups = ["test1", "test2", "test3"]
         for group in groups:
-            auth_service.create_token(group=group, expires_in_seconds=60)
+            auth_service._group_registry.create_group(group, f"Test group {group}")
+            auth_service.create_token(groups=[group], expires_in_seconds=60)
 
         # List tokens
         tokens = auth_service.list_tokens()
         assert len(tokens) == 3, f"Expected 3 tokens, found {len(tokens)}"
 
-        # Verify each token has expected fields
-        for token, info in tokens.items():
-            assert "group" in info, "Missing group in token info"
-            assert "issued_at" in info, "Missing issued_at in token info"
-            assert "expires_at" in info, "Missing expires_at in token info"
-            assert info["group"] in groups, f"Unexpected group: {info['group']}"
+        # Verify each token record has expected fields
+        for record in tokens:
+            assert hasattr(record, "groups"), "Missing groups in token record"
+            assert hasattr(record, "created_at"), "Missing created_at in token record"
+            assert hasattr(record, "expires_at"), "Missing expires_at in token record"
+            assert any(g in groups for g in record.groups), f"Unexpected groups: {record.groups}"
 
         logger.info("Listed tokens verified", count=len(tokens))
 
@@ -186,9 +181,8 @@ class TestAuthTokenCreation:
         logger.info("Testing token expiry validation")
 
         # Create token with very short expiry
-        import time
-
-        token = auth_service.create_token(group="test", expires_in_seconds=1)
+        auth_service._group_registry.create_group("expiry_test", "Expiry test group")
+        token = auth_service.create_token(groups=["expiry_test"], expires_in_seconds=1)
         logger.info("Short-lived token created, waiting for expiry...")
 
         # Verify token works immediately
@@ -210,18 +204,20 @@ class TestAuthTokenCreation:
         logger.info("Testing group segregation")
 
         # Create tokens for different groups
-        token1 = auth_service.create_token(group="group1", expires_in_seconds=60)
-        token2 = auth_service.create_token(group="group2", expires_in_seconds=60)
+        auth_service._group_registry.create_group("group1", "Group 1")
+        auth_service._group_registry.create_group("group2", "Group 2")
+        token1 = auth_service.create_token(groups=["group1"], expires_in_seconds=60)
+        token2 = auth_service.create_token(groups=["group2"], expires_in_seconds=60)
 
         # Verify tokens belong to correct groups
         info1 = auth_service.verify_token(token1)
         info2 = auth_service.verify_token(token2)
 
-        assert info1.group == "group1", "Token1 should belong to group1"
-        assert info2.group == "group2", "Token2 should belong to group2"
-        assert info1.group != info2.group, "Tokens should have different groups"
+        assert "group1" in info1.groups, "Token1 should belong to group1"
+        assert "group2" in info2.groups, "Token2 should belong to group2"
+        assert info1.groups != info2.groups, "Tokens should have different groups"
 
-        logger.info("Groups properly segregated", group1=info1.group, group2=info2.group)
+        logger.info("Groups properly segregated", group1=info1.groups, group2=info2.groups)
 
     def test_create_token_with_default_expiry(self, auth_service):
         """Test token creation with default expiry"""
@@ -229,7 +225,8 @@ class TestAuthTokenCreation:
         logger.info("Testing token with default expiry")
 
         # Create token without specifying expiry (should use default: 30 days)
-        token = auth_service.create_token(group="test")
+        auth_service._group_registry.create_group("default_test", "Default expiry test")
+        token = auth_service.create_token(groups=["default_test"])
 
         token_info = auth_service.verify_token(token)
 

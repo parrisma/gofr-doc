@@ -407,14 +407,8 @@ class TestAuthenticationHeaders:
             405,
         ]  # May not exist or be invalid
 
-    def test_auth_enabled_server_requires_headers(self):
+    def test_auth_enabled_server_requires_headers(self, auth_service):
         """Test that auth-enabled server requires headers"""
-        from app.auth import AuthService
-
-        auth_service = AuthService(
-            secret_key="test-secret-key-for-secure-testing-do-not-use-in-production",
-            token_store_path="/tmp/gofr_doc_test_tokens.json",
-        )
         server = GofrDocWebServer(require_auth=True, auth_service=auth_service)
         client = TestClient(server.app)
 

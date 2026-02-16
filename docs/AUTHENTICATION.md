@@ -16,13 +16,13 @@ python -m app.main_web
 
 ### Production Mode (JWT Authentication)
 ```bash
-# Set JWT secret
-export GOFR_DOC_JWT_SECRET="your-secure-secret-key"
+# Set JWT secret (shared across all gofr services)
+export GOFR_JWT_SECRET="your-secure-secret-key"
 export GOFR_DOC_TOKEN_STORE="/path/to/tokens.json"
 
 # Run with authentication enabled
-python -m app.main_mcp --jwt-secret "$GOFR_DOC_JWT_SECRET" --token-store "$GOFR_DOC_TOKEN_STORE"
-python -m app.main_web --jwt-secret "$GOFR_DOC_JWT_SECRET" --token-store "$GOFR_DOC_TOKEN_STORE"
+python -m app.main_mcp --jwt-secret "$GOFR_JWT_SECRET" --token-store "$GOFR_DOC_TOKEN_STORE"
+python -m app.main_web --jwt-secret "$GOFR_JWT_SECRET" --token-store "$GOFR_DOC_TOKEN_STORE"
 ```
 
 ## Authentication Methods
@@ -363,7 +363,7 @@ See [Docker Guide](DOCKER.md) for complete container setup with authentication.
 services:
   gofr-doc-mcp:
     environment:
-      - GOFR_DOC_JWT_SECRET=${GOFR_DOC_JWT_SECRET}
+      - GOFR_JWT_SECRET=${GOFR_JWT_SECRET}
       - GOFR_DOC_TOKEN_STORE=/data/auth/tokens.json
     volumes:
       - gofr-doc-data:/data
