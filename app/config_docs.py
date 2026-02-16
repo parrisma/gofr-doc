@@ -220,9 +220,9 @@ QUICK START
    python app/main_mcp.py
 
 2. Authenticated Setup (Production)
-   export DOCO_MCPO_MODE=auth
-   export DOCO_JWT_SECRET="$(openssl rand -hex 32)"
-   export DOCO_DATA_DIR="/var/doco/data"
+   export GOFR_DOC_MCPO_MODE=auth
+   export GOFR_JWT_SECRET="$(openssl rand -hex 32)"
+   export GOFR_DOC_DATA_DIR="/var/gofr-doc/data"
    python app/main_mcp.py
 
 3. Docker Setup

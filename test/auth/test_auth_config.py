@@ -41,8 +41,8 @@ class TestResolveAuthConfig:
         env_secret = "env-provided-secret"
 
         # Set environment variable
-        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
-        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_JWT_SECRET")
+        os.environ["GOFR_JWT_SECRET"] = env_secret
 
         try:
             jwt_secret, _ = resolve_auth_config(
@@ -55,17 +55,17 @@ class TestResolveAuthConfig:
             assert jwt_secret == cli_secret
         finally:
             if original_env:
-                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
+                os.environ["GOFR_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+                os.environ.pop("GOFR_JWT_SECRET", None)
 
     def test_uses_environment_when_cli_arg_none(self):
         """Should use environment variable when CLI arg is None."""
         logger: Logger = session_logger
         env_secret = "env-provided-secret"
 
-        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
-        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_JWT_SECRET")
+        os.environ["GOFR_JWT_SECRET"] = env_secret
 
         try:
             jwt_secret, _ = resolve_auth_config(
@@ -78,16 +78,16 @@ class TestResolveAuthConfig:
             assert jwt_secret == env_secret
         finally:
             if original_env:
-                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
+                os.environ["GOFR_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+                os.environ.pop("GOFR_JWT_SECRET", None)
 
     def test_exits_when_secret_required_but_missing(self):
         """Should exit when auth required but no secret provided and auto disabled."""
         logger: Logger = session_logger
 
-        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
-        os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+        original_env = os.environ.get("GOFR_JWT_SECRET")
+        os.environ.pop("GOFR_JWT_SECRET", None)
 
         try:
             with pytest.raises(SystemExit) as exc_info:
@@ -103,7 +103,7 @@ class TestResolveAuthConfig:
             assert exc_info.value.code == 1
         finally:
             if original_env:
-                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
+                os.environ["GOFR_JWT_SECRET"] = original_env
 
 
 class TestResolveJwtSecretForCli:
@@ -115,8 +115,8 @@ class TestResolveJwtSecretForCli:
         cli_secret = "cli-provided-secret"
         env_secret = "env-provided-secret"
 
-        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
-        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_JWT_SECRET")
+        os.environ["GOFR_JWT_SECRET"] = env_secret
 
         try:
             result = resolve_jwt_secret_for_cli(
@@ -128,17 +128,17 @@ class TestResolveJwtSecretForCli:
             assert result == cli_secret
         finally:
             if original_env:
-                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
+                os.environ["GOFR_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+                os.environ.pop("GOFR_JWT_SECRET", None)
 
     def test_uses_environment_when_cli_none(self):
         """Should use environment variable when CLI arg is None."""
         logger: Logger = session_logger
         env_secret = "env-provided-secret"
 
-        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
-        os.environ["GOFR_DOC_JWT_SECRET"] = env_secret
+        original_env = os.environ.get("GOFR_JWT_SECRET")
+        os.environ["GOFR_JWT_SECRET"] = env_secret
 
         try:
             result = resolve_jwt_secret_for_cli(
@@ -150,16 +150,16 @@ class TestResolveJwtSecretForCli:
             assert result == env_secret
         finally:
             if original_env:
-                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
+                os.environ["GOFR_JWT_SECRET"] = original_env
             else:
-                os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+                os.environ.pop("GOFR_JWT_SECRET", None)
 
     def test_exits_when_no_secret_provided(self):
         """Should call sys.exit(1) when no secret can be resolved."""
         logger: Logger = session_logger
 
-        original_env = os.environ.get("GOFR_DOC_JWT_SECRET")
-        os.environ.pop("GOFR_DOC_JWT_SECRET", None)
+        original_env = os.environ.get("GOFR_JWT_SECRET")
+        os.environ.pop("GOFR_JWT_SECRET", None)
 
         try:
             with pytest.raises(SystemExit) as exc_info:
@@ -172,7 +172,7 @@ class TestResolveJwtSecretForCli:
             assert exc_info.value.code == 1
         finally:
             if original_env:
-                os.environ["GOFR_DOC_JWT_SECRET"] = original_env
+                os.environ["GOFR_JWT_SECRET"] = original_env
 
 
 class TestIntegrationWithEntryPoints:
