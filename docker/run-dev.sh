@@ -19,11 +19,12 @@ CONTAINER_NAME="gofr-doc-dev"
 IMAGE_NAME="gofr-doc-dev:latest"
 
 # Defaults from environment or hardcoded (gofr-doc uses 8040-8042)
-# Dev container maps to PROD ports on the host.
+# Dev container maps to DEV ports (9040-9042) on the host.
+# Prod ports (8040-8042) are reserved for production containers.
 # Test ports (8140-8142) are reserved for compose.dev.yml test containers.
-MCP_PORT="${GOFRDOC_MCP_PORT:-8040}"
-MCPO_PORT="${GOFRDOC_MCPO_PORT:-8041}"
-WEB_PORT="${GOFRDOC_WEB_PORT:-8042}"
+MCP_PORT="${GOFRDOC_MCP_PORT:-9040}"
+MCPO_PORT="${GOFRDOC_MCPO_PORT:-9041}"
+WEB_PORT="${GOFRDOC_WEB_PORT:-9042}"
 DOCKER_NETWORK="${GOFRDOC_DOCKER_NETWORK:-gofr-net}"
 
 # Parse command line arguments

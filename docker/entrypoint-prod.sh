@@ -104,9 +104,9 @@ pidfile=/tmp/supervisord.pid
 loglevel=info
 
 [program:mcp]
-command=${VENV_BIN}/python -m app.main_mcp --port ${GOFR_DOC_MCP_PORT} --jwt-secret "${GOFR_JWT_SECRET}" --templates-dir "${GOFR_DOC_TEMPLATES_DIR}" --styles-dir "${GOFR_DOC_STYLES_DIR}" --web-url "http://localhost:${GOFR_DOC_WEB_PORT}"
+command=${VENV_BIN}/python -m app.main_mcp --port ${GOFR_DOC_MCP_PORT} --templates-dir "${GOFR_DOC_TEMPLATES_DIR}" --styles-dir "${GOFR_DOC_STYLES_DIR}" --web-url "http://localhost:${GOFR_DOC_WEB_PORT}"
 directory=/home/gofr-doc
-environment=PYTHONPATH="/home/gofr-doc",PATH="${VENV_BIN}:%(ENV_PATH)s",GOFR_DOC_AUTH_BACKEND="${GOFR_DOC_AUTH_BACKEND}",GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL}",GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN}"
+environment=PYTHONPATH="/home/gofr-doc",PATH="${VENV_BIN}:%(ENV_PATH)s",GOFR_JWT_SECRET="%(ENV_GOFR_JWT_SECRET)s",GOFR_DOC_AUTH_BACKEND="${GOFR_DOC_AUTH_BACKEND}",GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL}",GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN}"
 autostart=true
 autorestart=true
 stdout_logfile=/home/gofr-doc/logs/mcp.log
@@ -114,9 +114,9 @@ stderr_logfile=/home/gofr-doc/logs/mcp_error.log
 priority=10
 
 [program:web]
-command=${VENV_BIN}/python -m app.main_web --port ${GOFR_DOC_WEB_PORT} --jwt-secret "${GOFR_JWT_SECRET}" --templates-dir "${GOFR_DOC_TEMPLATES_DIR}" --fragments-dir "${GOFR_DOC_FRAGMENTS_DIR}" --styles-dir "${GOFR_DOC_STYLES_DIR}"
+command=${VENV_BIN}/python -m app.main_web --port ${GOFR_DOC_WEB_PORT} --templates-dir "${GOFR_DOC_TEMPLATES_DIR}" --fragments-dir "${GOFR_DOC_FRAGMENTS_DIR}" --styles-dir "${GOFR_DOC_STYLES_DIR}"
 directory=/home/gofr-doc
-environment=PYTHONPATH="/home/gofr-doc",PATH="${VENV_BIN}:%(ENV_PATH)s",GOFR_DOC_AUTH_BACKEND="${GOFR_DOC_AUTH_BACKEND}",GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL}",GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN}"
+environment=PYTHONPATH="/home/gofr-doc",PATH="${VENV_BIN}:%(ENV_PATH)s",GOFR_JWT_SECRET="%(ENV_GOFR_JWT_SECRET)s",GOFR_DOC_AUTH_BACKEND="${GOFR_DOC_AUTH_BACKEND}",GOFR_DOC_VAULT_URL="${GOFR_DOC_VAULT_URL}",GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN}"
 autostart=true
 autorestart=true
 stdout_logfile=/home/gofr-doc/logs/web.log
