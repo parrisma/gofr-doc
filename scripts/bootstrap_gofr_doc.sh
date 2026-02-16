@@ -343,13 +343,13 @@ start_dev_container() {
 }
 
 start_prod_stack() {
-  if [[ ! -f "${PROJECT_ROOT}/docker/run-prod.sh" ]]; then
-    die "Prod run script not found at docker/run-prod.sh." \
+  if [[ ! -f "${PROJECT_ROOT}/docker/start-prod.sh" ]]; then
+    die "Prod start script not found at docker/start-prod.sh." \
       "Verify your clone is complete and that the docker directory exists."
   fi
 
-  info "Starting production container (gofr-doc-prod)..."
-  (cd "${PROJECT_ROOT}" && bash ./docker/run-prod.sh)
+  info "Starting production stack (gofr-doc)..."
+  (cd "${PROJECT_ROOT}" && bash ./docker/start-prod.sh)
   ok "Production container started."
 }
 
@@ -397,7 +397,7 @@ main() {
 
   echo ""
   ok "gofr-doc bootstrap complete."
-  info "Next: ./docker/run-dev.sh or ./docker/run-prod.sh"
+  info "Next: ./docker/run-dev.sh or ./docker/start-prod.sh"
 }
 
 main

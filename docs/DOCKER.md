@@ -91,8 +91,8 @@ From VS Code:
 
 Use the provided script for production deployment (recommended):
 ```bash
-./docker/run-prod.sh [WEB_PORT] [MCP_PORT]
-# Example: ./docker/run-prod.sh 9000 9001
+./docker/start-prod.sh
+# With options: ./docker/start-prod.sh --build --no-auth
 ```
 
 This script automatically:

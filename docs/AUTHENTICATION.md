@@ -359,7 +359,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8012/sessions
 See [Docker Guide](DOCKER.md) for complete container setup with authentication.
 
 ```yaml
-# docker-compose.yml
+# compose.prod.yml
 services:
   gofr-doc-mcp:
     environment:

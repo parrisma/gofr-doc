@@ -229,7 +229,7 @@ QUICK START
    python app/main_mcp.py
 
 3. Docker Setup
-   # See docker/docker-compose.yml for container configuration
+   # See docker/compose.prod.yml for container configuration
 
 ═════════════════════════════════════════════════════════════════════════════
 

@@ -2,13 +2,16 @@
 """Storage Management CLI
 
 Command-line utility to manage stored sessions and data including purging old data,
-listing sessions, and displaying storage statistics.
+listing sessions, displaying storage statistics, and size-based pruning.
 """
 
 import argparse
+import math
 import sys
 import json
 import os
+import time
+from contextlib import suppress
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -166,6 +169,258 @@ def stats(args):
     except Exception as e:
         logger.error(f"Error getting stats: {str(e)}")
         return 1
+
+
+# =============================================================================
+# Size-based pruning (used by housekeeper service)
+# =============================================================================
+
+logger = session_logger
+
+
+def _acquire_prune_lock(storage_dir: str, stale_seconds: int) -> tuple:
+    """Acquire exclusive prune lock file.
+
+    Returns:
+        (acquired, fd, lock_path)
+    """
+    lock_path = str(Path(storage_dir) / ".prune_size.lock")
+    now = time.time()
+
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, f"pid={os.getpid()} started_at={int(now)}\n".encode("utf-8"))
+        return True, fd, lock_path
+    except FileExistsError:
+        try:
+            age = now - os.path.getmtime(lock_path)
+            if age > stale_seconds:
+                logger.warning(
+                    "housekeeper.lock_stale",
+                    lock_path=lock_path,
+                    age_seconds=age,
+                    stale_seconds=stale_seconds,
+                )
+                with suppress(FileNotFoundError):
+                    os.unlink(lock_path)
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, f"pid={os.getpid()} started_at={int(now)}\n".encode("utf-8"))
+                return True, fd, lock_path
+        except Exception as exc:
+            logger.warning(
+                "housekeeper.lock_check_failed",
+                lock_path=lock_path,
+                error=str(exc),
+            )
+
+        logger.warning("housekeeper.lock_busy", lock_path=lock_path)
+        return False, None, lock_path
+
+
+def _release_prune_lock(fd: Optional[int], lock_path: str) -> None:
+    """Release prune lock file."""
+    if fd is not None:
+        with suppress(Exception):
+            os.close(fd)
+    with suppress(FileNotFoundError):
+        os.unlink(lock_path)
+
+
+def prune_size(args):
+    """Purge oldest documents until total storage size is under limit.
+
+    Args:
+        args: Object with attributes:
+            max_mb (float): Maximum allowed storage in MiB.
+            storage_dir (str|None): Storage directory override.
+            data_root (str|None): Data root directory override.
+            group (str|None): Optional group filter.
+            verbose (bool): Verbose logging.
+            lock_stale_seconds (int): Stale lock timeout.
+
+    Returns:
+        0 = success/no-op, 1 = error/target unmet, 2 = skipped (lock busy).
+    """
+    storage_dir = resolve_storage_dir(
+        getattr(args, "storage_dir", None),
+        getattr(args, "data_root", None),
+    )
+    max_mb = float(args.max_mb)
+    lock_stale_seconds = int(getattr(args, "lock_stale_seconds", 3600))
+    group = getattr(args, "group", None)
+
+    if not math.isfinite(max_mb) or max_mb <= 0:
+        logger.warning(
+            "invalid prune threshold",
+            event="storage_manager.prune.validation_failed",
+            reason="invalid_max_mb",
+            max_mb=max_mb,
+            storage_dir=storage_dir,
+        )
+        return 1
+
+    if lock_stale_seconds <= 0:
+        logger.warning(
+            "invalid prune lock stale seconds",
+            event="storage_manager.prune.validation_failed",
+            reason="invalid_lock_stale_seconds",
+            lock_stale_seconds=lock_stale_seconds,
+        )
+        return 1
+
+    lock_fd: Optional[int] = None
+    lock_path = ""
+    try:
+        acquired, lock_fd, lock_path = _acquire_prune_lock(storage_dir, lock_stale_seconds)
+        if not acquired:
+            logger.warning(
+                "prune skipped due to active lock",
+                event="storage_manager.prune.lock_busy",
+                lock_path=lock_path,
+                storage_dir=storage_dir,
+            )
+            return 2
+
+        storage = FileStorage(storage_dir)
+        guids = storage.list_documents(group=group)
+
+        if not guids:
+            logger.info(
+                "prune skipped because storage is empty",
+                event="storage_manager.prune.empty_storage",
+                storage_dir=storage_dir,
+            )
+            return 0
+
+        # Gather metadata for all items
+        item_details = []
+        total_size = 0
+        anomaly_count = 0
+        anomaly_bytes = 0
+
+        for guid in guids:
+            meta = storage.metadata.get(guid)
+            if meta:
+                size = meta.get("size", 0)
+                created = meta.get("created_at", "")
+                item_details.append((created, guid, size))
+                total_size += size
+            else:
+                # Orphan: GUID on disk with no metadata entry
+                orphan_size = 0
+                for blob_path in Path(storage_dir).glob(f"{guid}.*"):
+                    if blob_path.is_file():
+                        with suppress(OSError):
+                            orphan_size += blob_path.stat().st_size
+                anomaly_count += 1
+                anomaly_bytes += orphan_size
+                total_size += orphan_size
+                logger.warning(
+                    "housekeeper.metadata_missing",
+                    guid=guid,
+                    estimated_size=orphan_size,
+                    storage_dir=storage_dir,
+                )
+
+        # Sort by created_at ascending (oldest first)
+        item_details.sort()
+
+        target_size_bytes = max_mb * 1024 * 1024
+        current_mb = total_size / (1024 * 1024)
+
+        logger.info(
+            "prune usage check",
+            event="storage_manager.prune.check",
+            current_mb=round(current_mb, 2),
+            target_mb=max_mb,
+            item_count=len(guids),
+            anomalies=anomaly_count,
+            anomaly_mb=round(anomaly_bytes / (1024 * 1024), 2),
+            storage_dir=storage_dir,
+        )
+
+        if total_size <= target_size_bytes:
+            logger.info(
+                "prune not required",
+                event="storage_manager.prune.noop",
+                storage_dir=storage_dir,
+                current_mb=round(current_mb, 2),
+                target_mb=max_mb,
+            )
+            return 0
+
+        logger.info(
+            "prune started",
+            event="storage_manager.prune.started",
+            storage_dir=storage_dir,
+            current_mb=round(current_mb, 2),
+            target_mb=max_mb,
+        )
+
+        deleted_count = 0
+        deleted_bytes = 0
+
+        for created, guid, size in item_details:
+            if total_size <= target_size_bytes:
+                break
+
+            try:
+                if storage.delete_document(guid, group=group):
+                    total_size -= size
+                    deleted_bytes += size
+                    deleted_count += 1
+                    logger.info(
+                        "housekeeper.prune",
+                        event="storage_manager.prune.deleted",
+                        guid=guid,
+                        size=size,
+                        created=created,
+                    )
+            except Exception as e:
+                logger.error(
+                    "housekeeper.delete_failed",
+                    event="storage_manager.prune.delete_failed",
+                    guid=guid,
+                    error=str(e),
+                )
+
+        final_mb = total_size / (1024 * 1024)
+        logger.info(
+            "prune completed",
+            event="storage_manager.prune.summary",
+            item_count=len(guids),
+            deleted_count=deleted_count,
+            freed_mb=round(deleted_bytes / (1024 * 1024), 2),
+            final_mb=round(final_mb, 2),
+            target_mb=max_mb,
+            anomalies=anomaly_count,
+        )
+
+        if total_size > target_size_bytes:
+            logger.warning(
+                "housekeeper.target_unmet",
+                event="storage_manager.prune.target_unmet",
+                final_mb=round(final_mb, 2),
+                target_mb=max_mb,
+                remaining_bytes=total_size - int(target_size_bytes),
+                anomalies=anomaly_count,
+            )
+            return 1
+
+        return 0
+
+    except Exception as e:
+        logger.error(
+            "Storage prune-size failed",
+            event="storage_manager.prune.failed",
+            error=str(e),
+            cause=type(e).__name__,
+            storage_dir=storage_dir,
+            max_mb=max_mb,
+        )
+        return 1
+    finally:
+        _release_prune_lock(lock_fd, lock_path)
 
 
 def resolve_sessions_dir(cli_dir: Optional[str], data_root: Optional[str] = None) -> str:
@@ -391,6 +646,7 @@ Examples:
   python -m app.management.storage_manager storage purge --age-days 30
   python -m app.management.storage_manager storage list --verbose
   python -m app.management.storage_manager storage stats
+  python -m app.management.storage_manager storage prune-size --max-mb 500
 
   # Sessions Commands (manage document sessions)
   python -m app.management.storage_manager sessions list --verbose
@@ -511,6 +767,36 @@ Environment Variables:
         help="Filter statistics by group name",
     )
 
+    # Storage prune-size (size-based pruning for housekeeper)
+    storage_prune_size = storage_subparsers.add_parser(
+        "prune-size",
+        help="Prune oldest documents until total size is under limit",
+    )
+    storage_prune_size.add_argument(
+        "--max-mb",
+        type=float,
+        default=1024,
+        help="Maximum storage size in MiB (default: 1024)",
+    )
+    storage_prune_size.add_argument(
+        "--group",
+        type=str,
+        default=None,
+        help="Only prune documents from this group",
+    )
+    storage_prune_size.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed deletion information",
+    )
+    storage_prune_size.add_argument(
+        "--lock-stale-seconds",
+        type=int,
+        default=3600,
+        help="Seconds before a stale lock is forcibly broken (default: 3600)",
+    )
+
     # Sessions subcommands
     sessions_parser = subparsers.add_parser("sessions", help="Manage document sessions")
     sessions_subparsers = sessions_parser.add_subparsers(dest="command", help="Sessions command")
@@ -574,6 +860,8 @@ Environment Variables:
             return list_documents(args)
         elif args.command == "stats":
             return stats(args)
+        elif args.command == "prune-size":
+            return prune_size(args)
 
     # Handle sessions commands
     elif args.resource == "sessions":

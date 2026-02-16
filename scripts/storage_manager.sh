@@ -9,6 +9,7 @@
 #   ./storage_manager.sh sessions list                    # Uses current GOFR_DOC_ENV
 #   ./storage_manager.sh --env PROD storage stats         # Force PROD environment
 #   ./storage_manager.sh --env TEST sessions purge --yes  # Force TEST environment
+#   ./storage_manager.sh storage prune-size --max-mb 500  # Prune until size < 500 MB
 
 set -e
 

@@ -101,6 +101,7 @@ docker run -d \
     -p ${WEB_PORT}:8042 \
     -v "$PROJECT_ROOT:/home/gofr/devroot/gofr-doc:rw" \
     -v "$PROJECT_ROOT/../gofr-dig:/home/gofr/devroot/gofr-dig:ro" \
+    -v "$PROJECT_ROOT/../gofr-plot:/home/gofr/devroot/gofr-plot:ro" \
     -v ${VOLUME_NAME}:/home/gofr/devroot/gofr-doc/data:rw \
     -v gofr-secrets:/run/gofr-secrets:ro \
     -v /var/run/docker.sock:/var/run/docker.sock \

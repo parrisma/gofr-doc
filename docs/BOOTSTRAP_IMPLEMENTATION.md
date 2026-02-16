@@ -12,7 +12,7 @@ Universal, idempotent bootstrap for any developer or CI environment.
 | 3 | Create `scripts/ensure_approle.sh` | ✅ Done | Self-healing: sync vs full provision |
 | 4 | Create `scripts/migrate_secrets_to_volume.sh` | ✅ Done | Seeds `gofr-secrets` + `gofr-secrets-test` |
 | 5 | Create `scripts/bootstrap_gofr_doc.sh` | ✅ Done | Main bootstrap script (gofr-dig style) |
-| 6 | Update compose files for secrets volume | ✅ Done | `docker/docker-compose.yml` mounts `gofr-secrets` at `/run/gofr-secrets:ro` |
+| 6 | Update compose files for secrets volume | ✅ Done | `docker/compose.prod.yml` mounts `gofr-secrets` at `/run/gofr-secrets:ro` |
 | 7 | Update entrypoint-prod.sh for AppRole creds | ✅ Done | Copies `/run/gofr-secrets/service_creds/gofr-doc.json` → `/run/secrets/vault_creds` |
 | 8 | Test end-to-end | ✅ Done | `./scripts/bootstrap_gofr_doc.sh --yes --auto-tests` |
 | 9 | Run full test suite | ✅ Done | 571 passed (via bootstrap `--auto-tests`) |
@@ -34,7 +34,7 @@ scripts/bootstrap_gofr_doc.sh       # NEW — Main bootstrap script
 scripts/ensure_approle.sh           # NEW — AppRole provisioning wrapper
 scripts/migrate_secrets_to_volume.sh # NEW — Seed Docker secrets volumes
 docker/compose.dev.yml              # UPDATE — add gofr-secrets-test volume mount
-docker/docker-compose.yml           # UPDATE — add gofr-secrets volume mount (prod)
+docker/compose.prod.yml             # UPDATE — add gofr-secrets volume mount (prod)
 docker/entrypoint-prod.sh           # UPDATE — copy AppRole creds from volume
 lib/gofr-common/.../policies.py     # UPDATE — add gofr-doc-policy
 ```

@@ -1,11 +1,11 @@
 # gofr-doc Production Dockerfile
-# Single-stage build with supervisor for MCP + MCPO + Web servers
+# Lightweight image for MCP, MCPO, and Web servers.
+# Each server runs as a separate compose service — no supervisor needed.
 FROM python:3.11-slim
 
-# Install system dependencies, supervisor, and WeasyPrint native libraries
+# Install system dependencies and WeasyPrint native libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    supervisor \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libpangocairo-1.0-0 \
@@ -18,9 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for fast Python package management
 RUN pip install --no-cache-dir uv
 
-# Create gofr-doc user and group
-RUN groupadd --system gofr-doc && \
-    useradd --system --gid gofr-doc --home-dir /home/gofr-doc --create-home gofr-doc
+# Create gofr-doc user and group with standard GOFR UID/GID (1000:1000)
+# All GOFR containers use UID 1000 / GID 1000 regardless of username,
+# so shared Docker volumes (gofr-secrets, etc.) just work without chown.
+ARG GOFR_UID=1000
+ARG GOFR_GID=1000
+RUN groupadd --gid ${GOFR_GID} gofr-doc && \
+    useradd --uid ${GOFR_UID} --gid gofr-doc --home-dir /home/gofr-doc --create-home gofr-doc
 
 # Create application directories
 RUN mkdir -p /home/gofr-doc/app \
@@ -30,9 +34,7 @@ RUN mkdir -p /home/gofr-doc/app \
     && mkdir -p /home/gofr-doc/data/fragments \
     && mkdir -p /home/gofr-doc/data/styles \
     && mkdir -p /home/gofr-doc/logs \
-    && mkdir -p /var/log/supervisor \
-    && chown -R gofr-doc:gofr-doc /home/gofr-doc \
-    && chown -R gofr-doc:gofr-doc /var/log/supervisor
+    && chown -R gofr-doc:gofr-doc /home/gofr-doc
 
 WORKDIR /home/gofr-doc
 
@@ -62,15 +64,22 @@ RUN uv pip install mcpo
 # Fix ownership after installation
 RUN chown -R gofr-doc:gofr-doc /home/gofr-doc
 
-# Copy entrypoint script
-COPY --chown=gofr-doc:gofr-doc docker/entrypoint-prod.sh /home/gofr-doc/entrypoint-prod.sh
+# Vault AppRole credentials are now provided at runtime via the gofr-secrets
+# Docker volume mounted at /run/secrets (see compose.prod.yml).
+# We only create the directory here so the mount point exists.
+RUN mkdir -p /run/secrets && chown gofr-doc:gofr-doc /run/secrets
+
+# Copy production entrypoint (handles Vault JWT read, creds copy, user drop)
+COPY --chown=root:root docker/entrypoint-prod.sh /home/gofr-doc/entrypoint-prod.sh
 RUN chmod +x /home/gofr-doc/entrypoint-prod.sh
 
-# Expose ports
-# 8040: MCP Server
-# 8041: MCPO Server  
-# 8042: Web Server
-EXPOSE 8040 8041 8042
+# Ports are configured at runtime via compose.yml + gofr_ports.env.
+# EXPOSE uses build ARGs so `docker inspect` reflects the correct ports.
+ARG GOFR_DOC_MCP_PORT
+ARG GOFR_DOC_MCPO_PORT
+ARG GOFR_DOC_WEB_PORT
+EXPOSE ${GOFR_DOC_MCP_PORT:-0} ${GOFR_DOC_MCPO_PORT:-0} ${GOFR_DOC_WEB_PORT:-0}
 
-# Run as root for supervisor (it will manage user processes)
-ENTRYPOINT ["/home/gofr-doc/entrypoint-prod.sh"]
+# Default: run as gofr-doc user
+# compose.prod.yml overrides entrypoint per service
+USER gofr-doc

@@ -123,7 +123,7 @@ if __name__ == "__main__":
         logger.info("=" * 70)
         logger.info(f"API endpoint: http://{args.host}:{args.port}")
         logger.info(f"API documentation: http://{args.host}:{args.port}/docs")
-        logger.info(f"Health check: http://{args.host}:{args.port}/health")
+        logger.info(f"Health check: http://{args.host}:{args.port}/ping")
         logger.info("=" * 70)
         uvicorn.run(server.app, host=args.host, port=args.port, log_level="info")
         logger.info("=" * 70)

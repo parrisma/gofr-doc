@@ -1,0 +1,246 @@
+# GOFR-DOC Docker Compose - Production Stack
+#
+# Port Configuration:
+#   All ports defined in lib/gofr-common/config/gofr_ports.env
+#   gofr-doc ports are defined in lib/gofr-common/config/gofr_ports.env
+#
+# Usage:
+#   Use start-prod.sh to start production stack (recommended):
+#     ./scripts/start-prod.sh               # Auto-builds image, starts stack
+#     ./scripts/start-prod.sh --no-auth     # Start without JWT authentication
+#     ./scripts/start-prod.sh --port-offset 100  # Shift host ports by N
+#     ./scripts/start-prod.sh --build       # Force-rebuild image first
+#
+#   Or manually:
+#     cd docker
+#     set -a && source ../lib/gofr-common/config/gofr_ports.env && set +a
+#     docker compose -f compose.prod.yml up -d
+#
+# Services:
+#   - mcp:   MCP Server (Streamable HTTP)  — port ${GOFR_DOC_MCP_PORT}
+#   - mcpo:  MCPO Server (OpenAPI wrapper) — port ${GOFR_DOC_MCPO_PORT}
+#   - web:   Web Server (REST API)         — port ${GOFR_DOC_WEB_PORT}
+
+name: gofr-doc
+
+x-gofr-ports: &gofr_ports
+  env_file:
+    - ../lib/gofr-common/config/gofr_ports.env
+
+# Shared settings for all gofr-doc application services
+x-gofr-doc-common: &gofr_doc_common
+  <<: *gofr_ports
+  image: gofr-doc-prod:latest
+  restart: unless-stopped
+  networks:
+    - gofr-net
+
+services:
+  # ==========================================================================
+  # 1. MCP Server (Streamable HTTP)
+  # ==========================================================================
+  mcp:
+    <<: *gofr_doc_common
+    container_name: gofr-doc-mcp
+    hostname: gofr-doc-mcp
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/home/gofr-doc/entrypoint-prod.sh"]
+    command:
+      - /home/gofr-doc/.venv/bin/python
+      - -m
+      - app.main_mcp
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${GOFR_DOC_MCP_PORT}"
+      - --templates-dir
+      - /home/gofr-doc/data/templates
+      - --styles-dir
+      - /home/gofr-doc/data/styles
+      - --web-url
+      - "http://gofr-doc-web:${GOFR_DOC_WEB_PORT}"
+      - --proxy-url-mode
+      - url
+    environment:
+      - GOFR_DOC_ENV=PROD
+      - GOFR_DOC_MCP_PORT=${GOFR_DOC_MCP_PORT}
+      - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-INFO}
+      - GOFR_DOC_LOG_JSON=${GOFR_DOC_LOG_JSON:-true}
+      - GOFR_DOC_LOG_FILE=/home/gofr-doc/logs/gofr-doc-mcp.log
+      - GOFR_DOC_SEQ_URL=${GOFR_DOC_SEQ_URL:-}
+      - GOFR_DOC_SEQ_API_KEY=${GOFR_DOC_SEQ_API_KEY:-}
+      - GOFR_DOC_DATA_DIR=/home/gofr-doc/data
+      - GOFR_DOC_STORAGE_DIR=/home/gofr-doc/data/storage
+      # Auth — JWT secret read from Vault by entrypoint-prod.sh
+      - GOFR_DOC_NO_AUTH=${GOFR_DOC_NO_AUTH:-}
+      # Auth backend (vault only)
+      - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
+      - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault:${GOFR_VAULT_PORT}}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
+    ports:
+      - "${GOFR_DOC_MCP_HOST_PORT:-${GOFR_DOC_MCP_PORT}}:${GOFR_DOC_MCP_PORT}"
+    volumes:
+      - gofr-doc-data:/home/gofr-doc/data
+      - gofr-doc-prod-logs:/home/gofr-doc/logs
+      - gofr-secrets:/run/gofr-secrets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -o /dev/null -w '%{http_code}' http://localhost:${GOFR_DOC_MCP_PORT}/mcp/ | grep -qE '^(200|405|406)' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ==========================================================================
+  # 2. MCPO Server (OpenAPI Wrapper)
+  # ==========================================================================
+  mcpo:
+    <<: *gofr_doc_common
+    container_name: gofr-doc-mcpo
+    hostname: gofr-doc-mcpo
+    user: gofr-doc
+    working_dir: /home/gofr-doc
+    entrypoint: []
+    depends_on:
+      mcp:
+        condition: service_healthy
+    command: >
+      /home/gofr-doc/.venv/bin/mcpo
+      --host 0.0.0.0 --port ${GOFR_DOC_MCPO_PORT} --server-type streamable-http
+      -- http://gofr-doc-mcp:${GOFR_DOC_MCP_PORT}/mcp
+    environment:
+      - GOFR_DOC_ENV=PROD
+      - GOFR_DOC_MCP_PORT=${GOFR_DOC_MCP_PORT}
+      - GOFR_DOC_MCPO_PORT=${GOFR_DOC_MCPO_PORT}
+      # Note: mcpo binary is a third-party proxy; it does not use our
+      # StructuredLogger so LOG_FILE / LOG_JSON / SEQ vars are not needed.
+      # Its stdout/stderr are captured by Docker's log driver.
+    ports:
+      - "${GOFR_DOC_MCPO_HOST_PORT:-${GOFR_DOC_MCPO_PORT}}:${GOFR_DOC_MCPO_PORT}"
+    volumes:
+      - gofr-doc-prod-logs:/home/gofr-doc/logs
+      - gofr-secrets:/run/gofr-secrets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_MCPO_PORT}/openapi.json || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ==========================================================================
+  # 3. Web Server (REST API)
+  # ==========================================================================
+  web:
+    <<: *gofr_doc_common
+    container_name: gofr-doc-web
+    hostname: gofr-doc-web
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/home/gofr-doc/entrypoint-prod.sh"]
+    command:
+      - /home/gofr-doc/.venv/bin/python
+      - -m
+      - app.main_web
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${GOFR_DOC_WEB_PORT}"
+      - --templates-dir
+      - /home/gofr-doc/data/templates
+      - --fragments-dir
+      - /home/gofr-doc/data/fragments
+      - --styles-dir
+      - /home/gofr-doc/data/styles
+    environment:
+      - GOFR_DOC_ENV=PROD
+      - GOFR_DOC_WEB_PORT=${GOFR_DOC_WEB_PORT}
+      - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-INFO}
+      - GOFR_DOC_LOG_JSON=${GOFR_DOC_LOG_JSON:-true}
+      - GOFR_DOC_LOG_FILE=/home/gofr-doc/logs/gofr-doc-web.log
+      - GOFR_DOC_SEQ_URL=${GOFR_DOC_SEQ_URL:-}
+      - GOFR_DOC_SEQ_API_KEY=${GOFR_DOC_SEQ_API_KEY:-}
+      - GOFR_DOC_DATA_DIR=/home/gofr-doc/data
+      - GOFR_DOC_STORAGE_DIR=/home/gofr-doc/data/storage
+      # Auth — JWT secret read from Vault by entrypoint-prod.sh
+      - GOFR_DOC_NO_AUTH=${GOFR_DOC_NO_AUTH:-}
+      # Auth backend (vault only)
+      - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
+      - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault:${GOFR_VAULT_PORT}}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
+    ports:
+      - "${GOFR_DOC_WEB_HOST_PORT:-${GOFR_DOC_WEB_PORT}}:${GOFR_DOC_WEB_PORT}"
+    volumes:
+      - gofr-doc-data:/home/gofr-doc/data
+      - gofr-doc-prod-logs:/home/gofr-doc/logs
+      - gofr-secrets:/run/gofr-secrets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_WEB_PORT}/ping || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================================
+  # 4. Housekeeper (Storage Pruning)
+  # ==========================================================================
+  housekeeper:
+    <<: *gofr_doc_common
+    container_name: gofr-doc-housekeeper
+    hostname: gofr-doc-housekeeper
+    user: root
+    working_dir: /home/gofr-doc
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Ensure directories exist and have correct ownership
+        mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/logs
+        chown -R gofr-doc:gofr-doc /home/gofr-doc/data /home/gofr-doc/logs
+
+        # Start housekeeping loop
+        exec su -s /bin/bash gofr-doc -c "/home/gofr-doc/.venv/bin/python app/housekeeper.py"
+    environment:
+      - GOFR_DOC_ENV=PROD
+      - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-INFO}
+      - GOFR_DOC_LOG_JSON=${GOFR_DOC_LOG_JSON:-true}
+      - GOFR_DOC_LOG_FILE=/home/gofr-doc/logs/gofr-doc-housekeeper.log
+      - GOFR_DOC_SEQ_URL=${GOFR_DOC_SEQ_URL:-}
+      - GOFR_DOC_SEQ_API_KEY=${GOFR_DOC_SEQ_API_KEY:-}
+      # Path config consistent with other services
+      - GOFR_DOC_DATA_DIR=/home/gofr-doc/data
+      - GOFR_DOC_STORAGE_DIR=/home/gofr-doc/data/storage
+      # Check interval and max size
+      - GOFR_DOC_HOUSEKEEPING_INTERVAL_MINS=${GOFR_DOC_HOUSEKEEPING_INTERVAL_MINS:-60}
+      - GOFR_DOC_MAX_STORAGE_MB=${GOFR_DOC_MAX_STORAGE_MB:-1024}
+      - GOFR_DOC_HOUSEKEEPER_LOCK_STALE_SECONDS=${GOFR_DOC_HOUSEKEEPER_LOCK_STALE_SECONDS:-3600}
+    volumes:
+      - gofr-doc-data:/home/gofr-doc/data
+      - gofr-doc-prod-logs:/home/gofr-doc/logs
+      - gofr-secrets:/run/gofr-secrets:ro
+    # No ports exposed for housekeeper
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  gofr-net:
+    name: gofr-net
+    external: true
+    # Network is shared across all GOFR production services
+    # Create manually if needed: docker network create gofr-net
+
+# ==========================================================================
+# Volumes — Persistent
+# ==========================================================================
+volumes:
+  gofr-doc-data:
+    name: gofr-doc-data
+    external: false
+  gofr-doc-prod-logs:
+    name: gofr-doc-prod-logs
+    external: false
+  gofr-secrets:
+    name: gofr-secrets
+    external: true
+    # Shared secrets volume — created by run-dev-container.sh or migrate_secrets_to_volume.sh

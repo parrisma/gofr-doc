@@ -2,18 +2,20 @@
 # =======================================================================
 # GOFR-DOC Production Stop Script
 # =======================================================================
+# Stops the compose-based production stack.
+# Usage:
+#   ./docker/stop-prod.sh         # Stop all services
+#   ./docker/stop-prod.sh --rm    # Stop and remove containers + orphans
 
-CONTAINER_NAME="gofr-doc-prod"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/compose.prod.yml"
 
-echo "Stopping ${CONTAINER_NAME}..."
-
-if docker ps -q -f name=${CONTAINER_NAME} | grep -q .; then
-    docker stop ${CONTAINER_NAME}
-    echo "Container stopped"
-else
-    echo "Container not running"
-fi
+echo "Stopping gofr-doc production stack..."
 
 if [ "$1" = "--rm" ] || [ "$1" = "-r" ]; then
-    docker rm ${CONTAINER_NAME} 2>/dev/null && echo "Container removed"
+    docker compose -f "$COMPOSE_FILE" down --remove-orphans
+    echo "Stack stopped and containers removed."
+else
+    docker compose -f "$COMPOSE_FILE" stop
+    echo "Stack stopped (containers preserved)."
 fi
