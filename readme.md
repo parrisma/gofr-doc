@@ -37,23 +37,23 @@ uv pip install fastapi uvicorn httpx mcp pydantic jinja2 weasyprint html2text py
 
 | Guide | Description |
 |-------|-------------|
-| **[Development Guide](docs/DEVELOPMENT.md)** | Complete developer onboarding, setup, and testing |
-| **[Document Generation](docs/DOCUMENT_GENERATION.md)** | Core workflow: sessions → fragments → rendering |
-| **[Project Specification](docs/PROJECT_SPEC.md)** | Architecture, design decisions, and technical details |
+| **[Development Guide](docs/development.md)** | Complete developer onboarding, setup, and testing |
+| **[Document Generation](docs/document_generation.md)** | Core workflow: sessions → fragments → rendering |
+| **[Project Specification](docs/project_spec.md)** | Architecture, design decisions, and technical details |
 | **[Configuration](app/config_docs.py)** | Environment variables (`python app/config_docs.py`) |
 
 ### Core Documentation
 
 | Guide | Description |
 |-------|-------------|
-| **[Authentication & Security](docs/AUTHENTICATION.md)** | JWT tokens, groups, multi-tenancy, security best practices |
-| **[Features Guide](docs/FEATURES.md)** | Tables, images, groups, proxy mode - comprehensive reference |
-| **[Integration Guide](docs/INTEGRATIONS.md)** | n8n setup, HTTP API, MCP protocol, troubleshooting |
-| **[Docker Deployment](docs/DOCKER.md)** | Container setup, docker-compose, production deployment |
-| **[Data Persistence](docs/DATA_PERSISTENCE.md)** | Session storage, recovery, file management |
+| **[Authentication & Security](docs/authentication.md)** | JWT tokens, groups, multi-tenancy, security best practices |
+| **[Features Guide](docs/features.md)** | Tables, images, groups, proxy mode - comprehensive reference |
+| **[Integration Guide](docs/integrations.md)** | n8n setup, HTTP API, MCP protocol, troubleshooting |
+| **[Docker Deployment](docs/docker.md)** | Container setup, docker-compose, production deployment |
+| **[Data Persistence](docs/data_persistence.md)** | Session storage, recovery, file management |
 | **[gofr-plot Migration Plan](docs/gofr-plot-migration-plan.md)** | Step-by-step plan to merge gofr-plot tools + functional tests into gofr-doc |
 
-> 💡 **Pro Tip**: Start with [DEVELOPMENT.md](docs/DEVELOPMENT.md) for complete setup, then explore [FEATURES.md](docs/FEATURES.md) for all capabilities.
+> 💡 **Pro Tip**: Start with [development.md](docs/development.md) for complete setup, then explore [features.md](docs/features.md) for all capabilities.
 
 ### Running Without Authentication (Development)
 
@@ -109,7 +109,7 @@ bash scripts/run_mcp_auth.sh
 - Cross-group access attempts return generic "SESSION_NOT_FOUND" errors
 - Discovery tools (list_templates, list_styles) do not require authentication
 
-See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the full JWT configuration guide.
+See [docs/authentication.md](docs/authentication.md) for the full JWT configuration guide.
 
 ## Usage Examples
 
@@ -183,7 +183,7 @@ Use any MCP-compatible client to call document generation tools:
 4. All subsequent operations verify `session.group == caller.group`
 5. Cross-group access attempts are denied with generic errors
 
-See [docs/DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md) for detailed workflow examples.
+See [docs/document_generation.md](docs/document_generation.md) for detailed workflow examples.
 
 ## Table Fragment
 
@@ -228,7 +228,7 @@ The table fragment provides rich, formatted tables with 14 configurable paramete
 - HTML/PDF: Full feature support (colors, borders, styling)
 - Markdown: Table structure with alignment markers (colors omitted)
 
-See [Features Guide](docs/FEATURES.md#tables) for complete documentation with examples.
+See [Features Guide](docs/features.md#tables) for complete documentation with examples.
 
 ## Configuration
 
@@ -300,16 +300,16 @@ doco/
 ├── test/                    # Pytest suites
 ├── pyproject.toml           # Dependency and tool configuration
 ├── requirements.txt         # Minimal dependency pin list
-└── README.md                # This file
+└── readme.md                # This file
 ```
 
 ## Additional Resources
 
-- **Core guides**: [DOCUMENT_GENERATION.md](docs/DOCUMENT_GENERATION.md), [DATA_PERSISTENCE.md](docs/DATA_PERSISTENCE.md)
-- **Authentication**: [AUTHENTICATION.md](docs/AUTHENTICATION.md)
-- **Features**: [FEATURES.md](docs/FEATURES.md)
-- **Infrastructure**: [DOCKER.md](docs/DOCKER.md)
-- **Integration**: [INTEGRATIONS.md](docs/INTEGRATIONS.md)
+- **Core guides**: [document_generation.md](docs/document_generation.md), [data_persistence.md](docs/data_persistence.md)
+- **Authentication**: [authentication.md](docs/authentication.md)
+- **Features**: [features.md](docs/features.md)
+- **Infrastructure**: [docker.md](docs/docker.md)
+- **Integration**: [integrations.md](docs/integrations.md)
 
 ## Architecture Overview
 

@@ -28,7 +28,7 @@ Implements the spec in `docs/stock_images_spec.md`.
 
 ### Step 9 -- [DONE] Run full test suite (596 passed, 0 failed)
 
-### Step 10 -- [DONE] Update documentation (Stock Images section in FEATURES.md)
+### Step 10 -- [DONE] Update documentation (Stock Images section in features.md)
 
 
 ## Files changed / created
@@ -43,4 +43,4 @@ Implements the spec in `docs/stock_images_spec.md`.
 | `images/.gitkeep` | New -- empty placeholder |
 | `.gitignore` | Add `images/*` exclusion |
 | `test/web/test_images.py` | New -- unit tests |
-| `docs/FEATURES.md` | Add Stock Images section |
+| `docs/features.md` | Add Stock Images section |

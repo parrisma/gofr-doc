@@ -2,7 +2,7 @@
 name = "gofr-doc"
 version = "1.0.0"
 description = "Document generation service with MCP server support"
-readme = "README.md"
+readme = "readme.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
 # Note: gofr-common is installed as editable from lib/gofr-common submodule by entrypoint

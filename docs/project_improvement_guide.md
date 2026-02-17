@@ -66,10 +66,10 @@ app/
 - **Consolidated Structure**: Avoid duplication, cross-reference related docs
 - **Index File**: Central navigation with document summaries
 - **Document Types**: 
-  - PROJECT_SPEC.md: Architecture and design decisions
+  - project_spec.md: Architecture and design decisions
   - {FEATURE}.md: Feature-specific guides with examples
   - {INTEGRATION}.md: External system setup and troubleshooting
-  - DEVELOPMENT.md: Developer onboarding and workflows
+  - development.md: Developer onboarding and workflows
 - **Code Comments**: Explain "why" not "what", reference decisions, note trade-offs
 - **API Documentation**: OpenAPI/Swagger for REST, tool descriptions for MCP
 

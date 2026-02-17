@@ -1,9 +1,9 @@
 # Features Guide
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#features-documentation) | [Document Generation](DOCUMENT_GENERATION.md) | [Project Spec](PROJECT_SPEC.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Authentication](AUTHENTICATION.md)
-> - **Development**: [Development Guide](DEVELOPMENT.md) | [Data Persistence](DATA_PERSISTENCE.md)
+> - [← Back to README](../readme.md#features-documentation) | [Document Generation](document_generation.md) | [Project Spec](project_spec.md)
+> - **Deployment**: [Docker](docker.md) | [Authentication](authentication.md)
+> - **Development**: [Development Guide](development.md) | [Data Persistence](data_persistence.md)
 
 ## Overview
 
@@ -515,7 +515,7 @@ Groups work with authentication for session isolation:
 ❌ engineering token CANNOT access research sessions
 ```
 
-See [Authentication Guide](AUTHENTICATION.md) for details.
+See [Authentication Guide](authentication.md) for details.
 
 ---
 
@@ -669,8 +669,8 @@ proxy_dir = Config.get_proxy_dir()  # "data/proxy"
 
 ## See Also
 
-- **[Document Generation Guide](DOCUMENT_GENERATION.md)** - Complete workflow
-- **[Authentication](AUTHENTICATION.md)** - Security and group isolation
-- **[Data Persistence](DATA_PERSISTENCE.md)** - Session and storage
-- **[Project Spec](PROJECT_SPEC.md)** - Architecture details
-- **[Development Guide](DEVELOPMENT.md)** - Testing and development
+- **[Document Generation Guide](document_generation.md)** - Complete workflow
+- **[Authentication](authentication.md)** - Security and group isolation
+- **[Data Persistence](data_persistence.md)** - Session and storage
+- **[Project Spec](project_spec.md)** - Architecture details
+- **[Development Guide](development.md)** - Testing and development

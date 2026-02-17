@@ -1,9 +1,9 @@
 # n8n Integration Guide
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#integration) | [Document Generation](DOCUMENT_GENERATION.md) | [Authentication](AUTHENTICATION.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Development Guide](DEVELOPMENT.md)
-> - **Features**: [Tables](FEATURES.md#tables) | [Proxy Mode](FEATURES.md#proxy-mode)
+> - [← Back to README](../readme.md#integration) | [Document Generation](document_generation.md) | [Authentication](authentication.md)
+> - **Deployment**: [Docker](docker.md) | [Development Guide](development.md)
+> - **Features**: [Tables](features.md#tables) | [Proxy Mode](features.md#proxy-mode)
 
 ## Overview
 
@@ -736,11 +736,11 @@ docker logs gofr-doc-mcp -f
 
 ## Additional Resources
 
-- **[Document Generation Guide](DOCUMENT_GENERATION.md)** - Complete workflow details
-- **[Features Guide](FEATURES.md)** - Tables, images, proxy mode
-- **[Authentication Guide](AUTHENTICATION.md)** - Security setup
-- **[Docker Guide](DOCKER.md)** - Container deployment
-- **[Development Guide](DEVELOPMENT.md)** - Testing and development
+- **[Document Generation Guide](document_generation.md)** - Complete workflow details
+- **[Features Guide](features.md)** - Tables, images, proxy mode
+- **[Authentication Guide](authentication.md)** - Security setup
+- **[Docker Guide](docker.md)** - Container deployment
+- **[Development Guide](development.md)** - Testing and development
 
 ---
 

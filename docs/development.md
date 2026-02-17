@@ -1,10 +1,10 @@
 # DOCO Development Guide
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#-documentation) | [Project Specification](PROJECT_SPEC.md) | [Configuration](../app/config_docs.py)
-> - **Features**: [Features Guide](FEATURES.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Authentication](AUTHENTICATION.md)
-> - **Integration**: [Integration Guide](INTEGRATIONS.md)
+> - [← Back to README](../readme.md#-documentation) | [Project Specification](project_spec.md) | [Configuration](../app/config_docs.py)
+> - **Features**: [Features Guide](features.md)
+> - **Deployment**: [Docker](docker.md) | [Authentication](authentication.md)
+> - **Integration**: [Integration Guide](integrations.md)
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
@@ -73,8 +73,8 @@ doco/
 │   └── storage/           # Uploaded/rendered documents
 │
 ├── docs/                   # Documentation
-│   ├── PROJECT_SPEC.md    # Comprehensive specification
-│   ├── DEVELOPMENT.md     # This file
+│   ├── project_spec.md    # Comprehensive specification
+│   ├── development.md     # This file
 │   └── *.md               # Feature-specific docs
 │
 ├── templates/              # Document templates
@@ -477,12 +477,12 @@ export DOCO_MCPO_MODE=public
 
 ## Additional Resources
 
-- **Project Specification**: `docs/PROJECT_SPEC.md`
+- **Project Specification**: `docs/project_spec.md`
 - **Configuration Reference**: Run `python app/config_docs.py`
 - **API Documentation**: Start servers and visit:
   - MCP: `http://localhost:8010/mcp`
   - Web: `http://localhost:8012/docs`
-- **n8n Integration**: `docs/INTEGRATIONS.md`
+- **n8n Integration**: `docs/integrations.md`
 
 ## Getting Help
 

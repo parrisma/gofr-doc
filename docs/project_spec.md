@@ -1,10 +1,10 @@
 # Document Generation MCP Service Specification
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#-documentation) | [Development Guide](DEVELOPMENT.md) | [Configuration](../app/config_docs.py)
-> - **Implementation**: [Document Generation](DOCUMENT_GENERATION.md) | [Data Persistence](DATA_PERSISTENCE.md) | [Rendering](RENDERING_README.md)
-> - **Features**: [Features Guide](FEATURES.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Authentication](AUTHENTICATION.md)
+> - [← Back to README](../readme.md#-documentation) | [Development Guide](development.md) | [Configuration](../app/config_docs.py)
+> - **Implementation**: [Document Generation](document_generation.md) | [Data Persistence](data_persistence.md) | [Rendering](RENDERING_readme.md)
+> - **Features**: [Features Guide](features.md)
+> - **Deployment**: [Docker](docker.md) | [Authentication](authentication.md)
 
 ## 1. Project Overview
 

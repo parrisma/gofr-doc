@@ -1,9 +1,9 @@
 # Docker Setup
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#-documentation) | [Development Guide](DEVELOPMENT.md) | [Configuration](../app/config_docs.py)
-> - **Deployment**: [Authentication](AUTHENTICATION.md) | [Data Persistence](DATA_PERSISTENCE.md)
-> - **Integration**: [Integration Guide](INTEGRATIONS.md)
+> - [← Back to README](../readme.md#-documentation) | [Development Guide](development.md) | [Configuration](../app/config_docs.py)
+> - **Deployment**: [Authentication](authentication.md) | [Data Persistence](data_persistence.md)
+> - **Integration**: [Integration Guide](integrations.md)
 
 This directory contains Docker configurations for the doco document generation MCP service.
 
@@ -290,7 +290,7 @@ docker network rm doco_net 2>/dev/null
 
 ## See Also
 
-- [PROJECT_SPEC.md](../PROJECT_SPEC.md) — Technology stack and architecture
-- [DATA_PERSISTENCE.md](DATA_PERSISTENCE.md) — Session storage and recovery
-- [DOCUMENT_GENERATION.md](DOCUMENT_GENERATION.md) — Using the document API
+- [project_spec.md](../project_spec.md) — Technology stack and architecture
+- [data_persistence.md](data_persistence.md) — Session storage and recovery
+- [document_generation.md](document_generation.md) — Using the document API
 

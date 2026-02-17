@@ -138,12 +138,12 @@ async def render_document(session_id: str, request: RenderRequest):
 **Goal**: Update all user-facing documentation to emphasize alias-first approach
 
 **Files to update**:
-- `README.md`
+- `readme.md`
   - Update REST API examples to show alias in create_session
   - Show using alias variable instead of UUID in curl examples
   - Emphasize in session tools description that aliases are available everywhere
 
-- `DOCUMENT_GENERATION.md`
+- `document_generation.md`
   - Add "Quick Start: Session Aliases" section at top
   - Add comprehensive "Session Aliases" concept section
   - Update all workflow examples to use aliases (e.g., `q4-report`)
@@ -152,7 +152,7 @@ async def render_document(session_id: str, request: RenderRequest):
   - Add tips highlighting alias benefits
   - Update best practices to put aliases first
 
-- `INTEGRATIONS.md`
+- `integrations.md`
   - Update n8n workflow examples to use aliases
   - Show alias creation in Step 1
   - Update all subsequent endpoint URLs
@@ -276,9 +276,9 @@ If implementing in existing system:
 - Helper: `_resolve_session_identifier()` function
 
 **Documentation**:
-- Concept explanation: `docs/DOCUMENT_GENERATION.md`
-- Examples: `README.md`, `docs/INTEGRATIONS.md`
-- Implementation guide: `docs/SESSION_ALIASING_IMPLEMENTATION.md` (this file)
+- Concept explanation: `docs/document_generation.md`
+- Examples: `readme.md`, `docs/integrations.md`
+- Implementation guide: `docs/session_aliasing_implementation.md` (this file)
 
 ## Example Workflow Code
 

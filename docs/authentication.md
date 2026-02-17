@@ -1,9 +1,9 @@
 # Authentication & Security Guide
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#core-documentation) | [Project Spec](PROJECT_SPEC.md) | [Development Guide](DEVELOPMENT.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Configuration](../app/config_docs.py)
-> - **Features**: [Features Guide](FEATURES.md) | [Data Persistence](DATA_PERSISTENCE.md)
+> - [← Back to README](../readme.md#core-documentation) | [Project Spec](project_spec.md) | [Development Guide](development.md)
+> - **Deployment**: [Docker](docker.md) | [Configuration](../app/config_docs.py)
+> - **Features**: [Features Guide](features.md) | [Data Persistence](data_persistence.md)
 
 ## Quick Start
 
@@ -356,7 +356,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8012/sessions
 
 ### Docker Deployment
 
-See [Docker Guide](DOCKER.md) for complete container setup with authentication.
+See [Docker Guide](docker.md) for complete container setup with authentication.
 
 ```yaml
 # compose.prod.yml
@@ -405,11 +405,11 @@ Discovery tools are public:
 
 ## See Also
 
-- **[Features Guide](FEATURES.md#groups)** - Group-based resource organization
-- **[Data Persistence](DATA_PERSISTENCE.md)** - Session storage and recovery
-- **[Docker Deployment](DOCKER.md)** - Container setup with secrets
+- **[Features Guide](features.md#groups)** - Group-based resource organization
+- **[Data Persistence](data_persistence.md)** - Session storage and recovery
+- **[Docker Deployment](docker.md)** - Container setup with secrets
 - **[Configuration](../app/config_docs.py)** - Environment variables reference
-- **[Development Guide](DEVELOPMENT.md)** - Testing with authentication
+- **[Development Guide](development.md)** - Testing with authentication
 
 ---
 

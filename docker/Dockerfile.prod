@@ -40,7 +40,7 @@ WORKDIR /home/gofr-doc
 
 # ---- Dependency layer (cached unless pyproject.toml or lib/ change) ----
 COPY --chown=gofr-doc:gofr-doc pyproject.toml /home/gofr-doc/
-COPY --chown=gofr-doc:gofr-doc README.md /home/gofr-doc/
+COPY --chown=gofr-doc:gofr-doc readme.md /home/gofr-doc/
 COPY --chown=gofr-doc:gofr-doc lib/ /home/gofr-doc/lib/
 
 # Create venv and install dependencies (cached until pyproject.toml/lib change)

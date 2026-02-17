@@ -1,9 +1,9 @@
 # Data Persistence
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#advanced-topics) | [Project Spec](PROJECT_SPEC.md) | [Configuration](../app/config_docs.py)
-> - **Features**: [Features Guide](FEATURES.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Authentication](AUTHENTICATION.md)
+> - [← Back to README](../readme.md#advanced-topics) | [Project Spec](project_spec.md) | [Configuration](../app/config_docs.py)
+> - **Features**: [Features Guide](features.md)
+> - **Deployment**: [Docker](docker.md) | [Authentication](authentication.md)
 
 This document describes how doco persists data across restarts and manages long-lived sessions.
 
@@ -191,7 +191,7 @@ cat data/storage/session_<uuid>/metadata.json
 
 ## See Also
 
-- [PROJECT_SPEC.md](../PROJECT_SPEC.md) — Session lifecycle details
-- [DOCUMENT_GENERATION.md](DOCUMENT_GENERATION.md) — Session workflow
-- [AUTHENTICATION.md](AUTHENTICATION.md) — Token storage and rotation
+- [project_spec.md](../project_spec.md) — Session lifecycle details
+- [document_generation.md](document_generation.md) — Session workflow
+- [authentication.md](authentication.md) — Token storage and rotation
 

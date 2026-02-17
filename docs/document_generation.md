@@ -1,10 +1,10 @@
 # Document Generation Guide
 
 > **Related Documentation:**
-> - [← Back to README](../README.md#core-documentation) | [Project Spec](PROJECT_SPEC.md) | [Development Guide](DEVELOPMENT.md)
-> - **Features**: [Features Guide](FEATURES.md)
-> - **Deployment**: [Docker](DOCKER.md) | [Authentication](AUTHENTICATION.md) | [Data Persistence](DATA_PERSISTENCE.md)
-> - **Integration**: [Integration Guide](INTEGRATIONS.md)
+> - [← Back to README](../readme.md#core-documentation) | [Project Spec](project_spec.md) | [Development Guide](development.md)
+> - **Features**: [Features Guide](features.md)
+> - **Deployment**: [Docker](docker.md) | [Authentication](authentication.md) | [Data Persistence](data_persistence.md)
+> - **Integration**: [Integration Guide](integrations.md)
 
 This guide explains the document generation workflow, API surface, and best practices for using doco.
 
@@ -681,6 +681,6 @@ All MCP responses follow a consistent error format:
 
 ## See Also
 
-- [PROJECT_SPEC.md](../PROJECT_SPEC.md) — Technical specification
-- [DATA_PERSISTENCE.md](DATA_PERSISTENCE.md) — Session storage and recovery
-- [AUTHENTICATION.md](AUTHENTICATION.md) — JWT token management
+- [project_spec.md](../project_spec.md) — Technical specification
+- [data_persistence.md](data_persistence.md) — Session storage and recovery
+- [authentication.md](authentication.md) — JWT token management
