@@ -37,7 +37,7 @@ class CommonStorageAdapter(DocumentStorageBase):
         logger.info("CommonStorageAdapter initialized", extra={"directory": str(storage_dir)})
 
     def save_document(
-        self, document_data: bytes, format: str = "json", group: Optional[str] = None
+        self, document_data: bytes, format: str = "json", group: Optional[str] = None, **kwargs
     ) -> str:
         """
         Save document data using common storage
@@ -46,6 +46,8 @@ class CommonStorageAdapter(DocumentStorageBase):
             document_data: Raw document bytes
             format: Document format (png, jpg, svg, pdf, json, etc.)
             group: Optional group name for access control (defaults to 'public')
+            **kwargs: Additional metadata fields forwarded to BlobMetadata.extra
+                      (e.g. artifact_type="plot_image", plot_alias="my-chart")
 
         Returns:
             GUID string (identifier without extension)
@@ -56,7 +58,7 @@ class CommonStorageAdapter(DocumentStorageBase):
         if group is None:
             group = self.DEFAULT_GROUP
         try:
-            guid = self._storage.save(document_data, format, group)
+            guid = self._storage.save(document_data, format, group, **kwargs)
             self._format_cache[guid] = format.lower()
             return guid
         except StorageError as e:
