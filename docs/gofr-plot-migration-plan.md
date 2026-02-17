@@ -145,11 +145,11 @@ If an HTTP endpoint is later needed (e.g., for embedding in external Markdown th
 
 ## Step-by-step migration plan
 
-### Step 0 — Create a working branch
+### Step 0 — Create a working branch [DONE]
 1. Create branch `feature/plot-tools`.
 2. Keep commits small: one for deps, one for core tool plumbing, one for tests.
 
-### Step 1 — Add plotting dependencies to gofr-doc
+### Step 1 — Add plotting dependencies to gofr-doc [DONE]
 1. `uv add matplotlib>=3.5.0 numpy` in gofr-doc project root.
 2. Run `uv sync` and verify imports resolve.
 
@@ -157,7 +157,7 @@ Acceptance
 - `uv run python -c "import matplotlib, numpy"` succeeds inside gofr-doc env.
 - Docker image size delta from adding matplotlib + numpy is documented and acceptable.
 
-### Step 2 — Add plot domain modules under gofr-doc `app/plot/`
+### Step 2 — Add plot domain modules under gofr-doc `app/plot/` [DONE]
 Create a minimal “plot domain” package (names are suggestions; keep consistent with gofr-doc conventions):
 - `app/plot/graph_params.py` (ported from gofr-plot `GraphParams`)
 - `app/plot/handlers/` (`line/scatter/bar`, registry)
@@ -175,7 +175,7 @@ Acceptance
 - A minimal chart renders successfully via the Agg backend (headless unit test).
 - Pydantic input models validate required/optional fields and reject invalid input.
 
-### Step 3 — Implement plot storage adapter in gofr-doc
+### Step 3 — Implement plot storage adapter in gofr-doc [DONE]
 Add a thin plot-storage wrapper that **shares the same `CommonStorageAdapter` instance** used by document storage. Documents and plot images coexist in one blob store / one metadata.json, segregated by metadata tagging.
 
 Prerequisite sub-step
@@ -194,7 +194,7 @@ Acceptance
 - Alias resolution works within a group.
 - Cross-group access is denied.
 
-### Step 3b — Update `_verify_auth()` for `auth_token` parameter (cross-cutting)
+### Step 3b — Update `_verify_auth()` for `auth_token` parameter (cross-cutting) [DONE]
 Update `_verify_auth()` in `app/mcp_server/mcp_server.py` to check `arguments.get("auth_token")` **first**, then fall back to the legacy `arguments.get("token")` for backward compatibility. This is a cross-cutting change that affects all authenticated tools and aligns gofr-doc with the gofr-dig convention.
 
 Precedence order (unchanged semantics, new primary key):
@@ -207,7 +207,7 @@ Acceptance
 - New tests can pass `auth_token` and authenticate successfully.
 - If both `auth_token` and `token` are present, `auth_token` wins.
 
-### Step 4 — Add MCP tools to gofr-doc MCP server
+### Step 4 — Add MCP tools to gofr-doc MCP server [DONE]
 Modify gofr-doc MCP server to register **6 new tools** (5 ported from gofr-plot + 1 new bridge tool). Do NOT add a separate `plot_ping` -- reuse gofr-doc's existing `ping`.
 
 New tools:
@@ -241,7 +241,7 @@ Acceptance
 - `add_plot_fragment` with `plot_guid` embeds a previously-rendered plot into a document session.
 - `add_plot_fragment` with inline params renders and embeds in a single call.
 
-### Step 5 — Port functional MCP tests (gofr-plot → gofr-doc)
+### Step 5 — Port functional MCP tests (gofr-plot -> gofr-doc) [DONE]
 Target: add tests under gofr-doc `test/plot_mcp/` (or `test/mcp/` if you want them mixed).
 
 Port these gofr-plot test groups:
@@ -286,7 +286,7 @@ Since the requirement is “tools + functional tests” and gofr-doc web server 
 If you later want HTTP retrieval for images:
 - Add a *new endpoint namespace* (not `/proxy/{...}`), then port the gofr-plot web proxy tests against that.
 
-### Step 7 — Update docs
+### Step 7 — Update docs [DONE]
 1. Add plot tools to `docs/tools.md` (new section “Plot Tools”).
 2. Add an example snippet to `docs/workflow.md` showing:
    - render_graph (non-proxy)
@@ -295,7 +295,7 @@ If you later want HTTP retrieval for images:
 Acceptance
 - Docs show parameters, proxy mode semantics, and auth requirement.
 
-### Step 8 — Final integration checks
+### Step 8 — Final integration checks [DONE]
 1. Run gofr-doc full test suite.
 2. Run minimal “smoke render” against a running MCP container.
 3. Ensure no impact to:
