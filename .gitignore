@@ -155,6 +155,15 @@ Thumbs.db
 !docs/**/*.png
 !docs/**/*.jpg
 !docs/**/*.svg
+!test/assets/**/*.png
+!test/assets/**/*.jpg
+!test/assets/**/*.jpeg
+!test/assets/**/*.svg
+!test/assets/**/*.webp
+
+# Stock images volume (keep .gitkeep)
+images/*
+!images/.gitkeep
 
 # Temporary files
 *.tmp

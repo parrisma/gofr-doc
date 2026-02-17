@@ -123,7 +123,7 @@ services:
       - GOFR_DOC_AUTH_BACKEND=vault
       - GOFR_DOC_VAULT_URL=http://gofr-vault-test:8200
       - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
-      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
       - GOFR_DOC_WEB_URL=http://gofr-doc-web-test:${GOFR_DOC_WEB_PORT:-8042}
     ports:
@@ -197,8 +197,9 @@ services:
       - GOFR_DOC_AUTH_BACKEND=vault
       - GOFR_DOC_VAULT_URL=http://gofr-vault-test:8200
       - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
-      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
+      - GOFR_DOC_IMAGES_DIR=/home/gofr-doc/images
     ports:
       - "${GOFR_DOC_WEB_HOST_PORT:-${GOFR_DOC_WEB_PORT_TEST}}:${GOFR_DOC_WEB_PORT}"
     healthcheck:
@@ -209,6 +210,7 @@ services:
       start_period: 20s
     volumes:
       - gofr-doc-storage:/home/gofr-doc/data/storage
+      - gofr-doc-images-test:/home/gofr-doc/images:ro
 
 # ── Network ─────────────────────────────────────────────────────────────────
 
@@ -221,3 +223,4 @@ networks:
 
 volumes:
   gofr-doc-storage:
+  gofr-doc-images-test:

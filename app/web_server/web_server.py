@@ -9,7 +9,7 @@ Authentication via X-Auth-Token header (group:token format) or Authorization Bea
 """
 
 from fastapi import FastAPI, HTTPException, Header, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from app.rendering.engine import RenderingEngine
 from app.templates.registry import TemplateRegistry
 from app.fragments.registry import FragmentRegistry
@@ -17,7 +17,7 @@ from app.styles.registry import StyleRegistry
 from app.sessions import SessionManager, SessionStore
 from app.validation.document_models import OutputFormat
 from app.logger import Logger, session_logger
-from app.config import get_default_sessions_dir
+from app.config import get_default_images_dir, get_default_sessions_dir
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pathlib import Path
@@ -26,11 +26,25 @@ from pathlib import Path
 class GofrDocWebServer:
     """FastAPI web server for document discovery and rendering only."""
 
+    # Allowed image extensions and their MIME types
+    _IMAGE_MIME_TYPES: Dict[str, str] = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".webp": "image/webp",
+        ".ico": "image/x-icon",
+        ".bmp": "image/bmp",
+        ".tiff": "image/tiff",
+    }
+
     def __init__(
         self,
         templates_dir: Optional[str] = None,
         fragments_dir: Optional[str] = None,
         styles_dir: Optional[str] = None,
+        images_dir: Optional[str] = None,
         styles_group: str = "public",
         require_auth: bool = True,
         auth_service: Optional[Any] = None,
@@ -42,6 +56,7 @@ class GofrDocWebServer:
             templates_dir: Templates directory path
             fragments_dir: Fragments directory path
             styles_dir: Styles directory path
+            images_dir: Stock images directory path (served publicly at /images)
             styles_group: Default styles group
             require_auth: Whether to require authentication via X-Auth-Token header
             auth_service: AuthService instance for token verification (required if require_auth=True)
@@ -53,6 +68,8 @@ class GofrDocWebServer:
             GET /templates/{id}/fragments - Template fragments list
             GET /fragments/{id} - Fragment details
             GET /styles - List styles
+            GET /images - List available stock images
+            GET /images/{path} - Serve a stock image
             POST /render/{session_id} - Render finalized session or proxy document
         """
         self.app = FastAPI(
@@ -65,6 +82,9 @@ class GofrDocWebServer:
         self.fragments_dir = fragments_dir or str(project_root / "data" / "fragments")
         self.styles_dir = styles_dir or str(project_root / "data" / "styles")
         self.styles_group = styles_group
+
+        # Set up images directory
+        self.images_dir = Path(images_dir or get_default_images_dir()).resolve()
 
         self.template_registry = TemplateRegistry(self.templates_dir, session_logger)
         self.fragment_registry = FragmentRegistry(self.fragments_dir, session_logger)
@@ -98,8 +118,9 @@ class GofrDocWebServer:
             templates_dir=self.templates_dir,
             fragments_dir=self.fragments_dir,
             styles_dir=self.styles_dir,
+            images_dir=str(self.images_dir),
             authentication_required=require_auth,
-            endpoints=["discovery", "get_document"],
+            endpoints=["discovery", "get_document", "images"],
         )
         self._setup_routes()
 
@@ -175,6 +196,68 @@ class GofrDocWebServer:
                 )
 
         return self._extract_auth_group(auth_header)
+
+    def _resolve_image_path(self, rel_path: str) -> Path:
+        """Resolve a relative image path safely within the images directory.
+
+        Args:
+            rel_path: Relative path under the images directory.
+
+        Returns:
+            Resolved absolute Path to the image file.
+
+        Raises:
+            HTTPException: 400 if path traversal detected or non-image extension.
+            HTTPException: 404 if file does not exist.
+        """
+        # Block obvious traversal attempts before resolving
+        if ".." in rel_path.split("/"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "INVALID_PATH",
+                    "message": "Path traversal is not allowed.",
+                },
+            )
+
+        resolved = (self.images_dir / rel_path).resolve()
+
+        # Ensure resolved path is still under the images root
+        if not str(resolved).startswith(str(self.images_dir)):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "INVALID_PATH",
+                    "message": "Path traversal is not allowed.",
+                },
+            )
+
+        # Verify extension is an allowed image type
+        suffix = resolved.suffix.lower()
+        if suffix not in self._IMAGE_MIME_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "INVALID_IMAGE_TYPE",
+                    "message": f"File type '{suffix}' is not a supported image format.",
+                    "supported": list(self._IMAGE_MIME_TYPES.keys()),
+                },
+            )
+
+        if not resolved.is_file():
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "IMAGE_NOT_FOUND",
+                    "message": f"Image '{rel_path}' not found.",
+                },
+            )
+
+        return resolved
+
+    def _content_type_for(self, path: Path) -> str:
+        """Return the MIME type for an image file based on its extension."""
+        return self._IMAGE_MIME_TYPES.get(path.suffix.lower(), "application/octet-stream")
 
     def _setup_routes(self):
         """Set up all API routes for discovery and document rendering."""
@@ -384,6 +467,98 @@ class GofrDocWebServer:
                 )
             except Exception as e:
                 self.logger.error(f"Error listing styles: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        # ====================================================================
+        # STOCK IMAGE ENDPOINTS (no auth required)
+        # ====================================================================
+
+        @self.app.get("/images")
+        async def list_images():
+            """
+            List all available stock images.
+
+            Returns a JSON array of relative image paths found recursively
+            in the images directory. No authentication required.
+
+            Returns:
+                {"status": "success", "data": {"images": [...], "count": N}}
+            """
+            self.logger.info("GET /images")
+            try:
+                image_paths: list[str] = []
+                if self.images_dir.is_dir():
+                    for file_path in sorted(self.images_dir.rglob("*")):
+                        if (
+                            file_path.is_file()
+                            and file_path.suffix.lower() in self._IMAGE_MIME_TYPES
+                        ):
+                            rel = str(file_path.relative_to(self.images_dir))
+                            image_paths.append(rel)
+
+                self.logger.info(
+                    "/images completed",
+                    count=len(image_paths),
+                    status=200,
+                )
+                return JSONResponse(
+                    content={
+                        "status": "success",
+                        "data": {
+                            "images": image_paths,
+                            "count": len(image_paths),
+                        },
+                    }
+                )
+            except Exception as e:
+                self.logger.error(
+                    "/images failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    status=500,
+                )
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.get("/images/{image_path:path}")
+        async def get_image(image_path: str):
+            """
+            Serve a stock image file.
+
+            No authentication required. Supports subdirectory paths.
+            Example: GET /images/logos/acme.png
+
+            Args:
+                image_path: Relative path to the image within the images directory.
+
+            Returns:
+                Image file with correct Content-Type and Cache-Control headers.
+            """
+            self.logger.info("GET /images/{path}", image_path=image_path)
+            try:
+                resolved = self._resolve_image_path(image_path)
+                media_type = self._content_type_for(resolved)
+                self.logger.info(
+                    "/images file served",
+                    image_path=image_path,
+                    media_type=media_type,
+                    size_bytes=resolved.stat().st_size,
+                    status=200,
+                )
+                return FileResponse(
+                    path=str(resolved),
+                    media_type=media_type,
+                    headers={"Cache-Control": "public, max-age=3600"},
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(
+                    "/images file failed",
+                    image_path=image_path,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    status=500,
+                )
                 raise HTTPException(status_code=500, detail=str(e))
 
         # ====================================================================

@@ -11,6 +11,7 @@ Doco provides powerful features for dynamic document generation:
 
 - **[Tables](#tables)** - Rich formatted tables with styling and number formatting
 - **[Images](#images)** - URL-based images with validation and format-specific rendering
+- **[Stock Images](#stock-images)** - Host and serve stock images via the web server
 - **[Groups](#groups)** - Multi-tenant resource organization and isolation
 - **[Proxy Mode](#proxy-mode)** - Server-side document storage for large files
 
@@ -278,6 +279,70 @@ Images are validated **immediately when added** (not at render time):
   "image_url": "https://example.com/diagram.png",
   "position": "after:fragment-guid-123",
   "alignment": "right"
+}
+```
+
+---
+
+## Stock Images
+
+Host stock images (logos, icons, charts) via the web server so they can be
+referenced in documents by URL. Images are served publicly -- no
+authentication required.
+
+### Setup
+
+Images are stored on a Docker volume mounted at `/home/gofr-doc/images` (prod)
+or a local `images/` directory (dev). Place files there via any external
+process; the web server serves them read-only.
+
+Subdirectories are supported: `images/logos/acme.png` is served at
+`GET /images/logos/acme.png`.
+
+### Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/images` | GET | No | List all available image paths (JSON) |
+| `/images/{path}` | GET | No | Serve an image file |
+
+### Listing example
+
+```
+GET /images
+
+{
+  "status": "success",
+  "data": {
+    "images": ["logos/acme.png", "charts/q1-revenue.svg", "hero.jpg"],
+    "count": 3
+  }
+}
+```
+
+### Supported formats
+
+`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`, `.ico`, `.bmp`, `.tiff`
+
+### Configuration
+
+| Source | Value |
+|--------|-------|
+| CLI flag | `--images-dir /path/to/images` |
+| Env var | `GOFR_DOC_IMAGES_DIR=/path/to/images` |
+| Default (prod) | `/home/gofr-doc/images` |
+| Default (dev) | `<project-root>/images` |
+
+### Using in documents
+
+Reference a hosted stock image by its full URL when adding an image fragment:
+
+```json
+{
+  "session_id": "my-report",
+  "image_url": "http://gofr-doc-web:8042/images/logos/acme.png",
+  "title": "Company Logo",
+  "alignment": "center"
 }
 ```
 

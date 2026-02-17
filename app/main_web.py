@@ -62,6 +62,12 @@ if __name__ == "__main__":
         default=None,
         help="Path to styles directory (default: data/styles).",
     )
+    parser.add_argument(
+        "--images-dir",
+        type=str,
+        default=None,
+        help="Path to images directory (default: GOFR_DOC_IMAGES_DIR or <root>/images).",
+    )
     args = parser.parse_args()
 
     # Initialize AuthService if authentication is enabled
@@ -82,6 +88,7 @@ if __name__ == "__main__":
             group_registry=group_registry,
             secret_provider=secret_provider,
             env_prefix="GOFR_DOC",
+            audience="gofr-api",
         )
         logger.info(
             "Authentication service initialized",
@@ -101,6 +108,7 @@ if __name__ == "__main__":
         templates_dir=args.templates_dir,
         fragments_dir=args.fragments_dir,
         styles_dir=args.styles_dir,
+        images_dir=args.images_dir,
         require_auth=not args.no_auth,
         auth_service=auth_service,
     )
@@ -118,6 +126,7 @@ if __name__ == "__main__":
             templates_dir=args.templates_dir or "(default)",
             fragments_dir=args.fragments_dir or "(default)",
             styles_dir=args.styles_dir or "(default)",
+            images_dir=args.images_dir or "(default)",
         )
         logger.info("=" * 70)
         logger.info(f"API endpoint: http://{args.host}:{args.port}")

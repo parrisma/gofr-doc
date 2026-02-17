@@ -65,6 +65,16 @@ def get_default_proxy_dir() -> str:
     return str(Config.get_proxy_dir())
 
 
+def get_default_images_dir() -> str:
+    """Get default images directory as string.
+
+    Reads GOFR_DOC_IMAGES_DIR env var, falling back to <project-root>/images.
+    """
+    import os
+
+    return os.environ.get("GOFR_DOC_IMAGES_DIR", str(_PROJECT_ROOT / "images"))
+
+
 __all__ = [
     "Config",
     "Settings",
@@ -79,4 +89,5 @@ __all__ = [
     "get_default_token_store_path",
     "get_default_sessions_dir",
     "get_default_proxy_dir",
+    "get_default_images_dir",
 ]

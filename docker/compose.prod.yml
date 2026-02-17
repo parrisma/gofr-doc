@@ -77,7 +77,7 @@ services:
       # Auth backend (vault only)
       - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
       - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault:${GOFR_VAULT_PORT}}
-      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
     ports:
       - "${GOFR_DOC_MCP_HOST_PORT:-${GOFR_DOC_MCP_PORT}}:${GOFR_DOC_MCP_PORT}"
@@ -86,7 +86,7 @@ services:
       - gofr-doc-prod-logs:/home/gofr-doc/logs
       - gofr-secrets:/run/gofr-secrets:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -o /dev/null -w '%{http_code}' http://localhost:${GOFR_DOC_MCP_PORT}/mcp/ | grep -qE '^(200|405|406)' || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_MCP_PORT}/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -167,14 +167,16 @@ services:
       # Auth backend (vault only)
       - GOFR_DOC_AUTH_BACKEND=${GOFR_DOC_AUTH_BACKEND:-vault}
       - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault:${GOFR_VAULT_PORT}}
-      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/doc/auth}
+      - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
+      - GOFR_DOC_IMAGES_DIR=/home/gofr-doc/images
     ports:
       - "${GOFR_DOC_WEB_HOST_PORT:-${GOFR_DOC_WEB_PORT}}:${GOFR_DOC_WEB_PORT}"
     volumes:
       - gofr-doc-data:/home/gofr-doc/data
       - gofr-doc-prod-logs:/home/gofr-doc/logs
       - gofr-secrets:/run/gofr-secrets:ro
+      - gofr-doc-images:/home/gofr-doc/images:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_WEB_PORT}/ping || exit 1"]
       interval: 15s
@@ -240,7 +242,10 @@ volumes:
   gofr-doc-prod-logs:
     name: gofr-doc-prod-logs
     external: false
+  gofr-doc-images:
+    name: gofr-doc-images
+    external: false
   gofr-secrets:
     name: gofr-secrets
     external: true
-    # Shared secrets volume — created by run-dev-container.sh or migrate_secrets_to_volume.sh
+    # Shared secrets volume -- created by run-dev-container.sh or migrate_secrets_to_volume.sh
