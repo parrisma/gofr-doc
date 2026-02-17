@@ -29,7 +29,7 @@ from app.storage import get_storage, reset_storage
 
 
 # ============================================================================
-# CONTENT BOOTSTRAP — symlink app/content/ into data/ for local test runs
+# CONTENT BOOTSTRAP - symlink app/content/ into data/ for local test runs
 # ============================================================================
 
 
@@ -292,14 +292,14 @@ def server_auth_service():
 
     Unlike the per-test `auth_service` fixture (which uses a UUID-isolated
     Vault path), this fixture writes to the same path the MCP/web servers
-    use (gofr/doc/auth).  Tokens created here are visible to the server.
+    use (gofr/auth). Tokens created here are visible to the server.
 
     Use this (and `server_mcp_headers`) for integration tests that send
     requests to a live MCP or web server started by run_tests.sh.
     """
     vault_client = _build_vault_client()
-    # The server's default path: prefix="GOFR_DOC" → "gofr/doc/auth"
-    server_path = os.environ.get("GOFR_DOC_VAULT_PATH_PREFIX", "gofr/doc/auth")
+    # Canonical shared auth path prefix for ALL services
+    server_path = os.environ.get("GOFR_DOC_VAULT_PATH_PREFIX", "gofr/auth")
     return _create_test_auth_service(vault_client, server_path)
 
 

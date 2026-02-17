@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# gofr-doc Production Stack — compose-based launcher
+# gofr-doc Production Stack - compose-based launcher
 # =============================================================================
 # Starts the production stack using docker compose (3 separate containers:
 # mcp, mcpo, web) instead of a single supervisor-managed container.
@@ -81,6 +81,17 @@ if [ "$NO_AUTH" = true ]; then
     echo "Authentication DISABLED (--no-auth)"
 fi
 
+# ---- Vault auth path prefix hardening ----------------------------------------
+# All GOFR services share one canonical auth path prefix: gofr/auth.
+# Enforce it here to prevent tokens/groups being written to an orphaned namespace.
+CANONICAL_VAULT_AUTH_PREFIX="gofr/auth"
+if [ "${GOFR_DOC_VAULT_PATH_PREFIX:-}" != "${CANONICAL_VAULT_AUTH_PREFIX}" ]; then
+    if [ -n "${GOFR_DOC_VAULT_PATH_PREFIX:-}" ]; then
+        echo "WARNING: GOFR_DOC_VAULT_PATH_PREFIX was '${GOFR_DOC_VAULT_PATH_PREFIX}'; overriding to '${CANONICAL_VAULT_AUTH_PREFIX}'"
+    fi
+    export GOFR_DOC_VAULT_PATH_PREFIX="${CANONICAL_VAULT_AUTH_PREFIX}"
+fi
+
 # ---- Start compose stack ----------------------------------------------------
 echo ""
 echo "Starting compose stack..."
@@ -100,9 +111,9 @@ HEALTHY=true
 for svc in mcp mcpo web; do
     CONTAINER="gofr-doc-${svc}"
     if docker ps -q -f name="${CONTAINER}" | grep -q .; then
-        echo "  ✓ ${CONTAINER} running"
+        echo "  [OK]  ${CONTAINER} running"
     else
-        echo "  ✗ ${CONTAINER} NOT running"
+        echo "  [ERR] ${CONTAINER} NOT running"
         HEALTHY=false
     fi
 done
@@ -110,9 +121,9 @@ done
 echo ""
 if [ "$HEALTHY" = true ]; then
     echo "=== Stack Started Successfully ==="
-    echo "MCP Server:  http://localhost:${MCP_PORT}/mcp"
-    echo "MCPO Server: http://localhost:${MCPO_PORT}"
-    echo "Web Server:  http://localhost:${WEB_PORT}"
+    echo "MCP Server:  http://host.docker.internal:${MCP_PORT}/mcp"
+    echo "MCPO Server: http://host.docker.internal:${MCPO_PORT}"
+    echo "Web Server:  http://host.docker.internal:${WEB_PORT}"
     echo ""
     echo "Commands:"
     echo "  Logs:   docker compose -f ${COMPOSE_FILE} logs -f"
