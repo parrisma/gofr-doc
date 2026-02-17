@@ -14,6 +14,7 @@ These rules are MANDATORY. Violating any rule in the HARD RULES section is a cri
 6. **UV only.** Use `uv run`, `uv add`, `uv sync`. NEVER use `pip install`, `python -m venv`, `pip freeze`, or any pip-based workflow.
 7. **No `print()`.** Use the project's `StructuredLogger` for all logging. Every log line must be clear, actionable, and include structured context — never cryptic or generic.
 8. **ASCII only in code and output.** Never use emoji, Unicode symbols, or box-drawing characters (e.g. arrows, check marks, bullet points, decorative borders). Use plain ASCII equivalents: `-` for bullets, `->` for arrows, `[Y]`/`[N]` for pass/fail, `<=`/`!=` for comparisons, `---`/`===` for separators.
+9. **NEVER rewrite pushed commits.** Do NOT use `git commit --amend`, `git rebase -i`, or any other history-rewriting command on commits that have already been pushed to origin. This causes the local and remote branches to diverge, requiring force-pushes and risking lost work. If a pushed commit needs fixing, make a follow-up commit. Keeping local and remote in sync is non-negotiable.
 
 ---
 
@@ -60,8 +61,10 @@ Follow these three phases IN ORDER. Do NOT skip phases or combine them.
 
 - **Runtime:** Python, managed with UV (`uv run`, `uv add`).
 - **Shared library:** Prefer helpers from `gofr_common` (auth, config, storage, logging) over hand-rolled equivalents.
-- **Environment:** VS Code dev container. Docker service names and ports — never `localhost`.
+- **Environment:** VS Code dev container (`gofr-doc-dev`) on Docker network `gofr-net`. Use Docker service names and ports -- never `localhost`.
 - **Host Docker:** Reachable from the dev container at `host.docker.internal`.
+- **Vault:** `http://gofr-vault:8201` (Docker service name on `gofr-net`). Root token at `lib/gofr-common/secrets/vault_root_token`. Never use `localhost` or `host.docker.internal` for Vault -- the dev container and Vault are on the same Docker network.
+- **Shared auth:** All gofr services share ONE set of groups, tokens, and JWT secret. Canonical Vault path prefix is `gofr/auth`. Canonical JWT audience is `gofr-api`. See `docs/jwt_secret_provider_spec.md` "Shared Auth Architecture" section for full details.
 
 ---
 

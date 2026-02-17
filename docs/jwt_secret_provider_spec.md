@@ -170,6 +170,60 @@ rotation.
    which surfaces through the server's existing error handling. A
    dedicated `is_healthy()` can be added if readiness probes need it.
 
+## Shared Auth Architecture (mandatory for all gofr services)
+
+All gofr services share a single auth plane. The rules below are
+non-negotiable and apply to every service (gofr-doc, gofr-dig, and any
+future service).
+
+### Ground truths
+
+1. ONE set of auth groups, stored in Vault under `gofr/auth/groups/`.
+   All services read from and write to this same path.
+2. ONE set of tokens that reference those groups. A token minted for one
+   service is valid for every other service.
+3. ALL tokens are signed by the same JWT secret
+   (`secret/gofr/config/jwt-signing-secret`).
+4. The JWT secret is written to Vault once at bootstrap and read by
+   auth_manager and every running service via JwtSecretProvider.
+5. auth_manager and every service have Vault AppRoles that grant read
+   access to both `secret/gofr/config/*` and `secret/gofr/auth/*`.
+6. The shared secret is injected at bootstrap and is NOT rotated
+   automatically (rotation is a manual operator action).
+
+### Canonical values
+
+| Setting              | Canonical value | Why                                       |
+|----------------------|-----------------|-------------------------------------------|
+| Vault path prefix    | `gofr/auth`     | Shared groups live here. Not per-service.  |
+| JWT audience (`aud`) | `gofr-api`      | Shared tokens must validate everywhere.    |
+| JWT secret path      | `gofr/config/jwt-signing-secret` | Single secret for all services. |
+
+### Per-service env_prefix
+
+Each service still uses its own env_prefix for environment variable
+lookups (GOFR_DOC_VAULT_URL, GOFR_DIG_VAULT_URL, etc.). However,
+two derived defaults are WRONG when env_prefix is not "GOFR":
+
+- `create_stores_from_env()` defaults path prefix to
+  `{prefix}/auth` (e.g. `gofr/doc/auth`). Override via
+  `{PREFIX}_VAULT_PATH_PREFIX=gofr/auth`.
+- `TokenService.__init__()` defaults audience to
+  `{env_prefix.lower()}-api` (e.g. `gofr_doc-api`). Override by
+  passing `audience="gofr-api"` to AuthService.
+
+Failure to override both causes token audience mismatches and
+"group not found" errors because the service looks at a per-service
+Vault path instead of the shared one.
+
+### Checklist for adding a new service
+
+1. Set `{PREFIX}_VAULT_PATH_PREFIX=gofr/auth` in compose files and
+   dev scripts.
+2. Pass `audience="gofr-api"` explicitly to AuthService.
+3. Verify tokens minted by auth_manager are accepted by the service.
+4. Verify groups created by auth_manager are visible to the service.
+
 ## Out of scope
 
 - Automatic secret rotation in Vault (handled by Vault policies/operators).
