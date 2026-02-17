@@ -150,13 +150,12 @@ If an HTTP endpoint is later needed (e.g., for embedding in external Markdown th
 2. Keep commits small: one for deps, one for core tool plumbing, one for tests.
 
 ### Step 1 — Add plotting dependencies to gofr-doc
-1. Add to gofr-doc `pyproject.toml` dependencies:
-   - `matplotlib>=3.5.0`
-   - `numpy` (version pin not required unless CI breaks)
-2. Verify `pip install -e .` works in dev container.
+1. `uv add matplotlib>=3.5.0 numpy` in gofr-doc project root.
+2. Run `uv sync` and verify imports resolve.
 
 Acceptance
-- `python -c "import matplotlib, numpy"` succeeds inside gofr-doc env.
+- `uv run python -c "import matplotlib, numpy"` succeeds inside gofr-doc env.
+- Docker image size delta from adding matplotlib + numpy is documented and acceptable.
 
 ### Step 2 — Add plot domain modules under gofr-doc `app/plot/`
 Create a minimal “plot domain” package (names are suggestions; keep consistent with gofr-doc conventions):
@@ -164,47 +163,64 @@ Create a minimal “plot domain” package (names are suggestions; keep consiste
 - `app/plot/handlers/` (`line/scatter/bar`, registry)
 - `app/plot/themes/` (`light/dark/bizlight/bizdark`, registry)
 - `app/plot/validation/` (port GraphDataValidator; optionally omit sanitizer initially)
-- `app/plot/render/renderer.py` (GraphRenderer)
+- `app/plot/render/renderer.py` (GraphRenderer -- must call `matplotlib.use('Agg')` at import time to ensure headless rendering in containers)
 
 Notes
 - Keep imports **internal to gofr-doc**, not referencing gofr-plot package paths.
-- Use gofr-doc logging style (its `Logger` wrapper) rather than gofr-plot’s `ConsoleLogger`.
+- Use gofr-doc logging style (its `Logger` wrapper) rather than gofr-plot's `ConsoleLogger`.
+- Create Pydantic input models for `render_graph`, `get_image`, `list_images`, and `add_plot_fragment` in `app/validation/plot_models.py` (analogous to `AddImageFragmentInput` etc. in `document_models.py`). These models are required for the `handle_call_tool` Pydantic validation error handler to work correctly.
 
 Acceptance
 - Unit tests for handlers/themes/validation can run without starting servers.
+- A minimal chart renders successfully via the Agg backend (headless unit test).
+- Pydantic input models validate required/optional fields and reject invalid input.
 
 ### Step 3 — Implement plot storage adapter in gofr-doc
-Add a thin plot-storage wrapper around the existing gofr-doc/gofr-common storage:
-- Reuse the same gofr-common `FileStorage` implementation already used by gofr-doc.
-- Keep docs + plots in one storage mechanism, but tag plot artifacts in metadata.
+Add a thin plot-storage wrapper that **shares the same `CommonStorageAdapter` instance** used by document storage. Documents and plot images coexist in one blob store / one metadata.json, segregated by metadata tagging.
+
+Prerequisite sub-step
+- Update `CommonStorageAdapter.save_document()` to accept and forward `**kwargs` to `self._storage.save()`. Currently the signature is `save_document(document_data, format, group)` and does NOT pass kwargs through. This must be fixed so that plot-specific metadata fields (`artifact_type`, `plot_alias`) reach `BlobMetadata.extra`.
 
 Design constraints
-- Segregation should be achieved **without** a second storage service.
-  - Prefer tagging (`artifact_type="plot_image"`) and filtering, rather than separate storage instances.
-  - If a physical separation is still desired, prefer a filename/prefix convention or sub-path within the same storage root, but keep the same underlying storage code.
-- Alias resolution should not collide with document artifacts.
-  - Prefer storing a `plot_alias` in metadata extra fields and resolving it within the plot wrapper.
+- Segregation is achieved via metadata tagging (`artifact_type="plot_image"`) and filtering -- NOT separate storage instances.
+- Alias resolution must not collide with document artifacts.
+  - Store a `plot_alias` in metadata extra fields and resolve it within the plot wrapper only.
 - Must enforce group ownership on read/list.
 
 Acceptance
-- Plot storage behaves like gofr-common storage (same bytes+format return shape), and:
-  - image listing only returns `artifact_type="plot_image"`
-  - alias resolution works within a group
-  - cross-group access is denied
+- Plot storage shares the same `CommonStorageAdapter` instance as document storage.
+- `save_document(..., artifact_type="plot_image")` correctly persists the extra field in metadata.
+- Image listing only returns entries where `artifact_type == "plot_image"`.
+- Alias resolution works within a group.
+- Cross-group access is denied.
+
+### Step 3b — Update `_verify_auth()` for `auth_token` parameter (cross-cutting)
+Update `_verify_auth()` in `app/mcp_server/mcp_server.py` to check `arguments.get("auth_token")` **first**, then fall back to the legacy `arguments.get("token")` for backward compatibility. This is a cross-cutting change that affects all authenticated tools and aligns gofr-doc with the gofr-dig convention.
+
+Precedence order (unchanged semantics, new primary key):
+1. `auth_token` tool parameter (primary -- gofr-dig convention)
+2. `token` tool parameter (legacy backward compatibility)
+3. HTTP `Authorization: Bearer ...` header (secondary)
+
+Acceptance
+- Existing tests that pass `token` continue to work.
+- New tests can pass `auth_token` and authenticate successfully.
+- If both `auth_token` and `token` are present, `auth_token` wins.
 
 ### Step 4 — Add MCP tools to gofr-doc MCP server
-Modify gofr-doc MCP server to register **6 new tools** (names can match gofr-plot unless they conflict):
-- `plot_ping` or reuse `ping`? (recommended: **do not add** a second ping; reuse gofr-doc `ping`)
+Modify gofr-doc MCP server to register **6 new tools** (5 ported from gofr-plot + 1 new bridge tool). Do NOT add a separate `plot_ping` -- reuse gofr-doc's existing `ping`.
+
+New tools:
 - `render_graph`
 - `get_image`
 - `list_images`
 - `list_themes`
 - `list_handlers`
-- `add_plot_fragment` ← **new** bridge tool (see "Embedding plot images in documents" section above)
+- `add_plot_fragment` -- **new** bridge tool (see "Embedding plot images in documents" section above)
 
 Recommendation
 - Keep `render_graph/get_image/list_images/list_themes/list_handlers` exact names to preserve gofr-plot client compatibility.
-- Do **not** add `token` param. Follow gofr-dig convention and accept `auth_token` as the tool parameter for authenticated tools.
+- Follow gofr-dig convention: authenticated tools accept `auth_token` as the tool parameter (see Step 3b).
 
 Handler responsibilities
 - Parse/validate request via Pydantic (`GraphParams`)
@@ -256,7 +272,7 @@ Keep / drop
 - Keep only tests that validate the 5 graph tools + proxy retrieval + `add_plot_fragment`.
 
 Acceptance
-- Plot MCP tests pass alongside existing 571 tests.
+- Plot MCP tests pass alongside the existing test suite.
 
 ### Step 6 — Decide what to do with gofr-plot web tests
 gofr-plot includes ASGI-level tests for its FastAPI web server (`POST /render`, `GET /proxy/{guid}`, etc.).

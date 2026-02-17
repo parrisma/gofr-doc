@@ -45,6 +45,9 @@ from app.config import get_default_sessions_dir  # noqa: E402
 from app.errors import map_error_for_mcp  # noqa: E402
 from app.exceptions import GofrDocError  # noqa: E402
 from app.logger import Logger, session_logger  # noqa: E402
+from app.plot import GraphParams, GraphRenderer, GraphDataValidator  # noqa: E402
+from app.plot.storage import PlotStorageWrapper  # noqa: E402
+from app.storage.common_adapter import CommonStorageAdapter  # noqa: E402
 from app.rendering import RenderingEngine  # noqa: E402
 from app.sessions import SessionManager, SessionStore  # noqa: E402
 from app.styles import StyleRegistry  # noqa: E402
@@ -66,6 +69,12 @@ from app.validation.document_models import (  # noqa: E402
     PingOutput,
     RemoveFragmentInput,
     SetGlobalParametersInput,
+)
+from app.validation.plot_models import (  # noqa: E402
+    AddPlotFragmentInput,
+    GetImageInput,
+    ListImagesInput,
+    RenderGraphInput,
 )
 
 ToolResponse = List[Union[TextContent, ImageContent, EmbeddedResource]]
@@ -90,6 +99,11 @@ session_store: Optional[SessionStore] = None
 session_manager: Optional[SessionManager] = None
 rendering_engine: Optional[RenderingEngine] = None
 
+# Plot domain components (initialized in initialize_server)
+plot_renderer: Optional[GraphRenderer] = None
+plot_storage: Optional[PlotStorageWrapper] = None
+plot_validator: Optional[GraphDataValidator] = None
+
 TOKEN_OPTIONAL_TOOLS = {
     "ping",
     "help",
@@ -98,6 +112,8 @@ TOKEN_OPTIONAL_TOOLS = {
     "list_template_fragments",
     "get_fragment_details",
     "list_styles",
+    "list_themes",
+    "list_handlers",
 }
 
 
@@ -297,6 +313,7 @@ async def initialize_server() -> None:
     logger.info("Initialising document MCP server")
 
     global template_registry, style_registry, session_store, session_manager, rendering_engine
+    global plot_renderer, plot_storage, plot_validator
 
     # Use overrides if provided (for testing), otherwise use defaults
     templates_dir = templates_dir_override or str(
@@ -319,6 +336,21 @@ async def initialize_server() -> None:
         style_registry=style_registry,
         logger=logger,
     )
+
+    # Initialize plot domain components
+    from app.storage import get_storage
+    plot_renderer = GraphRenderer(logger=logger)
+    plot_validator = GraphDataValidator()
+    storage_adapter_raw = get_storage()
+    if not isinstance(storage_adapter_raw, CommonStorageAdapter):
+        logger.warning(
+            "Plot storage requires CommonStorageAdapter but got legacy storage. "
+            "Plot proxy mode will not work.",
+        )
+        plot_storage = None
+    else:
+        plot_storage = PlotStorageWrapper(storage=storage_adapter_raw, logger=logger)
+    logger.info("Plot domain components initialized")
 
 
 @app.list_tools()
@@ -914,6 +946,178 @@ async def handle_list_tools() -> List[Tool]:
                     "token": {"type": "string", "description": "Bearer token if required."},
                 },
                 "required": ["session_id", "format"],
+            },
+        ),
+        # ====================================================================
+        # Plot tools (migrated from gofr-plot)
+        # ====================================================================
+        Tool(
+            name="render_graph",
+            description=(
+                "Render a graph visualization and return it as a base64-encoded image or storage GUID. "
+                "\n\n**AUTHENTICATION**: Requires a valid JWT 'auth_token' parameter. "
+                "\n\n**BASIC USAGE**: Provide 'title' (string) and at least one dataset (y1 array or legacy 'y' array). "
+                "The 'x' parameter is optional - if omitted, indices [0, 1, 2, ...] are auto-generated. "
+                "\n\n**MULTI-DATASET**: Supports up to 5 datasets (y1-y5) with optional labels (label1-label5) and colors (color1-color5). "
+                "\n\n**CHART TYPES**: 'line' (default), 'scatter', or 'bar'. Use list_handlers tool to see descriptions. "
+                "\n\n**THEMES**: 'light' (default), 'dark', 'bizlight', 'bizdark'. Use list_themes tool for details. "
+                "\n\n**PROXY MODE**: Set proxy=true to save the image to persistent storage and receive a GUID instead of base64 data. "
+                "Use get_image with the GUID to retrieve the image later. "
+                "\n\n**OUTPUT FORMATS**: 'png' (default), 'jpg', 'svg', 'pdf'. "
+                "\n\n**AXIS CONTROLS**: Optional parameters for axis limits (xmin/xmax/ymin/ymax) and custom tick positions."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "The title of the graph"},
+                    "x": {"type": "array", "items": {"type": "number"}, "description": "X-axis data points (optional, defaults to indices)"},
+                    "y": {"type": "array", "items": {"type": "number"}, "description": "Y-axis data (backward compat - maps to y1)"},
+                    "y1": {"type": "array", "items": {"type": "number"}, "description": "First dataset Y-axis data (required unless 'y' provided)"},
+                    "y2": {"type": "array", "items": {"type": "number"}, "description": "Second dataset (optional)"},
+                    "y3": {"type": "array", "items": {"type": "number"}, "description": "Third dataset (optional)"},
+                    "y4": {"type": "array", "items": {"type": "number"}, "description": "Fourth dataset (optional)"},
+                    "y5": {"type": "array", "items": {"type": "number"}, "description": "Fifth dataset (optional)"},
+                    "label1": {"type": "string", "description": "Label for first dataset (legend)"},
+                    "label2": {"type": "string", "description": "Label for second dataset"},
+                    "label3": {"type": "string", "description": "Label for third dataset"},
+                    "label4": {"type": "string", "description": "Label for fourth dataset"},
+                    "label5": {"type": "string", "description": "Label for fifth dataset"},
+                    "color1": {"type": "string", "description": "Color for first dataset (e.g., 'red', '#FF5733')"},
+                    "color2": {"type": "string", "description": "Color for second dataset"},
+                    "color3": {"type": "string", "description": "Color for third dataset"},
+                    "color4": {"type": "string", "description": "Color for fourth dataset"},
+                    "color5": {"type": "string", "description": "Color for fifth dataset"},
+                    "xlabel": {"type": "string", "description": "X-axis label (default: 'X-axis')", "default": "X-axis"},
+                    "ylabel": {"type": "string", "description": "Y-axis label (default: 'Y-axis')", "default": "Y-axis"},
+                    "type": {"type": "string", "enum": ["line", "scatter", "bar"], "description": "Chart type (default: 'line')", "default": "line"},
+                    "format": {"type": "string", "enum": ["png", "jpg", "svg", "pdf"], "description": "Image format (default: 'png')", "default": "png"},
+                    "proxy": {"type": "boolean", "description": "If true, save to storage and return GUID (default: false)", "default": False},
+                    "alias": {"type": "string", "description": "Friendly name for proxy mode (3-64 chars, alphanumeric with hyphens/underscores)"},
+                    "color": {"type": "string", "description": "Line/marker color (backward compat, maps to color1)"},
+                    "line_width": {"type": "number", "description": "Line width (default: 2.0)", "default": 2.0},
+                    "marker_size": {"type": "number", "description": "Marker size for scatter (default: 36.0)", "default": 36.0},
+                    "alpha": {"type": "number", "description": "Transparency 0.0-1.0 (default: 1.0)", "default": 1.0},
+                    "theme": {"type": "string", "enum": ["light", "dark", "bizlight", "bizdark"], "description": "Visual theme (default: 'light')", "default": "light"},
+                    "xmin": {"type": "number", "description": "Minimum x-axis value"},
+                    "xmax": {"type": "number", "description": "Maximum x-axis value"},
+                    "ymin": {"type": "number", "description": "Minimum y-axis value"},
+                    "ymax": {"type": "number", "description": "Maximum y-axis value"},
+                    "x_major_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom x-axis major tick positions"},
+                    "y_major_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom y-axis major tick positions"},
+                    "x_minor_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom x-axis minor tick positions"},
+                    "y_minor_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom y-axis minor tick positions"},
+                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred). Include your JWT token here."},
+                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                },
+                "required": ["title"],
+            },
+        ),
+        Tool(
+            name="get_image",
+            description=(
+                "Retrieve a previously stored graph image using its GUID or alias. "
+                "\n\n**AUTHENTICATION**: Requires a valid JWT 'auth_token' parameter. "
+                "The token's group must match the group that created the image. "
+                "\n\n**IDENTIFIERS**: Use either a GUID or alias set during render_graph. "
+                "\n\n**OUTPUT**: Returns the image as base64-encoded data with metadata."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "identifier": {"type": "string", "description": "Image GUID or alias"},
+                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred)."},
+                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                },
+                "required": ["identifier"],
+            },
+        ),
+        Tool(
+            name="list_images",
+            description=(
+                "List all stored plot images accessible to your token's group. "
+                "\n\n**AUTHENTICATION**: Requires a valid JWT 'auth_token' parameter. "
+                "Only images belonging to your token's group will be listed. "
+                "\n\n**OUTPUT**: Returns GUIDs, aliases, and metadata for stored plot images."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred)."},
+                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                },
+                "required": [],
+            },
+        ),
+        Tool(
+            name="list_themes",
+            description=(
+                "Discover all available visual themes with descriptions. "
+                "\n\n**AUTHENTICATION**: NOT required. "
+                "\n\n**PURPOSE**: Use before calling render_graph to choose a theme. "
+                "Available themes: 'light', 'dark', 'bizlight', 'bizdark'."
+            ),
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
+        Tool(
+            name="list_handlers",
+            description=(
+                "Discover all available chart types with capability descriptions. "
+                "\n\n**AUTHENTICATION**: NOT required. "
+                "\n\n**PURPOSE**: Use before calling render_graph to choose the right chart type. "
+                "Available types: 'line', 'scatter', 'bar'."
+            ),
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
+        Tool(
+            name="add_plot_fragment",
+            description=(
+                "Render a graph and embed it as a fragment in a document session. "
+                "\n\n**AUTHENTICATION**: Requires a valid JWT 'auth_token' parameter. "
+                "\n\n**TWO MODES**: "
+                "1. GUID path: Provide 'plot_guid' to embed a previously rendered plot. "
+                "2. Inline path: Provide render params (title, y1, etc.) to render and embed in one call. "
+                "\n\n**WORKFLOW**: "
+                "- GUID: render_graph(proxy=true) -> get plot_guid -> add_plot_fragment(session_id, plot_guid=<guid>) "
+                "- Inline: add_plot_fragment(session_id, title='My Chart', y1=[1,2,3]) "
+                "\n\n**IMAGE EMBEDDING**: The plot is embedded as a base64 data URI in the document. "
+                "Rendered HTML/PDF documents are self-contained - no external server needed to view plots."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Document session GUID or alias"},
+                    "plot_guid": {"type": "string", "description": "GUID of previously rendered plot (from render_graph with proxy=true)"},
+                    "title": {"type": "string", "description": "Graph title (required for inline render, optional caption for GUID path)"},
+                    "x": {"type": "array", "items": {"type": "number"}, "description": "X-axis data (optional)"},
+                    "y1": {"type": "array", "items": {"type": "number"}, "description": "First dataset (required for inline render)"},
+                    "y2": {"type": "array", "items": {"type": "number"}, "description": "Second dataset (optional)"},
+                    "y3": {"type": "array", "items": {"type": "number"}, "description": "Third dataset (optional)"},
+                    "y4": {"type": "array", "items": {"type": "number"}, "description": "Fourth dataset (optional)"},
+                    "y5": {"type": "array", "items": {"type": "number"}, "description": "Fifth dataset (optional)"},
+                    "label1": {"type": "string", "description": "Label for first dataset"},
+                    "label2": {"type": "string", "description": "Label for second dataset"},
+                    "label3": {"type": "string", "description": "Label for third dataset"},
+                    "label4": {"type": "string", "description": "Label for fourth dataset"},
+                    "label5": {"type": "string", "description": "Label for fifth dataset"},
+                    "color1": {"type": "string", "description": "Color for first dataset"},
+                    "color2": {"type": "string", "description": "Color for second dataset"},
+                    "color3": {"type": "string", "description": "Color for third dataset"},
+                    "color4": {"type": "string", "description": "Color for fourth dataset"},
+                    "color5": {"type": "string", "description": "Color for fifth dataset"},
+                    "xlabel": {"type": "string", "description": "X-axis label"},
+                    "ylabel": {"type": "string", "description": "Y-axis label"},
+                    "type": {"type": "string", "enum": ["line", "scatter", "bar"], "description": "Chart type"},
+                    "format": {"type": "string", "enum": ["png", "jpg", "svg", "pdf"], "description": "Image format"},
+                    "theme": {"type": "string", "enum": ["light", "dark", "bizlight", "bizdark"], "description": "Visual theme"},
+                    "width": {"type": "integer", "description": "Image width in pixels"},
+                    "height": {"type": "integer", "description": "Image height in pixels"},
+                    "alt_text": {"type": "string", "description": "Accessibility text"},
+                    "alignment": {"type": "string", "enum": ["left", "center", "right"], "description": "Image alignment (default: center)"},
+                    "position": {"type": "string", "description": "Fragment position: 'end', 'start', 'before:<guid>', 'after:<guid>'"},
+                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred)."},
+                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                },
+                "required": ["session_id"],
             },
         ),
     ]
@@ -1703,6 +1907,451 @@ async def _tool_help(arguments: Dict[str, Any]) -> ToolResponse:
     return _success(_model_dump(output))
 
 
+# ========================================================================
+# Plot tool handlers (migrated from gofr-plot)
+# ========================================================================
+
+
+async def _tool_render_graph(arguments: Dict[str, Any]) -> ToolResponse:
+    """Render a graph visualization.
+
+    Validates input, renders the graph, and returns either:
+    - base64 image data (default mode)
+    - storage GUID (proxy mode, for later retrieval via get_image)
+
+    SECURITY: Requires valid JWT. Group isolation for proxy storage.
+    """
+    import base64 as b64_mod
+
+    payload = RenderGraphInput.model_validate(arguments)
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    renderer = plot_renderer
+    if renderer is None:
+        return _error(
+            code="PLOT_NOT_INITIALIZED",
+            message="Plot subsystem is not initialized",
+            recovery="The server may not have started correctly. Try restarting.",
+        )
+
+    storage = plot_storage
+    validator = plot_validator
+
+    # Build GraphParams from validated input (exclude auth/group fields)
+    param_fields = {
+        k: v
+        for k, v in payload.model_dump().items()
+        if k not in ("auth_token", "token", "group") and v is not None
+    }
+
+    try:
+        graph_data = GraphParams(**param_fields)
+    except (ValueError, Exception) as e:
+        return _error(
+            code="INVALID_GRAPH_PARAMS",
+            message=f"Invalid graph parameters: {str(e)}",
+            recovery="Check required fields: 'title' is required, at least y1 (or y) must be provided as a list of numbers.",
+        )
+
+    # Validate graph data
+    if validator is not None:
+        validation_result = validator.validate(graph_data)
+        if not validation_result.is_valid:
+            error_details = [err.to_dict() for err in validation_result.errors]
+            return _error(
+                code="GRAPH_VALIDATION_ERROR",
+                message="Graph data validation failed",
+                recovery="Review the validation errors and correct the input data.",
+                details={"validation_errors": error_details},
+            )
+
+    # Proxy mode: render to bytes, save to storage, return GUID
+    if graph_data.proxy:
+        if storage is None:
+            return _error(
+                code="PLOT_STORAGE_NOT_INITIALIZED",
+                message="Plot storage is not initialized",
+                recovery="The server may not have started correctly. Try restarting.",
+            )
+
+        graph_data_bytes = graph_data.model_copy()
+        object.__setattr__(graph_data_bytes, "return_base64", False)
+
+        try:
+            image_bytes = renderer.render(graph_data_bytes, group=caller_group)
+            if isinstance(image_bytes, str):
+                image_bytes = b64_mod.b64decode(image_bytes)
+        except (ValueError, RuntimeError) as e:
+            return _error(
+                code="RENDER_ERROR",
+                message=f"Graph rendering failed: {str(e)}",
+                recovery="Check your data arrays and chart type. Ensure arrays are non-empty and of the same length.",
+            )
+
+        guid = storage.save_image(
+            image_data=image_bytes,
+            format=graph_data.format,
+            group=caller_group,
+            alias=graph_data.alias,
+        )
+
+        result = {
+            "guid": guid,
+            "format": graph_data.format,
+            "theme": graph_data.theme,
+            "type": graph_data.type,
+            "title": graph_data.title,
+            "size_bytes": len(image_bytes),
+        }
+        if graph_data.alias:
+            result["alias"] = graph_data.alias
+
+        logger.info(
+            "Plot rendered in proxy mode",
+            guid=guid,
+            format=graph_data.format,
+            group=caller_group,
+        )
+        return _success(result, message=f"Graph saved with GUID: {guid}")
+
+    # Non-proxy: render to base64 and return as ImageContent
+    try:
+        graph_data_b64 = graph_data.model_copy()
+        object.__setattr__(graph_data_b64, "return_base64", True)
+        encoded = renderer.render(graph_data_b64, group=caller_group)
+        if isinstance(encoded, bytes):
+            encoded = b64_mod.b64encode(encoded).decode("utf-8")
+    except (ValueError, RuntimeError) as e:
+        return _error(
+            code="RENDER_ERROR",
+            message=f"Graph rendering failed: {str(e)}",
+            recovery="Check your data arrays and chart type. Ensure arrays are non-empty and of the same length.",
+        )
+
+    mime_type = {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "svg": "image/svg+xml",
+        "pdf": "application/pdf",
+    }.get(graph_data.format, "image/png")
+
+    logger.info(
+        "Plot rendered inline",
+        format=graph_data.format,
+        theme=graph_data.theme,
+        chart_type=graph_data.type,
+        group=caller_group,
+    )
+
+    return [
+        ImageContent(type="image", data=encoded, mimeType=mime_type),
+        _json_text(
+            {
+                "status": "success",
+                "data": {
+                    "format": graph_data.format,
+                    "theme": graph_data.theme,
+                    "type": graph_data.type,
+                    "title": graph_data.title,
+                },
+            }
+        ),
+    ]
+
+
+async def _tool_get_image(arguments: Dict[str, Any]) -> ToolResponse:
+    """Retrieve a stored plot image by GUID or alias.
+
+    SECURITY: Group isolation -- only images from the caller's group are accessible.
+    """
+    import base64 as b64_mod
+
+    payload = GetImageInput.model_validate(arguments)
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    storage = plot_storage
+    if storage is None:
+        return _error(
+            code="PLOT_STORAGE_NOT_INITIALIZED",
+            message="Plot storage is not initialized",
+            recovery="The server may not have started correctly. Try restarting.",
+        )
+
+    result = storage.get_image(payload.identifier, group=caller_group)
+    if result is None:
+        return _error(
+            code="IMAGE_NOT_FOUND",
+            message=f"Image '{payload.identifier}' not found",
+            recovery="Check the GUID or alias is correct. Call list_images to see available images in your group.",
+        )
+
+    image_data, fmt = result
+    encoded = b64_mod.b64encode(image_data).decode("utf-8")
+    mime_type = {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "svg": "image/svg+xml",
+        "pdf": "application/pdf",
+    }.get(fmt, "image/png")
+
+    alias = storage.get_alias(
+        storage.resolve_identifier(payload.identifier, caller_group) or payload.identifier
+    )
+
+    logger.info(
+        "Plot image retrieved",
+        identifier=payload.identifier,
+        format=fmt,
+        group=caller_group,
+        size_bytes=len(image_data),
+    )
+
+    return [
+        ImageContent(type="image", data=encoded, mimeType=mime_type),
+        _json_text(
+            {
+                "status": "success",
+                "data": {
+                    "identifier": payload.identifier,
+                    "format": fmt,
+                    "size_bytes": len(image_data),
+                    "alias": alias,
+                },
+            }
+        ),
+    ]
+
+
+async def _tool_list_images(arguments: Dict[str, Any]) -> ToolResponse:
+    """List all stored plot images accessible to the caller's group."""
+    payload = ListImagesInput.model_validate(arguments)
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    storage = plot_storage
+    if storage is None:
+        return _error(
+            code="PLOT_STORAGE_NOT_INITIALIZED",
+            message="Plot storage is not initialized",
+            recovery="The server may not have started correctly. Try restarting.",
+        )
+
+    images = storage.list_images(group=caller_group)
+
+    logger.info(
+        "Plot images listed",
+        group=caller_group,
+        count=len(images),
+    )
+
+    return _success(
+        {"images": images, "count": len(images)},
+        message=f"Found {len(images)} plot image(s) in group '{caller_group}'",
+    )
+
+
+async def _tool_list_themes(arguments: Dict[str, Any]) -> ToolResponse:
+    """List all available plot themes with descriptions."""
+    from app.plot.themes import list_themes_with_descriptions
+
+    themes = list_themes_with_descriptions()
+    return _success(
+        {"themes": themes, "count": len(themes)},
+        message=f"Found {len(themes)} available theme(s)",
+    )
+
+
+async def _tool_list_handlers(arguments: Dict[str, Any]) -> ToolResponse:
+    """List all available chart types (handlers) with descriptions."""
+    from app.plot.handlers import list_handlers_with_descriptions
+
+    handlers = list_handlers_with_descriptions()
+    return _success(
+        {"handlers": handlers, "count": len(handlers)},
+        message=f"Found {len(handlers)} available chart type(s)",
+    )
+
+
+async def _tool_add_plot_fragment(arguments: Dict[str, Any]) -> ToolResponse:
+    """Render a graph and embed it as a fragment in a document session.
+
+    Two modes:
+    1. GUID path: Provide 'plot_guid' to embed a previously rendered plot.
+    2. Inline path: Provide render params (title, y1, etc.) to render and embed.
+
+    Both paths produce a base64 data URI embedded as an image_from_url fragment.
+
+    SECURITY: Validates session belongs to caller's group.
+    """
+    import base64 as b64_mod
+    from datetime import datetime
+
+    payload = AddPlotFragmentInput.model_validate(arguments)
+    manager = _ensure_manager()
+    caller_group = payload.group if hasattr(payload, "group") else "public"
+
+    # Resolve session alias to GUID if needed
+    session_id = _resolve_session_identifier(payload.session_id, caller_group, manager)
+    if not session_id:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
+    # SECURITY: Verify session belongs to caller's group
+    session = await manager.get_session(session_id)
+    if session is None or session.group != caller_group:
+        return _error(
+            code="SESSION_NOT_FOUND",
+            message=f"Session '{payload.session_id}' not found",
+            recovery="Verify the session_id or alias is correct. Call list_active_sessions to see your sessions.",
+        )
+
+    # Determine mode: GUID path vs inline render path
+    if payload.plot_guid:
+        # GUID path: fetch previously rendered plot from storage
+        storage = plot_storage
+        if storage is None:
+            return _error(
+                code="PLOT_STORAGE_NOT_INITIALIZED",
+                message="Plot storage is not initialized",
+                recovery="The server may not have started correctly. Try restarting.",
+            )
+
+        data_uri = storage.get_image_as_data_uri(payload.plot_guid, group=caller_group)
+        if data_uri is None:
+            return _error(
+                code="IMAGE_NOT_FOUND",
+                message=f"Plot image '{payload.plot_guid}' not found",
+                recovery="Check the GUID is correct and belongs to your group. Call list_images to see available images.",
+            )
+
+        # Use title from payload as caption, or derive from GUID
+        image_title = payload.title or f"Plot {payload.plot_guid[:8]}"
+        content_type = "image/png"  # Default for stored images
+
+        logger.info(
+            "Embedding plot from GUID",
+            plot_guid=payload.plot_guid,
+            session_id=session_id,
+            group=caller_group,
+        )
+
+    else:
+        # Inline render path: render the graph in-process
+        if payload.title is None:
+            return _error(
+                code="MISSING_TITLE",
+                message="'title' is required for inline render mode",
+                recovery="Provide a 'title' parameter, or use 'plot_guid' to embed a previously rendered plot.",
+            )
+
+        renderer = plot_renderer
+        if renderer is None:
+            return _error(
+                code="PLOT_NOT_INITIALIZED",
+                message="Plot subsystem is not initialized",
+                recovery="The server may not have started correctly. Try restarting.",
+            )
+
+        # Build GraphParams from inline render fields
+        render_fields = {}
+        for field_name in (
+            "title", "x", "y", "y1", "y2", "y3", "y4", "y5",
+            "label1", "label2", "label3", "label4", "label5",
+            "color1", "color2", "color3", "color4", "color5",
+            "color", "xlabel", "ylabel", "type", "format", "theme",
+            "line_width", "marker_size", "alpha",
+        ):
+            val = getattr(payload, field_name, None)
+            if val is not None:
+                render_fields[field_name] = val
+
+        try:
+            graph_data = GraphParams(**render_fields)
+        except (ValueError, Exception) as e:
+            return _error(
+                code="INVALID_GRAPH_PARAMS",
+                message=f"Invalid graph parameters: {str(e)}",
+                recovery="Check required fields: 'title' and at least y1 (or y) must be provided.",
+            )
+
+        # Validate
+        validator = plot_validator
+        if validator is not None:
+            validation_result = validator.validate(graph_data)
+            if not validation_result.is_valid:
+                error_details = [err.to_dict() for err in validation_result.errors]
+                return _error(
+                    code="GRAPH_VALIDATION_ERROR",
+                    message="Graph data validation failed",
+                    recovery="Review the validation errors and correct the input data.",
+                    details={"validation_errors": error_details},
+                )
+
+        # Render to bytes
+        try:
+            image_bytes = renderer.render_to_bytes(graph_data)
+        except (ValueError, RuntimeError) as e:
+            return _error(
+                code="RENDER_ERROR",
+                message=f"Graph rendering failed: {str(e)}",
+                recovery="Check your data arrays and chart type.",
+            )
+
+        content_type = f"image/{graph_data.format}"
+        if graph_data.format == "jpg":
+            content_type = "image/jpeg"
+        elif graph_data.format == "svg":
+            content_type = "image/svg+xml"
+
+        encoded = b64_mod.b64encode(image_bytes).decode("utf-8")
+        data_uri = f"data:{content_type};base64,{encoded}"
+        image_title = payload.title
+
+        logger.info(
+            "Embedding inline-rendered plot",
+            chart_type=graph_data.type,
+            session_id=session_id,
+            group=caller_group,
+        )
+
+    # Build fragment parameters (same pattern as add_image_fragment)
+    fragment_parameters: Dict[str, Any] = {
+        "image_url": "inline:plot",  # Marker for inline content
+        "embedded_data_uri": data_uri,
+        "validated_at": datetime.utcnow().isoformat() + "Z",
+        "content_type": content_type,
+    }
+
+    if image_title:
+        fragment_parameters["title"] = image_title
+    if payload.width:
+        fragment_parameters["width"] = payload.width
+    if payload.height:
+        fragment_parameters["height"] = payload.height
+
+    fragment_parameters["alt_text"] = payload.alt_text or image_title or "Plot"
+    fragment_parameters["alignment"] = payload.alignment or "center"
+
+    # Add fragment to session using standard image fragment
+    output = await manager.add_fragment(
+        session_id=session_id,
+        fragment_id="image_from_url",
+        parameters=fragment_parameters,
+        position=payload.position or "end",
+    )
+
+    logger.info(
+        "Plot fragment added to session",
+        session_id=session_id,
+        group=caller_group,
+        mode="guid" if payload.plot_guid else "inline",
+    )
+
+    return _success(_model_dump(output))
+
+
 HANDLERS: Dict[str, ToolHandler] = {
     "ping": _tool_ping,
     "help": _tool_help,
@@ -1722,6 +2371,13 @@ HANDLERS: Dict[str, ToolHandler] = {
     "list_session_fragments": _tool_list_session_fragments,
     "abort_document_session": _tool_abort_session,
     "get_document": _tool_get_document,
+    # Plot tools
+    "render_graph": _tool_render_graph,
+    "get_image": _tool_get_image,
+    "list_images": _tool_list_images,
+    "list_themes": _tool_list_themes,
+    "list_handlers": _tool_list_handlers,
+    "add_plot_fragment": _tool_add_plot_fragment,
 }
 
 
