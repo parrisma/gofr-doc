@@ -226,8 +226,19 @@ class GraphDataValidator:
         """Basic color format validation for all color parameters."""
         errors = []
         named_colors = {
-            "red", "blue", "green", "yellow", "orange", "purple", "pink",
-            "black", "white", "gray", "brown", "cyan", "magenta",
+            "red",
+            "blue",
+            "green",
+            "yellow",
+            "orange",
+            "purple",
+            "pink",
+            "black",
+            "white",
+            "gray",
+            "brown",
+            "cyan",
+            "magenta",
         }
 
         for i in range(1, 6):

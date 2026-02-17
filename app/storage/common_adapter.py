@@ -13,7 +13,7 @@ from gofr_common.storage.file_storage import FileStorage as CommonFileStorage
 from gofr_common.storage.exceptions import (
     PermissionDeniedError as CommonPermissionDeniedError,
     StorageError,
-    ResourceNotFoundError
+    ResourceNotFoundError,
 )
 
 logger = logging.getLogger("storage.adapter")
@@ -324,6 +324,6 @@ class CommonStorageAdapter(DocumentStorageBase):
                     "group": meta.group,
                     "size": meta.size,
                     "created_at": meta.created_at,
-                    **meta.extra
+                    **meta.extra,
                 }
         return result

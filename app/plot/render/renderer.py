@@ -5,6 +5,7 @@ Uses the Agg backend for headless rendering in containers.
 """
 
 import matplotlib
+
 matplotlib.use("Agg")  # Must be set before importing pyplot
 
 import matplotlib.pyplot as plt  # noqa: E402

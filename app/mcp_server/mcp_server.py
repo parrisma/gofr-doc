@@ -339,6 +339,7 @@ async def initialize_server() -> None:
 
     # Initialize plot domain components
     from app.storage import get_storage
+
     plot_renderer = GraphRenderer(logger=logger)
     plot_validator = GraphDataValidator()
     storage_adapter_raw = get_storage()
@@ -970,44 +971,142 @@ async def handle_list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {
                     "title": {"type": "string", "description": "The title of the graph"},
-                    "x": {"type": "array", "items": {"type": "number"}, "description": "X-axis data points (optional, defaults to indices)"},
-                    "y": {"type": "array", "items": {"type": "number"}, "description": "Y-axis data (backward compat - maps to y1)"},
-                    "y1": {"type": "array", "items": {"type": "number"}, "description": "First dataset Y-axis data (required unless 'y' provided)"},
-                    "y2": {"type": "array", "items": {"type": "number"}, "description": "Second dataset (optional)"},
-                    "y3": {"type": "array", "items": {"type": "number"}, "description": "Third dataset (optional)"},
-                    "y4": {"type": "array", "items": {"type": "number"}, "description": "Fourth dataset (optional)"},
-                    "y5": {"type": "array", "items": {"type": "number"}, "description": "Fifth dataset (optional)"},
+                    "x": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "X-axis data points (optional, defaults to indices)",
+                    },
+                    "y": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Y-axis data (backward compat - maps to y1)",
+                    },
+                    "y1": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "First dataset Y-axis data (required unless 'y' provided)",
+                    },
+                    "y2": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Second dataset (optional)",
+                    },
+                    "y3": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Third dataset (optional)",
+                    },
+                    "y4": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Fourth dataset (optional)",
+                    },
+                    "y5": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Fifth dataset (optional)",
+                    },
                     "label1": {"type": "string", "description": "Label for first dataset (legend)"},
                     "label2": {"type": "string", "description": "Label for second dataset"},
                     "label3": {"type": "string", "description": "Label for third dataset"},
                     "label4": {"type": "string", "description": "Label for fourth dataset"},
                     "label5": {"type": "string", "description": "Label for fifth dataset"},
-                    "color1": {"type": "string", "description": "Color for first dataset (e.g., 'red', '#FF5733')"},
+                    "color1": {
+                        "type": "string",
+                        "description": "Color for first dataset (e.g., 'red', '#FF5733')",
+                    },
                     "color2": {"type": "string", "description": "Color for second dataset"},
                     "color3": {"type": "string", "description": "Color for third dataset"},
                     "color4": {"type": "string", "description": "Color for fourth dataset"},
                     "color5": {"type": "string", "description": "Color for fifth dataset"},
-                    "xlabel": {"type": "string", "description": "X-axis label (default: 'X-axis')", "default": "X-axis"},
-                    "ylabel": {"type": "string", "description": "Y-axis label (default: 'Y-axis')", "default": "Y-axis"},
-                    "type": {"type": "string", "enum": ["line", "scatter", "bar"], "description": "Chart type (default: 'line')", "default": "line"},
-                    "format": {"type": "string", "enum": ["png", "jpg", "svg", "pdf"], "description": "Image format (default: 'png')", "default": "png"},
-                    "proxy": {"type": "boolean", "description": "If true, save to storage and return GUID (default: false)", "default": False},
-                    "alias": {"type": "string", "description": "Friendly name for proxy mode (3-64 chars, alphanumeric with hyphens/underscores)"},
-                    "color": {"type": "string", "description": "Line/marker color (backward compat, maps to color1)"},
-                    "line_width": {"type": "number", "description": "Line width (default: 2.0)", "default": 2.0},
-                    "marker_size": {"type": "number", "description": "Marker size for scatter (default: 36.0)", "default": 36.0},
-                    "alpha": {"type": "number", "description": "Transparency 0.0-1.0 (default: 1.0)", "default": 1.0},
-                    "theme": {"type": "string", "enum": ["light", "dark", "bizlight", "bizdark"], "description": "Visual theme (default: 'light')", "default": "light"},
+                    "xlabel": {
+                        "type": "string",
+                        "description": "X-axis label (default: 'X-axis')",
+                        "default": "X-axis",
+                    },
+                    "ylabel": {
+                        "type": "string",
+                        "description": "Y-axis label (default: 'Y-axis')",
+                        "default": "Y-axis",
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["line", "scatter", "bar"],
+                        "description": "Chart type (default: 'line')",
+                        "default": "line",
+                    },
+                    "format": {
+                        "type": "string",
+                        "enum": ["png", "jpg", "svg", "pdf"],
+                        "description": "Image format (default: 'png')",
+                        "default": "png",
+                    },
+                    "proxy": {
+                        "type": "boolean",
+                        "description": "If true, save to storage and return GUID (default: false)",
+                        "default": False,
+                    },
+                    "alias": {
+                        "type": "string",
+                        "description": "Friendly name for proxy mode (3-64 chars, alphanumeric with hyphens/underscores)",
+                    },
+                    "color": {
+                        "type": "string",
+                        "description": "Line/marker color (backward compat, maps to color1)",
+                    },
+                    "line_width": {
+                        "type": "number",
+                        "description": "Line width (default: 2.0)",
+                        "default": 2.0,
+                    },
+                    "marker_size": {
+                        "type": "number",
+                        "description": "Marker size for scatter (default: 36.0)",
+                        "default": 36.0,
+                    },
+                    "alpha": {
+                        "type": "number",
+                        "description": "Transparency 0.0-1.0 (default: 1.0)",
+                        "default": 1.0,
+                    },
+                    "theme": {
+                        "type": "string",
+                        "enum": ["light", "dark", "bizlight", "bizdark"],
+                        "description": "Visual theme (default: 'light')",
+                        "default": "light",
+                    },
                     "xmin": {"type": "number", "description": "Minimum x-axis value"},
                     "xmax": {"type": "number", "description": "Maximum x-axis value"},
                     "ymin": {"type": "number", "description": "Minimum y-axis value"},
                     "ymax": {"type": "number", "description": "Maximum y-axis value"},
-                    "x_major_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom x-axis major tick positions"},
-                    "y_major_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom y-axis major tick positions"},
-                    "x_minor_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom x-axis minor tick positions"},
-                    "y_minor_ticks": {"type": "array", "items": {"type": "number"}, "description": "Custom y-axis minor tick positions"},
-                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred). Include your JWT token here."},
-                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                    "x_major_ticks": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Custom x-axis major tick positions",
+                    },
+                    "y_major_ticks": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Custom y-axis major tick positions",
+                    },
+                    "x_minor_ticks": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Custom x-axis minor tick positions",
+                    },
+                    "y_minor_ticks": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Custom y-axis minor tick positions",
+                    },
+                    "auth_token": {
+                        "type": "string",
+                        "description": "JWT authentication token (preferred). Include your JWT token here.",
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT authentication token (legacy backward compatibility).",
+                    },
                 },
                 "required": ["title"],
             },
@@ -1025,8 +1124,14 @@ async def handle_list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {
                     "identifier": {"type": "string", "description": "Image GUID or alias"},
-                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred)."},
-                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                    "auth_token": {
+                        "type": "string",
+                        "description": "JWT authentication token (preferred).",
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT authentication token (legacy backward compatibility).",
+                    },
                 },
                 "required": ["identifier"],
             },
@@ -1042,8 +1147,14 @@ async def handle_list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred)."},
-                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                    "auth_token": {
+                        "type": "string",
+                        "description": "JWT authentication token (preferred).",
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT authentication token (legacy backward compatibility).",
+                    },
                 },
                 "required": [],
             },
@@ -1085,15 +1196,48 @@ async def handle_list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "session_id": {"type": "string", "description": "Document session GUID or alias"},
-                    "plot_guid": {"type": "string", "description": "GUID of previously rendered plot (from render_graph with proxy=true)"},
-                    "title": {"type": "string", "description": "Graph title (required for inline render, optional caption for GUID path)"},
-                    "x": {"type": "array", "items": {"type": "number"}, "description": "X-axis data (optional)"},
-                    "y1": {"type": "array", "items": {"type": "number"}, "description": "First dataset (required for inline render)"},
-                    "y2": {"type": "array", "items": {"type": "number"}, "description": "Second dataset (optional)"},
-                    "y3": {"type": "array", "items": {"type": "number"}, "description": "Third dataset (optional)"},
-                    "y4": {"type": "array", "items": {"type": "number"}, "description": "Fourth dataset (optional)"},
-                    "y5": {"type": "array", "items": {"type": "number"}, "description": "Fifth dataset (optional)"},
+                    "session_id": {
+                        "type": "string",
+                        "description": "Document session GUID or alias",
+                    },
+                    "plot_guid": {
+                        "type": "string",
+                        "description": "GUID of previously rendered plot (from render_graph with proxy=true)",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Graph title (required for inline render, optional caption for GUID path)",
+                    },
+                    "x": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "X-axis data (optional)",
+                    },
+                    "y1": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "First dataset (required for inline render)",
+                    },
+                    "y2": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Second dataset (optional)",
+                    },
+                    "y3": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Third dataset (optional)",
+                    },
+                    "y4": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Fourth dataset (optional)",
+                    },
+                    "y5": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Fifth dataset (optional)",
+                    },
                     "label1": {"type": "string", "description": "Label for first dataset"},
                     "label2": {"type": "string", "description": "Label for second dataset"},
                     "label3": {"type": "string", "description": "Label for third dataset"},
@@ -1106,16 +1250,41 @@ async def handle_list_tools() -> List[Tool]:
                     "color5": {"type": "string", "description": "Color for fifth dataset"},
                     "xlabel": {"type": "string", "description": "X-axis label"},
                     "ylabel": {"type": "string", "description": "Y-axis label"},
-                    "type": {"type": "string", "enum": ["line", "scatter", "bar"], "description": "Chart type"},
-                    "format": {"type": "string", "enum": ["png", "jpg", "svg", "pdf"], "description": "Image format"},
-                    "theme": {"type": "string", "enum": ["light", "dark", "bizlight", "bizdark"], "description": "Visual theme"},
+                    "type": {
+                        "type": "string",
+                        "enum": ["line", "scatter", "bar"],
+                        "description": "Chart type",
+                    },
+                    "format": {
+                        "type": "string",
+                        "enum": ["png", "jpg", "svg", "pdf"],
+                        "description": "Image format",
+                    },
+                    "theme": {
+                        "type": "string",
+                        "enum": ["light", "dark", "bizlight", "bizdark"],
+                        "description": "Visual theme",
+                    },
                     "width": {"type": "integer", "description": "Image width in pixels"},
                     "height": {"type": "integer", "description": "Image height in pixels"},
                     "alt_text": {"type": "string", "description": "Accessibility text"},
-                    "alignment": {"type": "string", "enum": ["left", "center", "right"], "description": "Image alignment (default: center)"},
-                    "position": {"type": "string", "description": "Fragment position: 'end', 'start', 'before:<guid>', 'after:<guid>'"},
-                    "auth_token": {"type": "string", "description": "JWT authentication token (preferred)."},
-                    "token": {"type": "string", "description": "JWT authentication token (legacy backward compatibility)."},
+                    "alignment": {
+                        "type": "string",
+                        "enum": ["left", "center", "right"],
+                        "description": "Image alignment (default: center)",
+                    },
+                    "position": {
+                        "type": "string",
+                        "description": "Fragment position: 'end', 'start', 'before:<guid>', 'after:<guid>'",
+                    },
+                    "auth_token": {
+                        "type": "string",
+                        "description": "JWT authentication token (preferred).",
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT authentication token (legacy backward compatibility).",
+                    },
                 },
                 "required": ["session_id"],
             },
@@ -2257,11 +2426,33 @@ async def _tool_add_plot_fragment(arguments: Dict[str, Any]) -> ToolResponse:
         # Build GraphParams from inline render fields
         render_fields = {}
         for field_name in (
-            "title", "x", "y", "y1", "y2", "y3", "y4", "y5",
-            "label1", "label2", "label3", "label4", "label5",
-            "color1", "color2", "color3", "color4", "color5",
-            "color", "xlabel", "ylabel", "type", "format", "theme",
-            "line_width", "marker_size", "alpha",
+            "title",
+            "x",
+            "y",
+            "y1",
+            "y2",
+            "y3",
+            "y4",
+            "y5",
+            "label1",
+            "label2",
+            "label3",
+            "label4",
+            "label5",
+            "color1",
+            "color2",
+            "color3",
+            "color4",
+            "color5",
+            "color",
+            "xlabel",
+            "ylabel",
+            "type",
+            "format",
+            "theme",
+            "line_width",
+            "marker_size",
+            "alpha",
         ):
             val = getattr(payload, field_name, None)
             if val is not None:

@@ -131,13 +131,15 @@ class PlotStorageWrapper:
                 continue
 
             alias = self._storage.get_alias(guid)
-            results.append({
-                "guid": guid,
-                "format": meta.get("format", "unknown"),
-                "alias": alias,
-                "size": meta.get("size", 0),
-                "created_at": meta.get("created_at"),
-            })
+            results.append(
+                {
+                    "guid": guid,
+                    "format": meta.get("format", "unknown"),
+                    "alias": alias,
+                    "size": meta.get("size", 0),
+                    "created_at": meta.get("created_at"),
+                }
+            )
 
         return results
 
@@ -152,9 +154,7 @@ class PlotStorageWrapper:
         """
         return [img["guid"] for img in self.list_images(group)]
 
-    def get_image_as_data_uri(
-        self, identifier: str, group: Optional[str] = None
-    ) -> Optional[str]:
+    def get_image_as_data_uri(self, identifier: str, group: Optional[str] = None) -> Optional[str]:
         """Get a plot image as a base64 data URI for embedding.
 
         Args:
