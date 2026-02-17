@@ -91,6 +91,7 @@ if __name__ == "__main__":
             group_registry=group_registry,
             secret_provider=secret_provider,
             env_prefix="GOFR_DOC",
+            audience="gofr-api",
         )
         startup_logger.info(
             "Authentication service initialized",

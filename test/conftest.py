@@ -111,6 +111,7 @@ def _create_test_auth_service(vault_client: VaultClient, path_prefix: str) -> Au
         group_registry=group_registry,
         secret_provider=make_test_secret_provider(),
         env_prefix="GOFR_DOC",
+        audience="gofr-api",
     )
 
 

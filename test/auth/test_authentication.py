@@ -134,6 +134,7 @@ class TestAuthTokenCreation:
             group_registry=auth_service._group_registry,
             secret_provider=make_test_secret_provider(TEST_JWT_SECRET),
             env_prefix="GOFR_DOC",
+            audience="gofr-api",
         )
 
         # Verify token exists in second service

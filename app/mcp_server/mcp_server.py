@@ -1826,13 +1826,22 @@ async def lifespan(starlette_app) -> AsyncIterator[None]:
         yield
 
 
-from gofr_common.web import create_mcp_starlette_app  # noqa: E402 - must import after MCP setup
+from gofr_common.web import (  # noqa: E402 - must import after MCP setup
+    create_mcp_starlette_app,
+    create_health_routes,
+)
+
+health_routes = create_health_routes(
+    service="gofr-doc-mcp",
+    auth_enabled=auth_service is not None,
+)
 
 starlette_app = create_mcp_starlette_app(
     mcp_handler=handle_streamable_http,
     lifespan=lifespan,
     env_prefix="GOFR_DOC",
     include_auth_middleware=True,
+    additional_routes=health_routes,
 )
 
 
