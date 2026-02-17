@@ -177,8 +177,12 @@ def _verify_auth(
     if auth_service is None:
         return None, None
 
-    # Try to get token from tool arguments first (for backward compatibility)
-    token = arguments.get("token")
+    # Try auth_token first (gofr-dig convention), then legacy 'token' for backward compat
+    token = arguments.get("auth_token") or arguments.get("token")
+
+    # Strip "Bearer " prefix if present (gofr-dig tolerates both forms)
+    if token and token.startswith("Bearer "):
+        token = token[7:]
 
     # If not in arguments, try to extract from context (set by HTTP middleware)
     if not token:
@@ -194,9 +198,10 @@ def _verify_auth(
                 recovery=(
                     "AUTHENTICATION REQUIRED: Add a valid bearer token to your request via HTTP Authorization header. "
                     "Use: Authorization: Bearer your_bearer_token_here. "
-                    "Alternatively, include {'token': 'your_bearer_token_here'} in tool arguments for backward compatibility. "
+                    "Alternatively, include {'auth_token': 'your_bearer_token_here'} in tool arguments (preferred), "
+                    "or {'token': 'your_bearer_token_here'} for backward compatibility. "
                     "If you don't have a token, contact your administrator or check authentication documentation. "
-                    "NOTE: Discovery tools (list_templates, get_template_details, list_styles) do NOT require authentication."
+                    "NOTE: Discovery tools (list_templates, get_template_details, list_styles, list_themes, list_handlers) do NOT require authentication."
                 ),
             )
         return None, None
