@@ -347,6 +347,130 @@ Content is `null` when `proxy=true`.
 
 ---
 
+## Plot Tools
+
+Tools for rendering graphs, managing plot images, and embedding charts in documents.
+Migrated from gofr-plot into gofr-doc.
+
+---
+
+### list_themes
+
+Discover all available visual themes with descriptions.
+No authentication required.
+
+**Parameters:** none
+
+**Returns:** `{themes: {name: description, ...}, count}`
+
+Available themes: light, dark, bizlight, bizdark.
+
+---
+
+### list_handlers
+
+Discover all available chart types (handlers) with capability descriptions.
+No authentication required.
+
+**Parameters:** none
+
+**Returns:** `{handlers: {name: description, ...}, count}`
+
+Available types: line, scatter, bar.
+
+---
+
+### render_graph
+
+Render a graph visualization and return it as a base64-encoded image or storage GUID.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| title | string | yes | -- | Graph title. |
+| y1 | number[] | yes* | -- | First dataset Y-axis data. (*or legacy `y`) |
+| x | number[] | no | indices | X-axis data points. |
+| y2-y5 | number[] | no | -- | Additional datasets (up to 5 total). |
+| label1-label5 | string | no | -- | Legend labels per dataset. |
+| color1-color5 | string | no | theme default | Colors per dataset. |
+| xlabel | string | no | X-axis | X-axis label. |
+| ylabel | string | no | Y-axis | Y-axis label. |
+| type | string | no | line | Chart type: line, scatter, bar. |
+| format | string | no | png | Output: png, jpg, svg, pdf. |
+| theme | string | no | light | Visual theme: light, dark, bizlight, bizdark. |
+| proxy | boolean | no | false | If true, save to storage and return GUID. |
+| alias | string | no | -- | Friendly name for proxy mode. |
+| line_width | number | no | 2.0 | Line width. |
+| marker_size | number | no | 36.0 | Scatter marker size. |
+| alpha | number | no | 1.0 | Transparency (0.0-1.0). |
+| xmin/xmax | number | no | -- | X-axis limits. |
+| ymin/ymax | number | no | -- | Y-axis limits. |
+| x_major_ticks | number[] | no | -- | Custom X major tick positions. |
+| y_major_ticks | number[] | no | -- | Custom Y major tick positions. |
+| auth_token | string | yes | -- | JWT authentication token. |
+
+**Returns (non-proxy):** ImageContent (base64 image) + metadata.
+
+**Returns (proxy):** `{guid, format, theme, type, title, size_bytes, alias?}`
+
+**Errors:** INVALID_GRAPH_PARAMS, GRAPH_VALIDATION_ERROR, RENDER_ERROR, PLOT_NOT_INITIALIZED
+
+---
+
+### get_image
+
+Retrieve a previously stored graph image by GUID or alias.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| identifier | string | yes | -- | Image GUID or alias. |
+| auth_token | string | yes | -- | JWT authentication token. |
+
+**Returns:** ImageContent (base64 image) + metadata `{identifier, format, size_bytes, alias}`.
+
+**Errors:** IMAGE_NOT_FOUND, PLOT_STORAGE_NOT_INITIALIZED
+
+---
+
+### list_images
+
+List all stored plot images accessible to your token's group.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| auth_token | string | yes | -- | JWT authentication token. |
+
+**Returns:** `{images: [{guid, format, alias, size, created_at}, ...], count}`
+
+**Errors:** PLOT_STORAGE_NOT_INITIALIZED
+
+---
+
+### add_plot_fragment
+
+Render a graph and embed it as a fragment in a document session.
+Supports two modes: GUID path (embed previously rendered plot) or inline path (render and embed).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| session_id | string | yes | -- | Document session GUID or alias. |
+| plot_guid | string | no | -- | GUID of previously rendered plot (GUID path). |
+| title | string | yes* | -- | Graph title (*required for inline path). |
+| y1 | number[] | yes* | -- | First dataset (*required for inline path). |
+| x, y2-y5, label1-label5, color1-color5 | various | no | -- | Render params (inline path). |
+| type, format, theme | string | no | line/png/light | Chart settings (inline path). |
+| width | integer | no | -- | Image width in pixels. |
+| height | integer | no | -- | Image height in pixels. |
+| alt_text | string | no | -- | Accessibility text. |
+| alignment | string | no | center | left, center, right. |
+| position | string | no | end | Fragment position: end, start, before:<guid>, after:<guid>. |
+| auth_token | string | yes | -- | JWT authentication token. |
+
+**Returns:** Fragment output with fragment_instance_guid.
+
+**Errors:** SESSION_NOT_FOUND, IMAGE_NOT_FOUND, INVALID_GRAPH_PARAMS, GRAPH_VALIDATION_ERROR, RENDER_ERROR
+
+---
+
 ## Error Codes
 
 Every error response includes `{success: false, error_code, error, recovery_strategy}`.
@@ -409,6 +533,18 @@ The `recovery_strategy` field provides actionable guidance.
 | IMAGE_TOO_LARGE | File exceeds 10 MB limit. Use a smaller image. |
 | IMAGE_URL_TIMEOUT | Server unreachable or slow. Check URL and retry. |
 | IMAGE_VALIDATION_ERROR | Generic image validation failure. Check image URL and format. |
+
+### Plot-Specific Errors
+
+| Error Code | Recovery Strategy |
+|------------|-------------------|
+| PLOT_NOT_INITIALIZED | Plot subsystem failed to initialize. Restart the server. |
+| PLOT_STORAGE_NOT_INITIALIZED | Plot storage requires CommonStorageAdapter. Check server config. |
+| INVALID_GRAPH_PARAMS | Invalid graph parameters. Check title is provided and at least y1 array exists. |
+| GRAPH_VALIDATION_ERROR | Data validation failed. Review validation_errors in details. Fix arrays and retry. |
+| RENDER_ERROR | Rendering failed. Check data arrays are non-empty and of equal length. |
+| IMAGE_NOT_FOUND | Plot image GUID or alias not found. Call list_images to see available images. |
+| MISSING_TITLE | Title required for inline render mode. Provide title or use plot_guid instead. |
 
 ### Server Errors
 
