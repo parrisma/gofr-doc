@@ -110,6 +110,16 @@ done
 tear_down() {
     info "Tearing down gofr-doc test stack..."
     docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" down --remove-orphans 2>/dev/null || true
+
+    # Compose should remove these, but container_name is fixed in compose.dev.yml,
+    # and stale containers can survive interrupted runs.
+    docker rm -f \
+        gofr-vault-test \
+        gofr-vault-init-test \
+        gofr-doc-mcp-test \
+        gofr-doc-mcpo-test \
+        gofr-doc-web-test \
+        2>/dev/null || true
     ok "Stack removed."
 }
 
