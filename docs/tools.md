@@ -93,6 +93,43 @@ List all available visual styles for document rendering.
 
 ---
 
+## Stock Images (Web Server)
+
+The web server hosts stock images for use in documents. Images are served
+publicly (no authentication required) and can be referenced by URL in
+`add_image_fragment`. Subdirectory structure is preserved.
+
+---
+
+### GET /images
+
+List all available stock images.
+
+**Parameters:** none
+
+**Returns:** `{"status": "success", "data": {"images": ["piggy-bank.jpg", "logos/acme.png"], "count": 2}}`
+
+Images are returned as relative paths, recursively discovered. Only image files
+are listed (png, jpg, jpeg, svg, webp, gif, avif, tiff, bmp, ico).
+
+---
+
+### GET /images/{path}
+
+Serve a stock image file by relative path.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| path | string (URL path) | yes | Relative path within the images directory. Supports subdirectories. |
+
+**Returns:** Image binary with correct `Content-Type` and `Cache-Control: public, max-age=3600`.
+
+**Errors:** 404 if not found, 400 if path traversal detected, 415 if not an image file.
+
+**Example:** `GET /images/piggy-bank.jpg` or `GET /images/logos/acme.png`
+
+---
+
 ## Session Management
 
 Tools for creating, inspecting, and deleting document sessions.

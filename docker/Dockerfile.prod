@@ -60,9 +60,15 @@ COPY --chown=gofr-doc:gofr-doc app/ /home/gofr-doc/app/
 
 # Stage built-in content outside the data volume mount point.
 # The entrypoint deploys these into the data volume at container start.
+#
+# INTERIM: Baking content into the app image is expedient but does not scale.
+# As templates, fragments, and images grow, move to a dedicated content-init
+# container (like vault-init) that populates the data volume independently,
+# keeping the app image lean. See also: entrypoint-prod.sh.
 COPY --chown=gofr-doc:gofr-doc app/content/templates/ /home/gofr-doc/_content/templates/
 COPY --chown=gofr-doc:gofr-doc app/content/styles/    /home/gofr-doc/_content/styles/
 COPY --chown=gofr-doc:gofr-doc app/content/fragments/ /home/gofr-doc/_content/fragments/
+COPY --chown=gofr-doc:gofr-doc app/content/images/    /home/gofr-doc/_content/images/
 
 # Fix ownership after installation
 RUN chown -R gofr-doc:gofr-doc /home/gofr-doc

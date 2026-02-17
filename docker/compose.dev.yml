@@ -109,7 +109,7 @@ services:
     command:
       - |
         mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
-        for subdir in templates styles fragments; do
+        for subdir in templates styles fragments images; do
           src="/home/gofr-doc/_content/$${subdir}"
           dst="/home/gofr-doc/data/$${subdir}"
           if [ -d "$${src}" ]; then cp -a "$${src}/." "$${dst}/" 2>/dev/null || cp -r "$${src}/." "$${dst}/"; fi
@@ -183,7 +183,7 @@ services:
     command:
       - |
         mkdir -p /home/gofr-doc/data/storage /home/gofr-doc/data/sessions /home/gofr-doc/logs
-        for subdir in templates styles fragments; do
+        for subdir in templates styles fragments images; do
           src="/home/gofr-doc/_content/$${subdir}"
           dst="/home/gofr-doc/data/$${subdir}"
           if [ -d "$${src}" ]; then cp -a "$${src}/." "$${dst}/" 2>/dev/null || cp -r "$${src}/." "$${dst}/"; fi
@@ -199,7 +199,7 @@ services:
       - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
       - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
-      - GOFR_DOC_IMAGES_DIR=/home/gofr-doc/images
+      - GOFR_DOC_IMAGES_DIR=/home/gofr-doc/data/images
     ports:
       - "${GOFR_DOC_WEB_HOST_PORT:-${GOFR_DOC_WEB_PORT_TEST}}:${GOFR_DOC_WEB_PORT}"
     healthcheck:
@@ -210,7 +210,6 @@ services:
       start_period: 20s
     volumes:
       - gofr-doc-storage:/home/gofr-doc/data/storage
-      - gofr-doc-images-test:/home/gofr-doc/images:ro
 
 # ── Network ─────────────────────────────────────────────────────────────────
 
@@ -223,4 +222,4 @@ networks:
 
 volumes:
   gofr-doc-storage:
-  gofr-doc-images-test:
+

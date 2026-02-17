@@ -169,14 +169,13 @@ services:
       - GOFR_DOC_VAULT_URL=${GOFR_DOC_VAULT_URL:-http://gofr-vault:${GOFR_VAULT_PORT}}
       - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
-      - GOFR_DOC_IMAGES_DIR=/home/gofr-doc/images
+      - GOFR_DOC_IMAGES_DIR=/home/gofr-doc/data/images
     ports:
       - "${GOFR_DOC_WEB_HOST_PORT:-${GOFR_DOC_WEB_PORT}}:${GOFR_DOC_WEB_PORT}"
     volumes:
       - gofr-doc-data:/home/gofr-doc/data
       - gofr-doc-prod-logs:/home/gofr-doc/logs
       - gofr-secrets:/run/gofr-secrets:ro
-      - gofr-doc-images:/home/gofr-doc/images:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${GOFR_DOC_WEB_PORT}/ping || exit 1"]
       interval: 15s
@@ -241,9 +240,6 @@ volumes:
     external: false
   gofr-doc-prod-logs:
     name: gofr-doc-prod-logs
-    external: false
-  gofr-doc-images:
-    name: gofr-doc-images
     external: false
   gofr-secrets:
     name: gofr-secrets

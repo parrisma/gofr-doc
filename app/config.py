@@ -72,7 +72,7 @@ def get_default_images_dir() -> str:
     """
     import os
 
-    return os.environ.get("GOFR_DOC_IMAGES_DIR", str(_PROJECT_ROOT / "images"))
+    return os.environ.get("GOFR_DOC_IMAGES_DIR", str(_PROJECT_ROOT / "data" / "images"))
 
 
 __all__ = [

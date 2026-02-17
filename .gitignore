@@ -161,9 +161,13 @@ Thumbs.db
 !test/assets/**/*.svg
 !test/assets/**/*.webp
 
-# Stock images volume (keep .gitkeep)
-images/*
-!images/.gitkeep
+# Seed images are checked in under app/content/images/
+# Allow them through the global *.jpg / *.png rules
+!app/content/images/**/*.jpg
+!app/content/images/**/*.jpeg
+!app/content/images/**/*.png
+!app/content/images/**/*.svg
+!app/content/images/**/*.webp
 
 # Temporary files
 *.tmp
