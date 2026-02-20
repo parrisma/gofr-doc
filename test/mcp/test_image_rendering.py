@@ -163,6 +163,90 @@ async def test_image_fragment_appears_in_rendered_html(logger, server_mcp_header
 
 @pytest.mark.asyncio
 @skip_if_mcp_unavailable
+async def test_image_fragment_appears_in_rendered_html_news_email(
+    logger, server_mcp_headers, image_server
+):
+    """Verify that add_image_fragment works with the news_email template.
+
+    Regression for template schema alignment:
+    - news_email must declare fragment_id image_from_url
+    - news_email must include fragments/image_from_url.html.jinja2
+    """
+    async with streamablehttp_client(MCP_URL, headers=server_mcp_headers) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # Step 1: Create a document session
+            create_result = await session.call_tool(
+                "create_document_session",
+                arguments={
+                    "template_id": "news_email",
+                    "alias": "test_image_rendering-news_email-1",
+                },
+            )
+            create_response = _parse_json_response(create_result)
+            assert create_response["status"] == "success", "Failed to create session"
+            session_id = create_response["data"]["session_id"]
+            logger.info(f"Created session: {session_id}")
+
+            # Step 2: Set required global parameters for news_email
+            params_result = await session.call_tool(
+                "set_global_parameters",
+                arguments={
+                    "session_id": session_id,
+                    "parameters": {
+                        "email_subject": "Image Test Email",
+                        "heading_title": "Daily News",
+                        "company_name": "TestCo",
+                    },
+                },
+            )
+            params_response = _parse_json_response(params_result)
+            assert params_response["status"] == "success", "Failed to set parameters"
+
+            # Step 3: Add an image fragment from local test server
+            image_url = image_server.get_url("graph.png")
+            logger.info(f"Adding image from URL: {image_url}")
+
+            add_image_result = await session.call_tool(
+                "add_image_fragment",
+                arguments={
+                    "session_id": session_id,
+                    "image_url": image_url,
+                    "title": "Test Graph",
+                    "width": 400,
+                    "alt_text": "Test graph visualization",
+                    "require_https": False,
+                },
+            )
+            add_image_response = _parse_json_response(add_image_result)
+            assert (
+                add_image_response["status"] == "success"
+            ), f"Failed to add image: {add_image_response.get('message')}"
+
+            # Step 4: Render document to HTML
+            render_result = await session.call_tool(
+                "get_document",
+                arguments={
+                    "session_id": session_id,
+                    "format": "html",
+                },
+            )
+            render_response = _parse_json_response(render_result)
+            assert render_response["status"] == "success", "Failed to render document"
+            html_content = render_response["data"]["content"]
+
+            # Step 5: Verify image appears in HTML
+            assert "<img" in html_content, "No <img> tag found in rendered HTML"
+            assert "src=" in html_content, "No image src attribute found"
+            assert (
+                "data:image" in html_content
+            ), "Image not embedded as data URI in HTML (expected embedded_data_uri to be used)"
+            assert "Test Graph" in html_content, "Image title not found in HTML"
+
+
+@pytest.mark.asyncio
+@skip_if_mcp_unavailable
 async def test_image_fragment_appears_in_rendered_pdf(logger, server_mcp_headers, image_server):
     """Verify that an added image fragment is included in PDF rendering.
 

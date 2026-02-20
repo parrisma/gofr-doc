@@ -1,0 +1,14 @@
+{% if title %}
+<div style="font-weight: 600; margin: 0 0 6px 0;">
+  {{ title }}
+</div>
+{% endif %}
+
+<div style="text-align: {{ alignment|default('center') }}; margin: 8px 0;">
+  <img
+    src="{{ embedded_data_uri|default(image_url) }}"
+    alt="{{ alt_text|default('Image') }}"
+    {% if width %}width="{{ width }}"{% endif %}
+    {% if height %}height="{{ height }}"{% endif %}
+    style="max-width: 100%; height: auto;" />
+</div>
