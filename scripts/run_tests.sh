@@ -69,6 +69,11 @@ if [ -f "${PORTS_ENV}" ]; then
     source "${PORTS_ENV}"
 fi
 
+# Test ports come from gofr_ports.env (sourced above) -- no hardcoded fallbacks
+: "${GOFR_DOC_MCP_PORT_TEST:?GOFR_DOC_MCP_PORT_TEST not set -- source gofr_ports.env}"
+: "${GOFR_DOC_MCPO_PORT_TEST:?GOFR_DOC_MCPO_PORT_TEST not set -- source gofr_ports.env}"
+: "${GOFR_DOC_WEB_PORT_TEST:?GOFR_DOC_WEB_PORT_TEST not set -- source gofr_ports.env}"
+
 # Set up PYTHONPATH for gofr-common discovery
 if [ -d "${PROJECT_ROOT}/lib/gofr-common/src" ]; then
     export PYTHONPATH="${PROJECT_ROOT}:${PROJECT_ROOT}/lib/gofr-common/src:${PYTHONPATH:-}"
@@ -90,9 +95,9 @@ _GOFR_DOC_WEB_PORT_INTERNAL="${GOFR_DOC_WEB_PORT}"
 # Docker vs localhost addressing — set after argument parsing (see apply_docker_mode below)
 # Defaults are overridden by --docker / --no-docker flags
 export GOFR_DOC_HOST="${GOFR_DOC_HOST:-localhost}"
-export GOFR_DOC_MCP_PORT="${GOFR_DOC_MCP_PORT_TEST:-8140}"
-export GOFR_DOC_MCPO_PORT="${GOFR_DOC_MCPO_PORT_TEST:-8141}"
-export GOFR_DOC_WEB_PORT="${GOFR_DOC_WEB_PORT_TEST:-8142}"
+export GOFR_DOC_MCP_PORT="${GOFR_DOC_MCP_PORT_TEST}"
+export GOFR_DOC_MCPO_PORT="${GOFR_DOC_MCPO_PORT_TEST}"
+export GOFR_DOC_WEB_PORT="${GOFR_DOC_WEB_PORT_TEST}"
 
 # Default: Docker mode (tests run inside dev container on shared network)
 USE_DOCKER=true
@@ -106,6 +111,7 @@ mkdir -p "${GOFR_DOC_FRAGMENTS:-${PROJECT_ROOT}/data/fragments}"
 # Vault test container configuration (managed by compose.dev.yml)
 VAULT_CONTAINER_NAME="gofr-vault-test"
 VAULT_INTERNAL_PORT=8200
+VAULT_TEST_PORT="${GOFR_VAULT_PORT_TEST:?GOFR_VAULT_PORT_TEST not set -- source gofr_ports.env}"
 VAULT_TEST_TOKEN="${GOFR_TEST_VAULT_DEV_TOKEN:-gofr-dev-root-token}"
 TEST_NETWORK="${GOFR_TEST_NETWORK:-gofr-test-net}"
 DEV_CONTAINER_NAMES=("gofr-doc-dev")
@@ -129,10 +135,9 @@ print_header() {
     else
         echo "Addressing:   localhost (published ports)"
     fi
-    echo "MCP Host:     ${GOFR_DOC_MCP_HOST}"
-    echo "MCP Port:     ${GOFR_DOC_MCP_PORT}"
-    echo "Web Host:     ${GOFR_DOC_WEB_HOST}"
-    echo "Web Port:     ${GOFR_DOC_WEB_PORT}"
+    echo "MCP URL:      ${GOFR_DOC_MCP_URL:-not set yet}"
+    echo "MCPO URL:     ${GOFR_DOC_MCPO_URL:-not set yet}"
+    echo "Web URL:      ${GOFR_DOC_WEB_URL:-not set yet}"
     echo ""
 }
 
@@ -165,7 +170,7 @@ start_vault_test_container() {
     if is_running_in_docker; then
         export GOFR_DOC_VAULT_URL="http://${VAULT_CONTAINER_NAME}:${VAULT_INTERNAL_PORT}"
     else
-        export GOFR_DOC_VAULT_URL="http://localhost:${GOFR_VAULT_PORT_TEST:-8301}"
+        export GOFR_DOC_VAULT_URL="http://127.0.0.1:${VAULT_TEST_PORT}"
     fi
     export GOFR_DOC_VAULT_TOKEN="${VAULT_TEST_TOKEN}"
 
@@ -194,6 +199,19 @@ cleanup_environment() {
     stop_vault_test_container
     rm -f data/sessions/*.json 2>/dev/null || true
     echo -e "${GREEN}Cleanup complete${NC}"
+}
+
+run_code_quality_gate() {
+    echo -e "${BLUE}Running code quality gate...${NC}"
+    set +e
+    uv run python -m pytest ${TEST_DIR}/test_code_quality.py -v
+    local gate_exit_code=$?
+    set -e
+
+    if [ $gate_exit_code -ne 0 ]; then
+        echo -e "${RED}ALL Code quality issues must be solved before running other tests${NC}"
+        exit $gate_exit_code
+    fi
 }
 
 # ─── Docker Compose Service Management ───────────────────────────────────────
@@ -252,8 +270,12 @@ while [[ $# -gt 0 ]]; do
             SKIP_VAULT=true
             shift
             ;;
-        --no-servers)
+        --no-servers|--without-servers)
             START_SERVERS=false
+            shift
+            ;;
+        --with-servers|--start-servers)
+            START_SERVERS=true
             shift
             ;;
         --docker)
@@ -281,7 +303,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --integration    Run integration tests"
             echo "  --all            Run all test categories"
             echo "  --no-vault       Skip Vault startup (use running instance)"
-            echo "  --no-servers     Skip Docker Compose service startup"
+            echo "  --no-servers     Don't start Docker services"
+            echo "  --with-servers   Start Docker services (default)"
             echo "  --docker         Use Docker hostnames for integration tests (default)"
             echo "  --no-docker      Use localhost+published ports for integration tests"
             echo "  --stop           Stop services + Vault and exit"
@@ -317,6 +340,11 @@ if [ "$USE_DOCKER" = true ]; then
     export GOFR_DOC_MCP_PORT="${_GOFR_DOC_MCP_PORT_INTERNAL}"
     export GOFR_DOC_MCPO_PORT="${_GOFR_DOC_MCPO_PORT_INTERNAL}"
     export GOFR_DOC_WEB_PORT="${_GOFR_DOC_WEB_PORT_INTERNAL}"
+
+    # Full URLs for integration tests (container hostname + internal prod port)
+    export GOFR_DOC_MCP_URL="http://gofr-doc-mcp-test:${_GOFR_DOC_MCP_PORT_INTERNAL}/mcp"
+    export GOFR_DOC_MCPO_URL="http://gofr-doc-mcpo-test:${_GOFR_DOC_MCPO_PORT_INTERNAL}"
+    export GOFR_DOC_WEB_URL="http://gofr-doc-web-test:${_GOFR_DOC_WEB_PORT_INTERNAL}"
 else
     # Localhost mode: use published test ports (prod + 100).
     export GOFR_DOC_MCP_HOST="localhost"
@@ -325,6 +353,10 @@ else
     export GOFR_DOC_MCP_PORT="${GOFR_DOC_MCP_PORT_TEST}"
     export GOFR_DOC_MCPO_PORT="${GOFR_DOC_MCPO_PORT_TEST}"
     export GOFR_DOC_WEB_PORT="${GOFR_DOC_WEB_PORT_TEST}"
+
+    export GOFR_DOC_MCP_URL="http://localhost:${GOFR_DOC_MCP_PORT}/mcp"
+    export GOFR_DOC_MCPO_URL="http://localhost:${GOFR_DOC_MCPO_PORT}"
+    export GOFR_DOC_WEB_URL="http://localhost:${GOFR_DOC_WEB_PORT}"
 fi
 
 # =============================================================================
@@ -345,6 +377,9 @@ if [ "$CLEANUP_ONLY" = true ]; then
     exit 0
 fi
 
+# Fail-fast quality gate before starting services and running other tests
+run_code_quality_gate
+
 # Set up network and Vault env vars (unless --no-vault)
 if [ "$SKIP_VAULT" = false ]; then
     start_vault_test_container
@@ -355,7 +390,7 @@ else
         if is_running_in_docker; then
             export GOFR_DOC_VAULT_URL="http://${VAULT_CONTAINER_NAME}:${VAULT_INTERNAL_PORT}"
         else
-            export GOFR_DOC_VAULT_URL="http://localhost:${GOFR_VAULT_PORT_TEST:-8301}"
+            export GOFR_DOC_VAULT_URL="http://127.0.0.1:${VAULT_TEST_PORT}"
         fi
     fi
     export GOFR_DOC_VAULT_TOKEN="${GOFR_DOC_VAULT_TOKEN:-${VAULT_TEST_TOKEN}}"
@@ -435,6 +470,8 @@ if [ $TEST_EXIT_CODE -eq 0 ]; then
     fi
 else
     echo -e "${RED}=== Tests Failed (exit code: ${TEST_EXIT_CODE}) ===${NC}"
+    echo "Docker service logs:"
+    echo "  docker compose -f docker/compose.dev.yml logs"
 fi
 
 exit $TEST_EXIT_CODE
