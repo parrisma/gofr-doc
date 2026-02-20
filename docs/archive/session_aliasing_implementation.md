@@ -278,7 +278,7 @@ If implementing in existing system:
 **Documentation**:
 - Concept explanation: `docs/document_generation.md`
 - Examples: `readme.md`, `docs/integrations.md`
-- Implementation guide: `docs/session_aliasing_implementation.md` (this file)
+- Implementation guide: `docs/archive/session_aliasing_implementation.md` (this file)
 
 ## Example Workflow Code
 

@@ -106,13 +106,14 @@ if __name__ == "__main__":
 
     # Import and configure mcp_server with auth service
     import app.mcp_server.mcp_server as mcp_server_module
+    from app.mcp_server import runtime_settings
 
     mcp_server_module.auth_service = auth_service
-    mcp_server_module.templates_dir_override = args.templates_dir
-    mcp_server_module.styles_dir_override = args.styles_dir
-    mcp_server_module.web_url_override = args.web_url
-    mcp_server_module.proxy_url_mode = args.proxy_url_mode
-    from app.mcp_server.mcp_server import main
+    runtime_settings.templates_dir_override = args.templates_dir
+    runtime_settings.styles_dir_override = args.styles_dir
+    runtime_settings.web_url_override = args.web_url
+    runtime_settings.proxy_url_mode = args.proxy_url_mode
+    from app.mcp_server.server import main
 
     try:
         startup_logger.info("=" * 70)

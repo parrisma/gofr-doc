@@ -88,3 +88,53 @@ fragments:
         type: string
         description: Contact email for inquiries
         required: false
+
+  - fragment_id: image_from_url
+    group: public
+    name: Image from URL
+    description: Display an image from a URL with optional title and scaling (validated at add time)
+    parameters:
+      - name: image_url
+        type: string
+        description: URL of the image (validated for accessibility and content-type)
+        required: true
+      - name: title
+        type: string
+        description: Optional title/caption displayed above the image
+        required: false
+      - name: width
+        type: integer
+        description: Target width in pixels
+        required: false
+      - name: height
+        type: integer
+        description: Target height in pixels
+        required: false
+      - name: alt_text
+        type: string
+        description: Alternative text for accessibility
+        required: false
+      - name: alignment
+        type: string
+        description: Image alignment (left, center, right)
+        required: false
+      - name: validated_at
+        type: string
+        description: Timestamp when URL was validated (injected automatically)
+        required: false
+      - name: content_type
+        type: string
+        description: Image content-type from validation (injected automatically)
+        required: false
+      - name: content_length
+        type: integer
+        description: Image size in bytes from validation (injected automatically)
+        required: false
+      - name: require_https
+        type: boolean
+        description: Whether HTTPS is required (injected automatically)
+        required: false
+      - name: embedded_data_uri
+        type: string
+        description: Base64-encoded data URI of downloaded image for HTML/PDF embedding (injected automatically, Markdown uses image_url instead)
+        required: false
