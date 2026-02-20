@@ -194,9 +194,8 @@ This is critical for true shared auth across services.
 
 Actions:
 
-1. Update `scripts/run_mcp.sh` and `scripts/run_web.sh` help text:
-   - remove references to `GOFR_JWT_SECRET` and `GOFR_IQ_JWT_SECRET` as required inputs.
-   - replace with "Vault must be available and AppRole creds must be mounted".
+1. If your repo still has local run scripts, remove references to `GOFR_JWT_SECRET` / `GOFR_IQ_JWT_SECRET` as required inputs.
+   Prefer Docker-based start/stop entrypoints and the shared gofr-common auth tooling.
 2. Update any tooling that currently does:
    - `source lib/gofr-common/scripts/auth_env.sh --docker`
    and expects `GOFR_JWT_SECRET`.

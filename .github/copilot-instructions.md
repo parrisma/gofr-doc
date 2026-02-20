@@ -96,15 +96,8 @@ SCRIPTS (use these; do not reinvent workflows):
 | Script | Purpose |
 |--------|---------|
 | `scripts/run_tests.sh` | Run tests (unit, integration, coverage). THE test entry point. |
-| `scripts/run_mcp.sh` | Start the MCP server. |
-| `scripts/run_mcp_auth.sh` | Start the MCP server with auth enabled. |
-| `scripts/run_mcpo.sh` | Start the MCPO wrapper. |
-| `scripts/run_web.sh` | Start the web server. |
-| `scripts/run_web_auth.sh` | Start the web server with auth enabled. |
 | `scripts/render_manager.sh` | Manage document rendering operations. |
-| `scripts/restart_servers.sh` | Restart running servers. |
 | `scripts/storage_manager.sh` | Storage management operations. |
-| `scripts/token_manager.sh` | Manage access tokens. |
 | `scripts/backup_now.sh` | Trigger an immediate backup. |
 | `scripts/restore_backup.sh` | Restore from a backup. |
 | `scripts/list_backups.sh` | List available backups. |

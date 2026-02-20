@@ -332,13 +332,13 @@ start_dev_container() {
     return 0
   fi
 
-  if [[ ! -f "${PROJECT_ROOT}/docker/run-dev.sh" ]]; then
-    die "Dev run script not found at docker/run-dev.sh." \
-      "Verify your clone is complete and that the docker directory exists."
+  if [[ ! -f "${PROJECT_ROOT}/scripts/run-dev-container.sh" ]]; then
+    die "Dev run script not found at scripts/run-dev-container.sh." \
+      "Verify your clone is complete and that the scripts directory exists."
   fi
 
   info "Starting dev container (gofr-doc-dev)..."
-  (cd "${PROJECT_ROOT}" && bash ./docker/run-dev.sh)
+  (cd "${PROJECT_ROOT}" && bash ./scripts/run-dev-container.sh)
   ok "Dev container started."
 }
 
@@ -397,7 +397,7 @@ main() {
 
   echo ""
   ok "gofr-doc bootstrap complete."
-  info "Next: ./docker/run-dev.sh or ./docker/start-prod.sh"
+  info "Next: ./scripts/run-dev-container.sh or ./docker/start-prod.sh"
 }
 
 main

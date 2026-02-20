@@ -48,8 +48,8 @@ services:
   # ==========================================================================
   vault:
     image: hashicorp/vault:1.15.4
-    container_name: gofr-vault-test
-    hostname: gofr-vault-test
+    container_name: gofr-doc-vault-test
+    hostname: gofr-doc-vault-test
     restart: "no"
     cap_add:
       - IPC_LOCK
@@ -75,13 +75,13 @@ services:
   # ==========================================================================
   vault-init:
     image: hashicorp/vault:1.15.4
-    container_name: gofr-vault-init-test
+    container_name: gofr-doc-vault-init-test
     restart: "no"
     depends_on:
       vault:
         condition: service_healthy
     environment:
-      - VAULT_ADDR=http://gofr-vault-test:8200
+      - VAULT_ADDR=http://gofr-doc-vault-test:8200
       - VAULT_TOKEN=gofr-dev-root-token
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -121,7 +121,7 @@ services:
       - GOFR_DOC_MCP_PORT=${GOFR_DOC_MCP_PORT}
       - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-DEBUG}
       - GOFR_DOC_AUTH_BACKEND=vault
-      - GOFR_DOC_VAULT_URL=http://gofr-vault-test:8200
+      - GOFR_DOC_VAULT_URL=http://gofr-doc-vault-test:8200
       - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
       - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}
@@ -195,7 +195,7 @@ services:
       - GOFR_DOC_WEB_PORT=${GOFR_DOC_WEB_PORT}
       - GOFR_DOC_LOG_LEVEL=${GOFR_DOC_LOG_LEVEL:-DEBUG}
       - GOFR_DOC_AUTH_BACKEND=vault
-      - GOFR_DOC_VAULT_URL=http://gofr-vault-test:8200
+      - GOFR_DOC_VAULT_URL=http://gofr-doc-vault-test:8200
       - GOFR_DOC_VAULT_TOKEN=gofr-dev-root-token
       - GOFR_DOC_VAULT_PATH_PREFIX=${GOFR_DOC_VAULT_PATH_PREFIX:-gofr/auth}
       - GOFR_DOC_VAULT_MOUNT=${GOFR_DOC_VAULT_MOUNT:-secret}

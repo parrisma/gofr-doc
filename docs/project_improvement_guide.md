@@ -199,10 +199,8 @@ class BaseRegistry(ABC):
 
 ### Essential Scripts
 - `scripts/run_tests.sh --with-servers`: Run full test suite with server startup
-- `scripts/start_all_servers.sh`: Launch complete server stack with verification
-- `scripts/stop_all_servers.sh`: Stop all servers with 100% termination check
-- `app/management/token_manager.py`: JWT token lifecycle management (with `scripts/token_manager.sh` wrapper)
-- `scripts/run_{server}_auth.sh`: Individual server startup with test auth
+- `scripts/start-test-env.sh`: Start the ephemeral compose test stack used by integration tests
+- `app/management/token_manager.py`: JWT token lifecycle management (use gofr-common auth tooling)
 
 ### Development Commands
 ```bash

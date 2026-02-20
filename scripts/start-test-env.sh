@@ -114,8 +114,8 @@ tear_down() {
     # Compose should remove these, but container_name is fixed in compose.dev.yml,
     # and stale containers can survive interrupted runs.
     docker rm -f \
-        gofr-vault-test \
-        gofr-vault-init-test \
+        gofr-doc-vault-test \
+        gofr-doc-vault-init-test \
         gofr-doc-mcp-test \
         gofr-doc-mcpo-test \
         gofr-doc-web-test \
@@ -176,11 +176,11 @@ if [ ${COMPOSE_UP_EXIT_CODE} -ne 0 ]; then
     docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" ps 2>&1 || true
     echo ""
 
-    echo "--- vault logs (gofr-vault-test) ---"
-    docker logs gofr-vault-test 2>&1 || true
+    echo "--- vault logs (gofr-doc-vault-test) ---"
+    docker logs gofr-doc-vault-test 2>&1 || true
     echo ""
-    echo "--- vault-init logs (gofr-vault-init-test) ---"
-    docker logs gofr-vault-init-test 2>&1 || true
+    echo "--- vault-init logs (gofr-doc-vault-init-test) ---"
+    docker logs gofr-doc-vault-init-test 2>&1 || true
     echo ""
 
     for cname in "${CONTAINERS[@]}"; do

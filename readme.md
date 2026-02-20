@@ -81,25 +81,26 @@ export DOCO_TOKEN_STORE="/path/to/token_store.json"
 python -m app.main_web --jwt-secret "$DOCO_JWT_SECRET" --token-store "$DOCO_TOKEN_STORE"
 python -m app.main_mcp --jwt-secret "$DOCO_JWT_SECRET" --token-store "$DOCO_TOKEN_STORE"
 
-# Or use convenience scripts for testing
-bash scripts/run_web_auth.sh
-bash scripts/run_mcp_auth.sh
+# Prefer Docker-based workflows and the test runner:
+#   ./docker/start-prod.sh
+#   ./docker/stop-prod.sh
+#   ./scripts/run_tests.sh
 ```
 
 ### Token Management
 
 ```bash
 # Create a JWT token for a group
-./scripts/token_manager.sh create --group engineering --expires 30
+source <(./lib/gofr-common/scripts/auth_env.sh --docker) && ./lib/gofr-common/scripts/auth_manager.sh --docker tokens create --groups engineering --expires-days 30
 
 # List all active tokens
-./scripts/token_manager.sh list
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens list
 
 # Revoke a token
-./scripts/token_manager.sh revoke --token <token>
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens revoke <token>
 
 # View token details
-./scripts/token_manager.sh verify --token <token>
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens inspect <token>
 ```
 
 **Security Note**: When authentication is enabled:
@@ -369,13 +370,9 @@ uv run pytest --cov=app --cov-report=html
 ### Test Server Management
 
 ```bash
-# Start test servers with authentication
-bash scripts/run_mcp_auth.sh    # MCP server on port 8011
-bash scripts/run_web_auth.sh    # Web server on port 8010
-
-# Stop test servers
-pkill -f "python -m app.main_mcp"
-pkill -f "python -m app.main_web"
+# Start/stop the ephemeral integration-test stack
+./scripts/start-test-env.sh
+./scripts/start-test-env.sh --down
 ```
 
 ### VS Code Integration

@@ -59,8 +59,8 @@ fi
 
 # Source centralized environment configuration
 export GOFR_DOC_ENV="TEST"
-if [ -f "${SCRIPT_DIR}/gofr-doc.env" ]; then
-    source "${SCRIPT_DIR}/gofr-doc.env"
+if [ -f "${SCRIPT_DIR}/project.env" ]; then
+    source "${SCRIPT_DIR}/project.env"
 fi
 
 # Load centralized port config (single source of truth)
@@ -109,7 +109,7 @@ mkdir -p "${GOFR_DOC_TEMPLATES:-${PROJECT_ROOT}/data/templates}"
 mkdir -p "${GOFR_DOC_FRAGMENTS:-${PROJECT_ROOT}/data/fragments}"
 
 # Vault test container configuration (managed by compose.dev.yml)
-VAULT_CONTAINER_NAME="gofr-vault-test"
+VAULT_CONTAINER_NAME="gofr-doc-vault-test"
 VAULT_INTERNAL_PORT=8200
 VAULT_TEST_PORT="${GOFR_VAULT_PORT_TEST:?GOFR_VAULT_PORT_TEST not set -- source gofr_ports.env}"
 VAULT_TEST_TOKEN="${GOFR_TEST_VAULT_DEV_TOKEN:-gofr-dev-root-token}"

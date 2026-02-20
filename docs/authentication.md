@@ -62,7 +62,7 @@ Backward compatible - token passed in tool arguments.
 ### Creating Tokens
 ```bash
 # Create token for a group (expires in 30 days)
-./scripts/token_manager.sh create --group engineering --expires 30
+source <(./lib/gofr-common/scripts/auth_env.sh --docker) && ./lib/gofr-common/scripts/auth_manager.sh --docker tokens create --groups engineering --expires-days 30
 
 # Output:
 # Token created successfully!
@@ -75,7 +75,7 @@ Backward compatible - token passed in tool arguments.
 ### Listing Tokens
 ```bash
 # View all active tokens
-./scripts/token_manager.sh list
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens list
 
 # Output shows: Group, Created, Expires, Status
 ```
@@ -83,16 +83,16 @@ Backward compatible - token passed in tool arguments.
 ### Revoking Tokens
 ```bash
 # Revoke a specific token
-./scripts/token_manager.sh revoke --token <token>
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens revoke <token>
 
 # Revoke all tokens for a group
-./scripts/token_manager.sh revoke --group engineering
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens revoke --group engineering
 ```
 
 ### Verifying Tokens
 ```bash
 # Check token validity and decode claims
-./scripts/token_manager.sh verify --token <token>
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens inspect <token>
 
 # Shows: Group, Issued At, Expires, Valid (yes/no)
 ```
@@ -302,7 +302,7 @@ python scripts/token_manager.py create --group yourgroup --expires 30
 **Solution**:
 ```bash
 # Verify token
-./scripts/token_manager.sh verify --token <token>
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens inspect <token>
 
 # Check JWT secret matches between token creation and server
 echo $DOCO_JWT_SECRET

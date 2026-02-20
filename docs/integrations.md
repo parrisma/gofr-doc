@@ -484,7 +484,7 @@ Expected: SSE stream with tools list
 
 **Solution**: Generate new token:
 ```bash
-./scripts/token_manager.sh create --group n8n --expires 30
+source <(./lib/gofr-common/scripts/auth_env.sh --docker) && ./lib/gofr-common/scripts/auth_manager.sh --docker tokens create --groups n8n --expires-days 30
 ```
 
 #### AUTH_FAILED - Invalid Token
@@ -546,7 +546,10 @@ Check logs:
 docker logs gofr-doc-web -f
 docker logs gofr-doc-mcp -f
 ```
-./scripts/token_manager.sh verify --token <token>
+
+Verify token:
+```bash
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens inspect <token>
 ```
 
 ### Docker Networking
@@ -597,7 +600,7 @@ curl http://localhost:8012/sessions \
 
 #### Verify Token
 ```bash
-./scripts/token_manager.sh verify --token <token>
+./lib/gofr-common/scripts/auth_manager.sh --docker tokens inspect <token>
 ```
 
 #### Check Server Logs

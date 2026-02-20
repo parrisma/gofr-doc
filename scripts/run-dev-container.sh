@@ -1,11 +1,41 @@
 #!/bin/bash
-# Compatibility shim: the canonical dev container entrypoint is now scripts/run-dev-container.sh.
-set -euo pipefail
+# Run GOFR-DOC development container
+# Canonical location for the developer workflow entrypoint.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-exec bash "$PROJECT_ROOT/scripts/run-dev-container.sh" "$@"
+GOFR_USER="gofr"
+GOFR_UID=1000
+GOFR_GID=1000
+
+CONTAINER_NAME="gofr-doc-dev"
+IMAGE_NAME="gofr-doc-dev:latest"
+
+MCP_PORT="${GOFRDOC_MCP_PORT:-9040}"
+MCPO_PORT="${GOFRDOC_MCPO_PORT:-9041}"
+WEB_PORT="${GOFRDOC_WEB_PORT:-9042}"
+DOCKER_NETWORK="${GOFRDOC_DOCKER_NETWORK:-gofr-net}"
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --mcp-port)
+            MCP_PORT="$2"; shift 2 ;;
+        --mcpo-port)
+            MCPO_PORT="$2"; shift 2 ;;
+        --web-port)
+            WEB_PORT="$2"; shift 2 ;;
+        --network)
+            DOCKER_NETWORK="$2"; shift 2 ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--mcp-port PORT] [--mcpo-port PORT] [--web-port PORT] [--network NAME]"
+            exit 1
+            ;;
+    esac
+done
 
 echo "======================================================================="
 echo "Starting GOFR-DOC Development Container"
@@ -15,28 +45,23 @@ echo "Ports: MCP=$MCP_PORT, MCPO=$MCPO_PORT, Web=$WEB_PORT"
 echo "Network: $DOCKER_NETWORK"
 echo "======================================================================="
 
-# Create docker network if it doesn't exist
 if ! docker network inspect $DOCKER_NETWORK >/dev/null 2>&1; then
     echo "Creating network: $DOCKER_NETWORK"
     docker network create $DOCKER_NETWORK
 fi
 
-# Create docker volume for persistent data
 VOLUME_NAME="gofr-doc-data-dev"
 if ! docker volume inspect $VOLUME_NAME >/dev/null 2>&1; then
     echo "Creating volume: $VOLUME_NAME"
     docker volume create $VOLUME_NAME
 fi
 
-# Stop and remove existing container
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "Stopping existing container: $CONTAINER_NAME"
     docker stop "$CONTAINER_NAME" 2>/dev/null || true
     docker rm "$CONTAINER_NAME" 2>/dev/null || true
 fi
 
-# Run container
-# Detect host Docker socket GID for permission mapping
 DOCKER_SOCK="/var/run/docker.sock"
 DOCKER_GID_ARGS=""
 if [ -S "$DOCKER_SOCK" ]; then
@@ -68,12 +93,12 @@ docker run -d \
     -e GOFR_DOC_VAULT_MOUNT=secret \
     "$IMAGE_NAME"
 
-# Attach to additional networks (test network for Vault, etc.)
 TEST_NETWORK="${GOFR_TEST_NETWORK:-gofr-test-net}"
 if ! docker network inspect "$TEST_NETWORK" >/dev/null 2>&1; then
     echo "Creating test network: $TEST_NETWORK"
     docker network create "$TEST_NETWORK"
 fi
+
 echo "Connecting $CONTAINER_NAME to $TEST_NETWORK..."
 docker network connect "$TEST_NETWORK" "$CONTAINER_NAME" 2>/dev/null || true
 
@@ -81,14 +106,4 @@ echo ""
 echo "======================================================================="
 echo "Container started: $CONTAINER_NAME"
 echo "======================================================================="
-echo ""
 echo "Networks: $DOCKER_NETWORK, $TEST_NETWORK"
-echo "Ports:"
-echo "  - $MCP_PORT: MCP server"
-echo "  - $MCPO_PORT: MCPO proxy"
-echo "  - $WEB_PORT: Web interface"
-echo ""
-echo "Useful commands:"
-echo "  docker logs -f $CONTAINER_NAME          # Follow logs"
-echo "  docker exec -it $CONTAINER_NAME bash    # Shell access"
-echo "  docker stop $CONTAINER_NAME             # Stop container"
