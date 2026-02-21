@@ -43,10 +43,10 @@ CHECK_ONLY=false
 [ "${1:-}" = "--check" ] && CHECK_ONLY=true
 
 # ---- Helpers ----------------------------------------------------------------
-info()  { echo -e "\033[1;34m[INFO]\033[0m  $*"; }
-ok()    { echo -e "\033[1;32m[OK]\033[0m    $*"; }
-warn()  { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
-err()   { echo -e "\033[1;31m[FAIL]\033[0m  $*" >&2; }
+info()  { echo "[INFO]  $*"; }
+ok()    { echo "[OK]    $*"; }
+warn()  { echo "[WARN]  $*"; }
+err()   { echo "[FAIL]  $*" >&2; }
 
 # ---- Determine mode ---------------------------------------------------------
 CREDS_PRESENT=false
@@ -113,6 +113,38 @@ export GOFR_VAULT_URL="http://${VAULT_CONTAINER}:${VAULT_PORT}"
 export GOFR_VAULT_TOKEN="$VAULT_ROOT_TOKEN"
 
 cd "$PROJECT_ROOT"
+
+if [ "$CREDS_PRESENT" = true ]; then
+    # Validate existing creds actually work against Vault.
+    CREDS_TO_TEST=""
+    if [ -f "$CREDS_FILE" ]; then
+        CREDS_TO_TEST="$CREDS_FILE"
+    elif [ -f "$FALLBACK_CREDS_FILE" ]; then
+        CREDS_TO_TEST="$FALLBACK_CREDS_FILE"
+    fi
+
+    if [ -n "$CREDS_TO_TEST" ]; then
+        ROLE_ID=$(python3 -c "import json; print(json.load(open('$CREDS_TO_TEST'))['role_id'])" 2>/dev/null || true)
+        SECRET_ID=$(python3 -c "import json; print(json.load(open('$CREDS_TO_TEST'))['secret_id'])" 2>/dev/null || true)
+
+        if [ -n "$ROLE_ID" ] && [ -n "$SECRET_ID" ]; then
+            LOGIN_RESP=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST -d "{\"role_id\":\"$ROLE_ID\",\"secret_id\":\"$SECRET_ID\"}" \
+                "http://${VAULT_CONTAINER}:${VAULT_PORT}/v1/auth/approle/login" 2>/dev/null || echo "000")
+            if [ "$LOGIN_RESP" = "200" ]; then
+                info "Existing AppRole credentials validated OK"
+            else
+                warn "Existing AppRole credentials are invalid (HTTP $LOGIN_RESP) -- will re-provision"
+                CREDS_PRESENT=false
+                rm -f "$CREDS_FILE" "$ADMIN_CREDS_FILE" "$FALLBACK_CREDS_FILE" "$FALLBACK_ADMIN_CREDS_FILE" 2>/dev/null || true
+            fi
+        else
+            warn "Could not parse existing creds file -- will re-provision"
+            CREDS_PRESENT=false
+            rm -f "$CREDS_FILE" "$ADMIN_CREDS_FILE" "$FALLBACK_CREDS_FILE" "$FALLBACK_ADMIN_CREDS_FILE" 2>/dev/null || true
+        fi
+    fi
+fi
 
 if [ "$CREDS_PRESENT" = true ]; then
     info "Syncing Vault policies (credentials already exist)..."

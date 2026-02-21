@@ -2,43 +2,60 @@
 # =============================================================================
 # Migrate secrets into Docker volumes
 # =============================================================================
-# Copies existing secrets from lib/gofr-common/secrets/ into both the
-# gofr-secrets (prod/dev) and gofr-secrets-test (tests) Docker volumes.
+# Copies runtime AppRole credentials into the shared gofr-secrets and
+# gofr-secrets-test Docker volumes.
 #
-# These volumes are SHARED across all GOFR projects (gofr-dig, gofr-doc, etc).
+# IMPORTANT (Phase 1 hardening):
+# - These volumes are mounted into production containers.
+# - Do NOT copy Vault bootstrap artifacts (root token, unseal key, init output)
+#   into these volumes.
+# - Only copy runtime material required by services: service_creds/*.json.
+#
+# These volumes are SHARED across all GOFR projects.
 #
 # Run once from the host (or dev container with Docker socket access):
 #   ./scripts/migrate_secrets_to_volume.sh
 #
-# Safe to re-run — overwrites volume contents with latest from source dir.
+# Safe to re-run -- overwrites volume contents with latest from source dir.
 # =============================================================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-SOURCE_DIR="$PROJECT_ROOT/lib/gofr-common/secrets"
+SOURCE_DIR=""
+PROJECT_SECRETS_DIR="$PROJECT_ROOT/secrets"
+COMMON_SECRETS_DIR="$PROJECT_ROOT/lib/gofr-common/secrets"
 PROJECT_CREDS_DIR="$PROJECT_ROOT/secrets/service_creds"
 
 # Both volumes to seed (shared across all GOFR projects)
 VOLUMES=("gofr-secrets" "gofr-secrets-test")
 
 # ---- Helpers ----------------------------------------------------------------
-info()  { echo -e "\033[1;34m[INFO]\033[0m  $*"; }
-ok()    { echo -e "\033[1;32m[OK]\033[0m    $*"; }
-err()   { echo -e "\033[1;31m[FAIL]\033[0m  $*" >&2; }
+info()  { echo "[INFO]  $*"; }
+ok()    { echo "[OK]    $*"; }
+err()   { echo "[FAIL]  $*" >&2; }
 
-# ---- Verify source exists ---------------------------------------------------
-if [ ! -d "$SOURCE_DIR" ] || [ ! -f "$SOURCE_DIR/vault_root_token" ]; then
-    err "Source secrets not found at $SOURCE_DIR"
-    echo "  Expected: vault_root_token, vault_unseal_key, bootstrap_tokens.json, service_creds/"
+# ---- Select and verify source creds dir -------------------------------------
+# Prefer gofr-common as the base (stable location for shared service_creds),
+# then overlay project-local creds (newly provisioned AppRole IDs for gofr-doc).
+if [ -d "$COMMON_SECRETS_DIR/service_creds" ]; then
+    SOURCE_DIR="$COMMON_SECRETS_DIR"
+elif [ -d "$PROJECT_SECRETS_DIR/service_creds" ]; then
+    SOURCE_DIR="$PROJECT_SECRETS_DIR"
+fi
+
+if [ -z "$SOURCE_DIR" ]; then
+    err "Source service_creds not found"
+    echo "  Tried:"
+    echo "    - $COMMON_SECRETS_DIR/service_creds"
+    echo "    - $PROJECT_SECRETS_DIR/service_creds"
+    echo "  Expected: service_creds/*.json"
     exit 1
 fi
 
-# If this project has generated/updated service creds in $PROJECT_ROOT/secrets,
-# overlay them on top of the gofr-common secrets dir before seeding the volumes.
-# This ensures the shared volumes always contain the latest role_id/secret_id
-# for gofr-doc without requiring manual copying into the submodule tree.
+# Build a staging directory that contains ONLY runtime credentials.
+# Overlay project-local creds on top of gofr-common service_creds.
 TMP_SECRETS_DIR=""
 cleanup_tmp() {
     if [ -n "${TMP_SECRETS_DIR:-}" ] && [ -d "${TMP_SECRETS_DIR}" ]; then
@@ -48,14 +65,17 @@ cleanup_tmp() {
 trap cleanup_tmp EXIT
 
 TMP_SECRETS_DIR="$(mktemp -d)"
-cp -a "$SOURCE_DIR/." "$TMP_SECRETS_DIR/"
+mkdir -p "$TMP_SECRETS_DIR/service_creds"
+
+if [ -d "$SOURCE_DIR/service_creds" ]; then
+    cp -a "$SOURCE_DIR/service_creds/." "$TMP_SECRETS_DIR/service_creds/"
+fi
 
 if [ -d "$PROJECT_CREDS_DIR" ]; then
-    mkdir -p "$TMP_SECRETS_DIR/service_creds"
     cp -a "$PROJECT_CREDS_DIR/." "$TMP_SECRETS_DIR/service_creds/"
 fi
 
-info "Source directory: $SOURCE_DIR"
+info "Source directory: $SOURCE_DIR (service_creds only)"
 info "Staging directory: $TMP_SECRETS_DIR"
 echo "  Contents:"
 ls -la "$TMP_SECRETS_DIR/" | sed 's/^/    /'
@@ -75,15 +95,18 @@ for VOLUME in "${VOLUMES[@]}"; do
     HELPER="gofr-secrets-migrate-$$"
     docker run -d --name "$HELPER" -v "$VOLUME:/dst" alpine:3.19 sleep 60 >/dev/null
 
+    # IMPORTANT: remove any previous contents so stale bootstrap artifacts do
+    # not linger in the runtime volume.
+    docker exec "$HELPER" sh -c 'rm -rf /dst/*' >/dev/null 2>&1 || true
+
     # Copy from the calling container's filesystem into the helper
     docker cp "$TMP_SECRETS_DIR/." "$HELPER:/dst/"
 
     # Fix permissions inside the volume
-    # All GOFR containers use UID 1000 / GID 1000 — set ownership to match
+    # All GOFR containers use UID 1000 / GID 1000
     docker exec "$HELPER" sh -c '
         chown -R 1000:1000 /dst
         chmod 700 /dst
-        chmod 600 /dst/vault_root_token /dst/vault_unseal_key 2>/dev/null || true
         chmod 600 /dst/service_creds/*.json 2>/dev/null || true
         echo "  Contents of volume:"
         ls -la /dst/ | sed "s/^/    /"
