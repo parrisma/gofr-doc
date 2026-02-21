@@ -1,0 +1,25 @@
+fragment_id: market_comment
+group: public
+name: Market Comment
+description: Market colour and commentary section for daily sales notes. Covers overnight moves, key drivers, and current sentiment. Keep it punchy - this is the "what happened and why it matters" section.
+parameters:
+  - name: section_title
+    type: string
+    description: Section heading (e.g., "Rates", "Credit", "FX", "Equities", "Overnight Wrap")
+    required: true
+  - name: body
+    type: string
+    description: Market commentary text. Write in active voice, short sentences. Lead with the move, then the driver.
+    required: true
+  - name: key_levels
+    type: string
+    description: Key levels or data points to highlight (e.g., "UST 10y 4.32% +5bp | SPX 5,120 -0.8% | DXY 104.2 +0.3%"). Pipe-separated for readability.
+    required: false
+  - name: sentiment
+    type: string
+    description: One-word sentiment tag (e.g., risk-off, risk-on, mixed, cautious, constructive)
+    required: false
+  - name: conviction
+    type: string
+    description: Conviction level for the view expressed (high, medium, low)
+    required: false

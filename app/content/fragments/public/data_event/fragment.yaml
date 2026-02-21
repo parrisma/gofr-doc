@@ -1,0 +1,29 @@
+fragment_id: data_event
+group: public
+name: Data / Event
+description: A single data release or calendar event for the daily note. Used to build the "what to watch" section. Keep descriptions tight.
+parameters:
+  - name: time
+    type: string
+    description: Time of the event (e.g., "08:30 ET", "13:00 GMT", "Pre-mkt")
+    required: true
+  - name: event
+    type: string
+    description: Event or data release name (e.g., "US CPI MoM", "ECB Rate Decision", "AAPL earnings")
+    required: true
+  - name: consensus
+    type: string
+    description: Consensus or expected value (e.g., "0.3%", "hold at 4.50%", "$6.70 EPS")
+    required: false
+  - name: previous
+    type: string
+    description: Previous value or outcome (e.g., "0.2%", "4.50%", "$6.42 EPS")
+    required: false
+  - name: importance
+    type: string
+    description: Importance rating (high, medium, low)
+    required: false
+  - name: comment
+    type: string
+    description: Brief trader colour on the event (e.g., "market pricing a beat", "watch for guidance revision")
+    required: false

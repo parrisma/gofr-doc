@@ -1,0 +1,20 @@
+<div class="fragment data-event{% if importance %} importance-{{ importance|lower }}{% endif %}">
+    <div class="event-row">
+        <span class="event-time">{{ time }}</span>
+        <span class="event-name">{{ event }}</span>
+        {% if consensus %}
+        <span class="event-consensus">Exp: {{ consensus }}</span>
+        {% endif %}
+        {% if previous %}
+        <span class="event-previous">Prev: {{ previous }}</span>
+        {% endif %}
+        {% if importance %}
+        <span class="badge importance-{{ importance|lower }}">{{ importance }}</span>
+        {% endif %}
+    </div>
+    {% if comment %}
+    <div class="event-comment">
+        {{ comment }}
+    </div>
+    {% endif %}
+</div>

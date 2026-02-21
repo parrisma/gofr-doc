@@ -1,0 +1,138 @@
+metadata:
+  template_id: daily_note
+  group: public
+  name: Daily Sales Note
+  description: >
+    Daily trading note for client distribution via email or Bloomberg chat.
+    Designed for sales traders to send morning/afternoon colour
+    and calendar events. Clean, scannable format that renders well in email
+    clients and reads naturally when pasted into Bloomberg MSG.
+  version: "1.0.0"
+
+global_parameters:
+  - name: desk_name
+    type: string
+    description: Desk or team name (e.g., "APAC Rates Sales", "EM Credit Trading", "G10 FX")
+    required: true
+  - name: author
+    type: string
+    description: Author name and title (e.g., "Jane Smith, VP Sales Trading")
+    required: true
+  - name: date
+    type: string
+    description: Note date (e.g., "Friday 21 Feb 2026")
+    required: true
+  - name: note_title
+    type: string
+    description: Optional note title or theme (e.g., "CPI Day", "Post-FOMC", "Risk Rally Fading")
+    required: false
+  - name: company_name
+    type: string
+    description: Company name for disclaimer
+    required: true
+  - name: recipient_type
+    type: string
+    description: Type of recipient (e.g., Professional Investors, Institutional Clients)
+    required: false
+  - name: include_ai_notice
+    type: boolean
+    description: Whether to include AI-assisted content notice in disclaimer
+    required: false
+    default: true
+  - name: contact_email
+    type: string
+    description: Contact email for inquiries
+    required: false
+  - name: contact_phone
+    type: string
+    description: Desk phone number
+    required: false
+  - name: bloomberg_handle
+    type: string
+    description: Bloomberg MSG handle for the author/desk
+    required: false
+
+fragments:
+  - fragment_id: market_comment
+    group: public
+    name: Market Comment
+    description: Market colour and commentary section
+    parameters:
+      - name: section_title
+        type: string
+        description: Section heading (e.g., "Rates", "Credit", "FX", "Overnight Wrap")
+        required: true
+      - name: body
+        type: string
+        description: Market commentary text
+        required: true
+      - name: key_levels
+        type: string
+        description: Key levels or data points, pipe-separated
+        required: false
+      - name: sentiment
+        type: string
+        description: Sentiment tag (risk-off, risk-on, mixed, cautious, constructive)
+        required: false
+      - name: conviction
+        type: string
+        description: Conviction level (high, medium, low)
+        required: false
+
+  - fragment_id: data_event
+    group: public
+    name: Data / Event
+    description: A single data release or calendar event
+    parameters:
+      - name: time
+        type: string
+        description: Time of the event
+        required: true
+      - name: event
+        type: string
+        description: Event or data release name
+        required: true
+      - name: consensus
+        type: string
+        description: Consensus or expected value
+        required: false
+      - name: previous
+        type: string
+        description: Previous value
+        required: false
+      - name: importance
+        type: string
+        description: Importance (high, medium, low)
+        required: false
+      - name: comment
+        type: string
+        description: Brief trader colour on the event
+        required: false
+
+  - fragment_id: disclaimer
+    group: public
+    name: Financial Disclaimer
+    description: Legal disclaimer for financial content
+    parameters:
+      - name: company_name
+        type: string
+        description: Name of the financial services company
+        required: true
+      - name: recipient_type
+        type: string
+        description: Type of recipient
+        required: false
+      - name: include_ai_notice
+        type: boolean
+        description: Whether to include AI-assisted content notice
+        required: false
+        default: true
+      - name: jurisdiction
+        type: string
+        description: Relevant jurisdiction for legal disclaimers
+        required: false
+        default: US
+      - name: contact_email
+        type: string
+        description: Contact email for inquiries
+        required: false

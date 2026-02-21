@@ -1,0 +1,24 @@
+<div class="fragment market-comment">
+    <div class="header">
+        <h3 class="title">{{ section_title }}</h3>
+        {% if sentiment %}
+        <span class="badge sentiment-{{ sentiment|lower|replace(' ', '-') }}">{{ sentiment }}</span>
+        {% endif %}
+    </div>
+
+    {% if key_levels %}
+    <div class="key-levels">
+        {{ key_levels }}
+    </div>
+    {% endif %}
+
+    <div class="content">
+        <p>{{ body }}</p>
+    </div>
+
+    {% if conviction %}
+    <div class="conviction">
+        Conviction: <strong>{{ conviction|upper }}</strong>
+    </div>
+    {% endif %}
+</div>

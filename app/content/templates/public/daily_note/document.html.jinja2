@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ desk_name }} - {{ date }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #1a1a1a;
+            margin: 0;
+            padding: 16px;
+            background: #ffffff;
+        }
+        h1, h3, p, div { font-size: 14px; }
+        .daily-note-header {
+            border-bottom: 2px solid #1a3a5c;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+        .daily-note-header h1 {
+            font-size: 16px;
+            margin: 0 0 2px 0;
+            color: #1a3a5c;
+        }
+        .daily-note-header .meta {
+            color: #555;
+            margin: 2px 0 0 0;
+        }
+        .fragment {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .fragment:last-child { border-bottom: none; }
+        .fragment .header h3.title {
+            margin: 0 0 4px 0;
+            font-weight: bold;
+            color: #1a3a5c;
+        }
+        .market-comment .key-levels {
+            font-family: Consolas, monospace;
+            background: #f7f9fb;
+            padding: 4px 8px;
+            margin: 4px 0;
+        }
+        .market-comment .content p { margin: 4px 0; }
+        .market-comment .conviction { color: #555; margin-top: 4px; }
+        .data-event .event-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: baseline;
+        }
+        .data-event .event-time {
+            font-family: Consolas, monospace;
+            font-weight: bold;
+            min-width: 70px;
+            color: #1a3a5c;
+        }
+        .data-event .event-name { font-weight: bold; flex: 1; }
+        .data-event .event-consensus,
+        .data-event .event-previous { color: #555; }
+        .data-event .event-comment {
+            color: #666;
+            font-style: italic;
+            padding-left: 80px;
+            margin-top: 2px;
+        }
+        .importance-high .event-name { color: #c0392b; }
+        .badge {
+            display: inline-block;
+            font-weight: bold;
+            padding: 1px 6px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            vertical-align: middle;
+        }
+        .sentiment-risk-off { background: #fde8e8; color: #c0392b; }
+        .sentiment-risk-on { background: #e8f5e9; color: #27ae60; }
+        .sentiment-mixed { background: #fff8e1; color: #f39c12; }
+        .sentiment-cautious { background: #fff3e0; color: #e67e22; }
+        .sentiment-constructive { background: #e8f5e9; color: #2e7d32; }
+        .conviction-high { background: #fde8e8; color: #c0392b; }
+        .conviction-medium { background: #fff8e1; color: #f39c12; }
+        .conviction-low { background: #e0e0e0; color: #555; }
+        .importance-high { background: #fde8e8; color: #c0392b; }
+        .importance-medium { background: #fff8e1; color: #f39c12; }
+        .importance-low { background: #e0e0e0; color: #555; }
+        .contact-footer {
+            margin-top: 14px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+            color: #777;
+        }
+        .section-divider {
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #1a3a5c;
+            border-bottom: 2px solid #1a3a5c;
+            padding-bottom: 3px;
+            margin: 16px 0 8px 0;
+        }
+        {{ css }}
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="daily-note-header">
+        <h1>{{ desk_name }}{% if note_title %} -- {{ note_title }}{% endif %}</h1>
+        <p class="meta">{{ date }} | {{ author }}</p>
+    </div>
+
+    <!-- Fragments -->
+    {% set ns = namespace(in_data_section=false) %}
+
+    {% for fragment in fragments %}
+        {% if fragment.fragment_id == 'data_event' and not ns.in_data_section %}
+            <div class="section-divider">Calendar / What to Watch</div>
+            {% set ns.in_data_section = true %}
+        {% endif %}
+
+        {% if fragment.fragment_id == 'disclaimer' and ns.in_data_section %}
+            {% set ns.in_data_section = false %}
+        {% endif %}
+
+        {{ fragment.html|safe }}
+    {% endfor %}
+
+    <!-- Contact footer -->
+    {% if contact_phone or contact_email or bloomberg_handle %}
+    <div class="contact-footer">
+        {% if contact_phone %}Tel: {{ contact_phone }}{% endif %}
+        {% if contact_email %}&nbsp;|&nbsp; <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% endif %}
+        {% if bloomberg_handle %}&nbsp;|&nbsp; BBG: {{ bloomberg_handle }}{% endif %}
+    </div>
+    {% endif %}
+</body>
+</html>
