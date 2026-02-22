@@ -150,22 +150,31 @@ Thumbs.db
 *.png
 *.jpg
 *.jpeg
+*.bmp
 *.svg
 *.pdf
 !docs/**/*.png
 !docs/**/*.jpg
+!docs/**/*.bmp
 !docs/**/*.svg
 !test/assets/**/*.png
 !test/assets/**/*.jpg
 !test/assets/**/*.jpeg
 !test/assets/**/*.svg
 !test/assets/**/*.webp
+!test/mock/data/**/*.png
+!test/mock/data/**/*.jpg
+!test/mock/data/**/*.jpeg
+!test/mock/data/**/*.bmp
+!test/mock/data/**/*.svg
+!test/mock/data/**/*.webp
 
 # Seed images are checked in under app/content/images/
 # Allow them through the global *.jpg / *.png rules
 !app/content/images/**/*.jpg
 !app/content/images/**/*.jpeg
 !app/content/images/**/*.png
+!app/content/images/**/*.bmp
 !app/content/images/**/*.svg
 !app/content/images/**/*.webp
 
