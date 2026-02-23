@@ -66,15 +66,17 @@ if [ "$CHECK_ONLY" = true ]; then
 fi
 
 # ---- Vault running? ---------------------------------------------------------
-if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${VAULT_CONTAINER}$"; then
-    err "Vault container '${VAULT_CONTAINER}' is not running."
+VAULT_URL="http://${VAULT_CONTAINER}:${VAULT_PORT}"
+VAULT_STATUS=$(curl -s --connect-timeout 3 --max-time 5 "${VAULT_URL}/v1/sys/health" 2>/dev/null || true)
+
+if [ -z "${VAULT_STATUS}" ]; then
+    err "Vault is not reachable at ${VAULT_URL}."
     err "  Start it:  ./lib/gofr-common/scripts/manage_vault.sh start"
     exit 1
 fi
 
 # ---- Vault unsealed? --------------------------------------------------------
-VAULT_STATUS=$(docker exec "$VAULT_CONTAINER" vault status -format=json 2>/dev/null || echo '{}')
-IS_SEALED=$(echo "$VAULT_STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sealed', True))" 2>/dev/null || echo "True")
+IS_SEALED=$(echo "${VAULT_STATUS}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('sealed', True))" 2>/dev/null || echo "True")
 
 if [ "$IS_SEALED" != "False" ]; then
     err "Vault is sealed."

@@ -81,6 +81,32 @@ echo "  Contents:"
 ls -la "$TMP_SECRETS_DIR/" | sed 's/^/    /'
 echo ""
 
+# ---- Validate JSON structure before seeding ---------------------------------
+VALIDATION_FAILED=false
+for creds_json in "$TMP_SECRETS_DIR"/service_creds/*.json; do
+    [ -f "$creds_json" ] || continue
+    basename_json="$(basename "$creds_json")"
+    if ! python3 -c "
+import json, sys
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    d = json.load(f)
+rid = str(d.get('role_id', '')).strip()
+sid = str(d.get('secret_id', '')).strip()
+if not rid or not sid:
+    raise SystemExit(1)
+" "$creds_json" 2>/dev/null; then
+        err "Invalid JSON or missing role_id/secret_id in $basename_json"
+        VALIDATION_FAILED=true
+    else
+        ok "Validated $basename_json"
+    fi
+done
+
+if [ "$VALIDATION_FAILED" = true ]; then
+    err "One or more service_creds JSON files failed validation -- aborting."
+    exit 1
+fi
+
 # ---- Seed each volume -------------------------------------------------------
 for VOLUME in "${VOLUMES[@]}"; do
     # Ensure volume exists
