@@ -116,33 +116,50 @@ cd "$PROJECT_ROOT"
 
 if [ "$CREDS_PRESENT" = true ]; then
     # Validate existing creds actually work against Vault.
+    # Important: validate ALL required roles (service + admin-control). If either is stale,
+    # we must re-provision; file presence alone is not sufficient.
+
+    validate_creds_file() {
+        local creds_path="$1"
+        local role_id secret_id login_resp
+
+        if [ ! -f "$creds_path" ]; then
+            return 1
+        fi
+
+        role_id=$(python3 -c "import json; print(json.load(open('$creds_path'))['role_id'])" 2>/dev/null || true)
+        secret_id=$(python3 -c "import json; print(json.load(open('$creds_path'))['secret_id'])" 2>/dev/null || true)
+        if [ -z "$role_id" ] || [ -z "$secret_id" ]; then
+            return 1
+        fi
+
+        login_resp=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST -d "{\"role_id\":\"$role_id\",\"secret_id\":\"$secret_id\"}" \
+            "http://${VAULT_CONTAINER}:${VAULT_PORT}/v1/auth/approle/login" 2>/dev/null || echo "000")
+        [ "$login_resp" = "200" ]
+    }
+
     CREDS_TO_TEST=""
+    ADMIN_CREDS_TO_TEST=""
+
     if [ -f "$CREDS_FILE" ]; then
         CREDS_TO_TEST="$CREDS_FILE"
     elif [ -f "$FALLBACK_CREDS_FILE" ]; then
         CREDS_TO_TEST="$FALLBACK_CREDS_FILE"
     fi
 
-    if [ -n "$CREDS_TO_TEST" ]; then
-        ROLE_ID=$(python3 -c "import json; print(json.load(open('$CREDS_TO_TEST'))['role_id'])" 2>/dev/null || true)
-        SECRET_ID=$(python3 -c "import json; print(json.load(open('$CREDS_TO_TEST'))['secret_id'])" 2>/dev/null || true)
+    if [ -f "$ADMIN_CREDS_FILE" ]; then
+        ADMIN_CREDS_TO_TEST="$ADMIN_CREDS_FILE"
+    elif [ -f "$FALLBACK_ADMIN_CREDS_FILE" ]; then
+        ADMIN_CREDS_TO_TEST="$FALLBACK_ADMIN_CREDS_FILE"
+    fi
 
-        if [ -n "$ROLE_ID" ] && [ -n "$SECRET_ID" ]; then
-            LOGIN_RESP=$(curl -s -o /dev/null -w "%{http_code}" \
-                -X POST -d "{\"role_id\":\"$ROLE_ID\",\"secret_id\":\"$SECRET_ID\"}" \
-                "http://${VAULT_CONTAINER}:${VAULT_PORT}/v1/auth/approle/login" 2>/dev/null || echo "000")
-            if [ "$LOGIN_RESP" = "200" ]; then
-                info "Existing AppRole credentials validated OK"
-            else
-                warn "Existing AppRole credentials are invalid (HTTP $LOGIN_RESP) -- will re-provision"
-                CREDS_PRESENT=false
-                rm -f "$CREDS_FILE" "$ADMIN_CREDS_FILE" "$FALLBACK_CREDS_FILE" "$FALLBACK_ADMIN_CREDS_FILE" 2>/dev/null || true
-            fi
-        else
-            warn "Could not parse existing creds file -- will re-provision"
-            CREDS_PRESENT=false
-            rm -f "$CREDS_FILE" "$ADMIN_CREDS_FILE" "$FALLBACK_CREDS_FILE" "$FALLBACK_ADMIN_CREDS_FILE" 2>/dev/null || true
-        fi
+    if validate_creds_file "$CREDS_TO_TEST" && validate_creds_file "$ADMIN_CREDS_TO_TEST"; then
+        info "Existing AppRole credentials validated OK (service + admin-control)"
+    else
+        warn "One or more existing AppRole credential files are invalid -- will re-provision"
+        CREDS_PRESENT=false
+        rm -f "$CREDS_FILE" "$ADMIN_CREDS_FILE" "$FALLBACK_CREDS_FILE" "$FALLBACK_ADMIN_CREDS_FILE" 2>/dev/null || true
     fi
 fi
 
