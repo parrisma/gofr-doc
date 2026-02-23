@@ -79,7 +79,7 @@ Review all code as senior engineer + security SME:
 | Script | Purpose |
 |--------|---------|
 | `lib/gofr-common/scripts/auth_env.sh` | Export `VAULT_ADDR`, `VAULT_TOKEN`, `GOFR_JWT_SECRET`. Usage: `source <(./lib/gofr-common/scripts/auth_env.sh --docker)` |
-| `lib/gofr-common/scripts/auth_manager.sh` | Manage auth groups/tokens (list, create, inspect, revoke). |
+| `lib/gofr-common/scripts/auth_manager.sh` | Manage auth groups/tokens. Prefer this wrapper over running `auth_manager.py` directly (it is self-contained and handles Vault login + env). Typical: `./lib/gofr-common/scripts/auth_manager.sh groups list` |
 | `lib/gofr-common/scripts/bootstrap_auth.sh` | One-time auth bootstrap (groups + initial tokens). |
 | `lib/gofr-common/scripts/bootstrap_platform.sh` | Idempotent platform bootstrap (Vault, auth, services). |
 | `lib/gofr-common/scripts/manage_vault.sh` | Vault lifecycle: start, stop, status, logs, init, unseal, health. |
