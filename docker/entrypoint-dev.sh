@@ -3,8 +3,7 @@ set -euo pipefail
 
 # Standard GOFR user paths - all projects use 'gofr' user
 GOFR_USER="gofr"
-# Allow run-dev-container.sh to mount the project at a non-default path.
-PROJECT_DIR="${GOFR_DOC_PROJECT_DIR:-/home/${GOFR_USER}/devroot/gofr-doc}"
+PROJECT_DIR="/home/${GOFR_USER}/devroot/gofr-doc"
 # gofr-common is now a git submodule in lib/gofr-common
 COMMON_DIR="$PROJECT_DIR/lib/gofr-common"
 VENV_DIR="$PROJECT_DIR/.venv"
@@ -20,20 +19,6 @@ ensure_dir() {
     fi
     mkdir -p "$dir" 2>/dev/null || sudo mkdir -p "$dir" 2>/dev/null
 }
-
-# Compatibility: older dev workflows expect the repo at /home/gofr/devroot/gofr-doc.
-# When host-home override mounts it elsewhere (e.g. /home/<hostuser>/devroot/gofr-doc),
-# provide a stable alias path so `cd ~/devroot/gofr-doc` still works for the gofr user.
-LEGACY_PROJECT_DIR="/home/${GOFR_USER}/devroot/gofr-doc"
-if [ "$PROJECT_DIR" != "$LEGACY_PROJECT_DIR" ]; then
-    if [ -e "$LEGACY_PROJECT_DIR" ] && [ ! -L "$LEGACY_PROJECT_DIR" ]; then
-        echo "Note: legacy path exists and is not a symlink: $LEGACY_PROJECT_DIR (leaving as-is)"
-    else
-        ensure_dir "$(dirname "$LEGACY_PROJECT_DIR")" || true
-        rm -f "$LEGACY_PROJECT_DIR" 2>/dev/null || true
-        ln -s "$PROJECT_DIR" "$LEGACY_PROJECT_DIR" 2>/dev/null || sudo ln -s "$PROJECT_DIR" "$LEGACY_PROJECT_DIR" 2>/dev/null || true
-    fi
-fi
 
 # -----------------------------------------------------------------------
 # Vault AppRole runtime identity (preferred)

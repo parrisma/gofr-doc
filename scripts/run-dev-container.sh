@@ -28,9 +28,12 @@ WEB_PORT="${GOFRDOC_WEB_PORT:-9042}"
 DOCKER_NETWORK="${GOFRDOC_DOCKER_NETWORK:-gofr-net}"
 TEST_NETWORK="${GOFR_TEST_NETWORK:-gofr-test-net}"
 
-# Host user's home directory (for container mount destination paths).
-# Override with --host-home when the default doesn't match.
-HOST_HOME="${HOST_HOME:-}"
+# Fixed container-internal paths (must match image layout; do NOT derive from host home).
+CONTAINER_HOME="/home/gofr"
+CONTAINER_PROJECT_DIR="${CONTAINER_HOME}/devroot/gofr-doc"
+CONTAINER_DIG_DIR="${CONTAINER_HOME}/devroot/gofr-dig"
+CONTAINER_IQ_DIR="${CONTAINER_HOME}/devroot/gofr-iq"
+CONTAINER_PLOT_DIR="${CONTAINER_HOME}/devroot/gofr-plot"
 
 usage() {
         cat <<EOF
@@ -41,11 +44,9 @@ Options:
     --mcpo-port PORT     Host port to map to container MCPO (default: $MCPO_PORT)
     --web-port PORT      Host port to map to container Web UI (default: $WEB_PORT)
     --network NAME       Docker network for dev services (default: $DOCKER_NETWORK)
-    --host-home DIR      Host home directory used to construct container mount paths
     -h, --help           Show this help
 
 Env:
-    HOST_HOME            Same as --host-home
     GOFRDOC_DOCKER_NETWORK  Same as --network
 EOF
 }
@@ -60,8 +61,6 @@ while [ $# -gt 0 ]; do
             WEB_PORT="$2"; shift 2 ;;
         --network)
             DOCKER_NETWORK="$2"; shift 2 ;;
-        --host-home)
-            HOST_HOME="$2"; shift 2 ;;
         -h|--help)
             usage
             exit 0
@@ -74,32 +73,10 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ -z "$HOST_HOME" ]; then
-    host_user="${SUDO_USER:-$(id -un)}"
-    host_home_from_passwd="$(getent passwd "$host_user" | cut -d: -f6 || true)"
-    if [ -n "$host_home_from_passwd" ]; then
-        HOST_HOME="$host_home_from_passwd"
-    else
-        HOST_HOME="${HOME:-/home/$host_user}"
-    fi
-fi
-
-if [ ! -d "$HOST_HOME" ]; then
-    echo "ERROR: host home directory does not exist: $HOST_HOME" >&2
-    echo "  Provide a valid path via --host-home DIR" >&2
-    exit 1
-fi
-
-CONTAINER_PROJECT_DIR="${HOST_HOME}/devroot/gofr-doc"
-CONTAINER_DIG_DIR="${HOST_HOME}/devroot/gofr-dig"
-CONTAINER_IQ_DIR="${HOST_HOME}/devroot/gofr-iq"
-CONTAINER_PLOT_DIR="${HOST_HOME}/devroot/gofr-plot"
-
 echo "======================================================================="
 echo "Starting GOFR-DOC Development Container"
 echo "======================================================================="
 echo "Host user: $(id -un) (UID=${GOFR_UID}, GID=${GOFR_GID})"
-echo "Host home: $HOST_HOME"
 echo "Container will run with --user ${GOFR_UID}:${GOFR_GID}"
 echo "Ports: MCP=$MCP_PORT, MCPO=$MCPO_PORT, Web=$WEB_PORT"
 echo "Networks: $DOCKER_NETWORK, $TEST_NETWORK"
