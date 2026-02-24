@@ -66,10 +66,29 @@ CONTENT_DIR="$PROJECT_DIR/app/content"
 for subdir in templates styles fragments; do
     target="$PROJECT_DIR/data/$subdir"
     source="$CONTENT_DIR/$subdir"
-    if [ -d "$source" ] && [ ! -e "$target" ]; then
-        ln -s "$source" "$target"
-        echo "Linked data/$subdir -> app/content/$subdir"
+    if [ ! -d "$source" ]; then
+        continue
     fi
+
+    # If the data volume already contains these directories/files, don't fail.
+    # Prefer a symlink for live-editing, but leave real directories in place.
+    if [ -L "$target" ]; then
+        existing_link="$(readlink "$target" || true)"
+        if [ "$existing_link" != "$source" ]; then
+            rm -f "$target" 2>/dev/null || true
+            ln -s "$source" "$target"
+            echo "Re-linked data/$subdir -> app/content/$subdir"
+        fi
+        continue
+    fi
+
+    if [ -e "$target" ]; then
+        echo "Note: data/$subdir already exists (not a symlink); leaving as-is"
+        continue
+    fi
+
+    ln -s "$source" "$target"
+    echo "Linked data/$subdir -> app/content/$subdir"
 done
 
 # Ensure virtual environment exists and is valid
