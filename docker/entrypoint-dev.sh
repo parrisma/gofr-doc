@@ -1,9 +1,10 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # Standard GOFR user paths - all projects use 'gofr' user
 GOFR_USER="gofr"
-PROJECT_DIR="/home/${GOFR_USER}/devroot/gofr-doc"
+# Allow run-dev-container.sh to mount the project at a non-default path.
+PROJECT_DIR="${GOFR_DOC_PROJECT_DIR:-/home/${GOFR_USER}/devroot/gofr-doc}"
 # gofr-common is now a git submodule in lib/gofr-common
 COMMON_DIR="$PROJECT_DIR/lib/gofr-common"
 VENV_DIR="$PROJECT_DIR/.venv"
@@ -11,6 +12,14 @@ VENV_DIR="$PROJECT_DIR/.venv"
 echo "======================================================================="
 echo "GOFR-DOC Container Entrypoint"
 echo "======================================================================="
+
+ensure_dir() {
+    local dir="$1"
+    if [ -d "$dir" ]; then
+        return 0
+    fi
+    mkdir -p "$dir" 2>/dev/null || sudo mkdir -p "$dir" 2>/dev/null
+}
 
 # -----------------------------------------------------------------------
 # Vault AppRole runtime identity (preferred)
@@ -26,7 +35,7 @@ if [ -f "${CREDS_SRC}" ]; then
     sudo mkdir -p "${CREDS_DST_DIR}"
     sudo cp "${CREDS_SRC}" "${CREDS_DST}"
     sudo chmod 600 "${CREDS_DST}"
-    sudo chown ${GOFR_USER}:${GOFR_USER} "${CREDS_DST}" || true
+    sudo chown "$(id -u):$(id -g)" "${CREDS_DST}" || true
 else
     echo "Note: Vault AppRole creds not found at ${CREDS_SRC} (dev container may still use GOFR_DOC_VAULT_TOKEN)"
 fi
@@ -35,14 +44,21 @@ fi
 if [ -d "$PROJECT_DIR/data" ]; then
     if [ ! -w "$PROJECT_DIR/data" ]; then
         echo "Fixing permissions for $PROJECT_DIR/data..."
-        sudo chown -R ${GOFR_USER}:${GOFR_USER} "$PROJECT_DIR/data" 2>/dev/null || \
+        sudo chown -R "$(id -u):$(id -g)" "$PROJECT_DIR/data" 2>/dev/null || \
             echo "Warning: Could not fix permissions. Run container with --user $(id -u):$(id -g)"
     fi
 fi
 
 # Create subdirectories if they don't exist
-mkdir -p "$PROJECT_DIR/data/storage" "$PROJECT_DIR/data/auth"
-mkdir -p "$PROJECT_DIR/logs"
+if ! ensure_dir "$PROJECT_DIR/data/storage"; then
+    echo "Warning: Could not create $PROJECT_DIR/data/storage"
+fi
+if ! ensure_dir "$PROJECT_DIR/data/auth"; then
+    echo "Warning: Could not create $PROJECT_DIR/data/auth"
+fi
+if ! ensure_dir "$PROJECT_DIR/logs"; then
+    echo "Warning: Could not create $PROJECT_DIR/logs (bind mount may be read-only for this UID/GID)"
+fi
 
 # Deploy content from app/content/ to data/ (symlinks for instant dev edits)
 # In prod images, Dockerfile COPYs real files; in dev we symlink to source.
